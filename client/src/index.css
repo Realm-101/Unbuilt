@@ -1,0 +1,436 @@
+@import './clean-styles.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Native Dark Mode - Neon Flame Theme */
+    --background: 0 0% 5%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 280 100% 65%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 15 85% 60%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 330 85% 65%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 15%;
+    --input: 0 0% 12%;
+    --ring: 280 100% 65%;
+    --radius: 0.75rem;
+    --chart-1: 280 100% 65%;
+    --chart-2: 15 85% 60%;
+    --chart-3: 330 85% 65%;
+    --chart-4: 45 85% 65%;
+    --chart-5: 0 85% 65%;
+
+    /* Neon Flame Colors */
+    --neon-purple: 280 100% 70%;
+    --neon-red: 0 100% 65%;
+    --neon-orange: 25 100% 65%;
+    --neon-pink: 330 100% 70%;
+    --neon-flame: 315 100% 70%;
+    
+    /* Gradient Colors */
+    --flame-start: 280 100% 70%;
+    --flame-mid: 330 100% 65%;
+    --flame-end: 25 100% 60%;
+  }
+
+  .light {
+    /* Light mode fallback - still maintain flame theme */
+    --background: 0 0% 98%;
+    --foreground: 0 0% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 8%;
+    --primary: 280 85% 55%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 15 75% 50%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 330 75% 55%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 75% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 90%;
+    --input: 0 0% 95%;
+    --ring: 280 85% 55%;
+  }
+}
+
+/* CRITICAL: Force white text in header navigation to prevent light-on-light issues */
+.flame-glass nav button,
+.flame-glass nav a button,
+header nav button,
+/* Header text contrast fixes */
+header nav a button {
+  color: white !important;
+}
+
+.flame-glass nav button:hover,
+.flame-glass nav a button:hover,
+header nav button:hover,
+header nav a button:hover {
+  color: hsl(var(--neon-purple)) !important;
+}
+
+/* Modal and dialog background fixes */
+[role="dialog"] {
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+.export-modal [data-radix-dialog-content] {
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--card-foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+/* Trending page text contrast fixes */
+.trending-content h2, 
+.trending-content h3, 
+.trending-content .font-semibold,
+.trending-content .font-medium {
+  color: white !important;
+}
+
+.trending-content p, 
+.trending-content .text-gray-600,
+.trending-content .text-gray-500 {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Logo positioning fix */
+.logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  }
+  
+  /* Enforce consistent text colors - NEVER allow invisible text */
+  * {
+    color: inherit;
+  }
+  
+  /* Override any accidental dark text on dark backgrounds */
+  .dark * {
+    color: hsl(var(--foreground));
+  }
+  
+  /* Light text classes for dark theme */
+  .text-light {
+    @apply text-white;
+  }
+  
+  /* Ensure form elements are always visible */
+  input, textarea, select {
+    @apply text-white bg-gray-900 border-gray-600;
+  }
+  
+  input::placeholder, textarea::placeholder {
+    @apply text-gray-400;
+  }
+}
+
+@layer components {
+  /* Flame Cards */
+  .flame-card {
+    @apply bg-black/60 backdrop-blur-md border border-white/10;
+    background: linear-gradient(145deg, 
+      hsl(var(--background)) 0%,
+      hsl(0 0% 8%) 50%,
+      hsl(var(--background)) 100%);
+  }
+  
+  /* Premium Card for Subscription Pages */
+  .premium-card {
+    @apply bg-gradient-to-br from-purple-900/50 via-black to-purple-900/30 border-purple-500/40 backdrop-blur-md;
+    box-shadow: 0 8px 32px hsl(var(--neon-purple) / 0.3);
+  }
+  
+  /* Glass Effects with Flame Accent */
+  .flame-glass {
+    @apply bg-black/30 backdrop-blur-lg;
+    border: 1px solid hsl(var(--neon-purple) / 0.3);
+    box-shadow: 0 4px 32px hsl(var(--neon-purple) / 0.1);
+  }
+  
+  /* Neon Flame Effects */
+  .neon-flame-border {
+    border: 1px solid hsl(var(--neon-purple));
+    box-shadow: 
+      0 0 20px hsl(var(--neon-purple) / 0.4),
+      0 0 40px hsl(var(--neon-pink) / 0.2);
+  }
+  
+  .neon-flame-border-red {
+    border: 1px solid hsl(var(--neon-red));
+    box-shadow: 
+      0 0 20px hsl(var(--neon-red) / 0.4),
+      0 0 40px hsl(var(--neon-orange) / 0.2);
+  }
+  
+  .neon-flame-border-orange {
+    border: 1px solid hsl(var(--neon-orange));
+    box-shadow: 
+      0 0 20px hsl(var(--neon-orange) / 0.4),
+      0 0 40px hsl(var(--neon-red) / 0.2);
+  }
+  
+  /* Flame Text Effects */
+  .flame-text {
+    background: linear-gradient(135deg, 
+      hsl(var(--neon-purple)), 
+      hsl(var(--neon-pink)), 
+      hsl(var(--neon-red)),
+      hsl(var(--neon-orange)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .flame-glow {
+    color: hsl(var(--neon-purple));
+    text-shadow: 
+      0 0 10px hsl(var(--neon-purple) / 0.8),
+      0 0 20px hsl(var(--neon-pink) / 0.6),
+      0 0 30px hsl(var(--neon-red) / 0.4);
+  }
+  
+  /* Flame Buttons */
+  .btn-flame {
+    background: linear-gradient(135deg, 
+      hsl(var(--neon-purple)), 
+      hsl(var(--neon-pink)), 
+      hsl(var(--neon-red)),
+      hsl(var(--neon-orange)));
+    @apply text-white font-semibold rounded-lg px-6 py-3;
+    box-shadow: 
+      0 4px 15px hsl(var(--neon-purple) / 0.4),
+      0 8px 25px hsl(var(--neon-pink) / 0.2);
+    transition: all 0.3s ease;
+  }
+  
+  .btn-flame:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 6px 20px hsl(var(--neon-purple) / 0.5),
+      0 12px 35px hsl(var(--neon-pink) / 0.3);
+  }
+  
+  /* Premium Button Styles */
+  .btn-premium {
+    background: linear-gradient(135deg, 
+      hsl(var(--neon-purple)), 
+      hsl(var(--neon-pink)), 
+      hsl(var(--neon-red)));
+    @apply text-white font-semibold rounded-lg px-6 py-3;
+    box-shadow: 
+      0 4px 20px hsl(var(--neon-purple) / 0.4),
+      0 8px 30px hsl(var(--neon-pink) / 0.2);
+    transition: all 0.3s ease;
+  }
+  
+  .btn-premium:hover {
+    transform: translateY(-1px);
+    box-shadow: 
+      0 6px 25px hsl(var(--neon-purple) / 0.6),
+      0 12px 40px hsl(var(--neon-pink) / 0.3);
+  }
+  
+  /* Comic-style Input Fields with White Text */
+  .comic-input {
+    @apply bg-gray-900 border-2 border-gray-600 rounded-lg px-4 py-3;
+    @apply text-white placeholder-gray-400;
+    @apply focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20;
+    @apply shadow-lg;
+    box-shadow: 
+      0 4px 12px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    transition: all 0.3s ease;
+  }
+  
+  .comic-input:focus {
+    transform: translateY(-1px);
+    box-shadow: 
+      0 6px 20px rgba(0, 0, 0, 0.4),
+      0 0 0 3px hsl(var(--neon-purple) / 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Comic-style Buttons */
+  .comic-button {
+    @apply font-bold rounded-lg px-6 py-3;
+    @apply text-white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    box-shadow: 
+      0 4px 12px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+  }
+  
+  .comic-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 6px 20px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+  
+  .comic-button:active {
+    transform: translateY(0);
+    box-shadow: 
+      0 2px 8px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  
+  /* Theme Consistency Enforcement */
+  .theme-enforce-dark {
+    @apply bg-black text-white;
+  }
+  
+  .theme-enforce-card {
+    @apply bg-gray-900 text-white border-gray-700;
+  }
+  
+  /* Muted text that's still readable on dark */
+  .text-muted-readable {
+    @apply text-gray-300;
+  }
+  
+  /* Override shadcn components to ensure visibility */
+  .dark [data-radix-popper-content-wrapper] {
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+  
+  /* Global text visibility enforcement */
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-white;
+  }
+  
+  p, span, div {
+    color: inherit;
+  }
+  
+  /* Ensure all text inputs are visible */
+  input[type="text"], 
+  input[type="email"], 
+  input[type="password"], 
+  textarea,
+  select {
+    @apply comic-input;
+  }
+  
+  /* Button consistency */
+  button {
+    @apply text-white;
+  }
+  
+  /* Link visibility */
+  a {
+    @apply text-purple-400 hover:text-purple-300;
+  }
+  
+  /* Form labels */
+  label {
+    @apply text-white font-medium;
+  }
+  
+  /* Card text enforcement */
+  .flame-card * {
+    color: inherit;
+  }
+  
+  .flame-card h1, 
+  .flame-card h2, 
+  .flame-card h3, 
+  .flame-card h4, 
+  .flame-card h5, 
+  .flame-card h6 {
+    @apply text-white;
+  }
+  
+  /* Flame Backgrounds */
+  .flame-bg {
+    background: hsl(var(--background));
+  }
+  
+  .flame-gradient {
+    background: linear-gradient(135deg, 
+      hsl(var(--flame-start)), 
+      hsl(var(--flame-mid)), 
+      hsl(var(--flame-end)));
+  }
+  
+  /* Hover Effects */
+  .hover-glow {
+    @apply transition-all duration-300;
+  }
+  .hover-glow:hover {
+    box-shadow: 0 0 20px hsl(var(--neon-purple) / 0.2);
+    border-color: hsl(var(--neon-purple) / 0.5);
+  }
+  
+  .hover-lift {
+    @apply transition-transform duration-300;
+  }
+  .hover-lift:hover {
+    @apply transform -translate-y-1;
+  }
+  
+  /* Animations */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  /* Clean logo styling */
+  .logo-container {
+    background: transparent;
+    position: relative;
+  }
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+  
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 4px 15px hsl(var(--neon-purple) / 0.2);
+    }
+    50% {
+      box-shadow: 0 6px 25px hsl(var(--neon-purple) / 0.4);
+    }
+  }
+}

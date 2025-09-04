@@ -1,0 +1,311 @@
+/* Professional Theme Overrides */
+
+/* Clean Card Styles */
+.clean-card {
+  @apply bg-card text-card-foreground rounded-lg border;
+  @apply shadow-sm hover:shadow-md transition-shadow duration-200;
+  border-color: hsl(var(--border) / 0.5);
+}
+
+/* Subtle Glass Effect */
+.glass-effect {
+  @apply backdrop-blur-sm border;
+  background-color: hsl(var(--background) / 0.8);
+  border-color: hsl(var(--border) / 0.5);
+}
+
+/* Professional Button Styles */
+.btn-professional {
+  @apply bg-primary text-primary-foreground font-medium rounded-md px-4 py-2;
+  @apply transition-colors duration-200;
+  @apply shadow-sm hover:shadow-md;
+}
+.btn-professional:hover {
+  background-color: hsl(var(--primary) / 0.9);
+}
+
+.btn-professional-outline {
+  @apply border border-primary text-primary bg-transparent font-medium rounded-md px-4 py-2;
+  @apply transition-colors duration-200;
+}
+.btn-professional-outline:hover {
+  background-color: hsl(var(--primary) / 0.1);
+}
+
+/* Subtle Accent Borders */
+.accent-border-top {
+  @apply border-t-2;
+  border-top-color: hsl(var(--primary) / 0.5);
+}
+
+.accent-border-left {
+  @apply border-l-2;
+  border-left-color: hsl(var(--primary) / 0.5);
+}
+
+/* Clean Hover Effects */
+.hover-lift {
+  @apply transition-transform duration-200 hover:-translate-y-0.5;
+}
+
+.hover-scale {
+  @apply transition-transform duration-200 hover:scale-105;
+}
+
+/* Professional Text Gradients */
+.gradient-text {
+  @apply bg-gradient-to-r from-primary via-purple-500 to-blue-500;
+  @apply bg-clip-text text-transparent;
+}
+
+.gradient-text-subtle {
+  @apply bg-gradient-to-r from-gray-200 to-gray-400;
+  @apply bg-clip-text text-transparent;
+}
+
+/* Clean Input Styles */
+.input-clean {
+  @apply bg-background border border-border rounded-md px-3 py-2;
+  @apply focus:border-primary focus:ring-1;
+  @apply placeholder-muted-foreground transition-colors duration-200;
+}
+.input-clean:focus {
+  --tw-ring-color: hsl(var(--primary) / 0.2);
+}
+
+/* Professional Badge */
+.badge-pro {
+  @apply bg-gradient-to-r from-yellow-500 to-amber-500;
+  @apply text-white text-xs font-bold px-2 py-0.5 rounded-full;
+}
+
+/* Clean Animations */
+@keyframes subtle-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.animate-subtle-pulse {
+  animation: subtle-pulse 2s ease-in-out infinite;
+}
+
+/* Replace Flame Effects */
+.flame-bg {
+  @apply bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900;
+}
+
+.flame-card {
+  @apply clean-card;
+}
+
+.flame-glass {
+  @apply glass-effect;
+}
+
+.neon-flame-border,
+.neon-flame-border-red,
+.neon-flame-border-orange {
+  border-color: hsl(var(--border) / 0.5);
+}
+
+.flame-text {
+  @apply gradient-text;
+}
+
+.btn-flame {
+  @apply btn-professional;
+}
+
+/* Subtle Glow for Active States */
+.glow-subtle {
+  @apply shadow-lg;
+  box-shadow: 0 10px 15px -3px hsl(var(--primary) / 0.2), 0 4px 6px -2px hsl(var(--primary) / 0.1);
+}
+
+/* Clean Neon Effects - Much Subtler */
+.neon-border-blue {
+  @apply shadow-sm;
+  border-color: rgb(59 130 246 / 0.5);
+  box-shadow: 0 1px 2px 0 rgb(59 130 246 / 0.1);
+}
+
+.neon-glow {
+  @apply text-primary;
+}
+
+.hover-glow {
+  @apply hover:text-primary transition-colors duration-200;
+}
+
+/* Professional Loading States */
+.loading-skeleton {
+  @apply bg-muted animate-pulse rounded-md;
+}
+
+/* Clean Success/Error States */
+.success-state {
+  @apply text-green-500;
+  background-color: rgb(34 197 94 / 0.1);
+  border-color: rgb(34 197 94 / 0.2);
+}
+
+.error-state {
+  @apply text-red-500;
+  background-color: rgb(239 68 68 / 0.1);
+  border-color: rgb(239 68 68 / 0.2);
+}
+
+.warning-state {
+  @apply text-yellow-500;
+  background-color: rgb(234 179 8 / 0.1);
+  border-color: rgb(234 179 8 / 0.2);
+}
+
+/* Professional Focus States */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background;
+  --tw-ring-color: hsl(var(--primary) / 0.5);
+}
+
+/* Clean Section Dividers */
+.section-divider {
+  @apply border-t my-8;
+  border-color: hsl(var(--border) / 0.3);
+}
+
+/* Professional Tooltips */
+.tooltip {
+  @apply bg-popover text-popover-foreground border border-border;
+  @apply shadow-md rounded-md px-2 py-1 text-sm;
+}
+
+/* Clean Navigation Active States */
+.nav-active {
+  @apply text-secondary-foreground;
+  background-color: hsl(var(--secondary) / 0.2);
+}
+
+.nav-inactive {
+  @apply text-muted-foreground hover:text-foreground transition-colors;
+}
+
+/* Professional Data Display */
+.data-table {
+  @apply w-full border-collapse;
+}
+
+.data-table th {
+  @apply text-left p-3 font-medium border-b border-border;
+  background-color: hsl(var(--muted) / 0.5);
+}
+
+.data-table td {
+  @apply p-3 border-b;
+  border-color: hsl(var(--border) / 0.5);
+}
+
+.data-table tr:hover {
+  background-color: hsl(var(--muted) / 0.2);
+}
+
+/* Clean Alert Styles */
+.alert-clean {
+  @apply p-4 rounded-lg border;
+}
+
+.alert-info {
+  @apply alert-clean text-blue-600;
+  background-color: rgb(59 130 246 / 0.1);
+  border-color: rgb(59 130 246 / 0.2);
+}
+
+.alert-success {
+  @apply alert-clean success-state;
+}
+
+.alert-warning {
+  @apply alert-clean warning-state;
+}
+
+.alert-error {
+  @apply alert-clean error-state;
+}
+
+/* Professional Progress Bars */
+.progress-bar {
+  @apply h-2 bg-muted rounded-full overflow-hidden;
+}
+
+.progress-fill {
+  @apply h-full bg-gradient-to-r from-primary;
+  @apply transition-all duration-300 ease-out;
+  --tw-gradient-to: hsl(var(--primary) / 0.8);
+}
+
+/* Clean Modal Overlays */
+.modal-overlay {
+  @apply fixed inset-0 backdrop-blur-sm;
+  @apply flex items-center justify-center p-4;
+  background-color: hsl(var(--background) / 0.8);
+}
+
+.modal-content {
+  @apply bg-card border border-border rounded-lg shadow-xl;
+  @apply max-w-2xl w-full max-h-[90vh] overflow-auto;
+}
+
+/* Professional Dropdown Styles */
+.dropdown-clean {
+  @apply bg-popover border border-border rounded-md shadow-lg;
+  @apply py-1 min-w-[200px];
+}
+
+.dropdown-item {
+  @apply px-3 py-2 text-sm transition-colors;
+  @apply cursor-pointer flex items-center gap-2;
+}
+.dropdown-item:hover {
+  background-color: hsl(var(--muted) / 0.5);
+}
+
+/* Clean Chip/Tag Styles */
+.chip {
+  @apply inline-flex items-center gap-1 px-2 py-1 rounded-full;
+  @apply bg-muted text-muted-foreground text-xs font-medium border;
+  border-color: hsl(var(--border) / 0.5);
+}
+
+.chip-primary {
+  @apply chip text-primary;
+  background-color: hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.2);
+}
+
+/* Professional Stat Cards */
+.stat-card {
+  @apply clean-card p-6;
+}
+
+.stat-value {
+  @apply text-3xl font-bold text-foreground;
+}
+
+.stat-label {
+  @apply text-sm text-muted-foreground mt-1;
+}
+
+.stat-change {
+  @apply text-xs font-medium mt-2;
+}
+
+.stat-up {
+  @apply stat-change text-green-500;
+}
+
+.stat-down {
+  @apply stat-change text-red-500;
+}

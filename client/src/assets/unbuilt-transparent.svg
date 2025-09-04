@@ -1,0 +1,101 @@
+<svg width="400" height="160" viewBox="0 0 400 160" xmlns="http://www.w3.org/2000/svg">
+  <!-- Transparent background -->
+  <rect width="400" height="200" fill="none"/>
+  
+  <!-- Gradient definitions -->
+  <defs>
+    <!-- Main text gradient -->
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#a855f7;stop-opacity:1" />
+      <stop offset="33%" style="stop-color:#ec4899;stop-opacity:1" />
+      <stop offset="66%" style="stop-color:#ef4444;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f97316;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Building gradient -->
+    <linearGradient id="buildingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f97316;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#ef4444;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Cloud/smoke effect -->
+    <radialGradient id="cloudGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#a855f7;stop-opacity:0.3" />
+      <stop offset="50%" style="stop-color:#ec4899;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#f97316;stop-opacity:0.1" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Background clouds/smoke effect -->
+  <ellipse cx="200" cy="100" rx="150" ry="60" fill="url(#cloudGradient)" opacity="0.7"/>
+  <ellipse cx="160" cy="90" rx="80" ry="40" fill="url(#cloudGradient)" opacity="0.5"/>
+  <ellipse cx="240" cy="110" rx="90" ry="45" fill="url(#cloudGradient)" opacity="0.6"/>
+  
+  <!-- Construction buildings in background -->
+  <g opacity="0.8">
+    <!-- Main building -->
+    <rect x="180" y="40" width="40" height="80" fill="url(#buildingGradient)" stroke="#f97316" stroke-width="2"/>
+    
+    <!-- Side buildings -->
+    <rect x="160" y="60" width="25" height="60" fill="url(#buildingGradient)" stroke="#ef4444" stroke-width="1.5"/>
+    <rect x="215" y="55" width="30" height="65" fill="url(#buildingGradient)" stroke="#ec4899" stroke-width="1.5"/>
+    <rect x="240" y="70" width="20" height="50" fill="url(#buildingGradient)" stroke="#a855f7" stroke-width="1.5"/>
+    
+    <!-- Crane -->
+    <line x1="250" y1="40" x2="250" y2="80" stroke="#f97316" stroke-width="3"/>
+    <line x1="250" y1="50" x2="290" y2="50" stroke="#f97316" stroke-width="2"/>
+    <line x1="250" y1="50" x2="230" y2="50" stroke="#f97316" stroke-width="2"/>
+    
+    <!-- Construction beams -->
+    <g stroke="#f97316" stroke-width="1.5" fill="none">
+      <polygon points="140,120 170,120 170,140 140,140 140,120"/>
+      <polygon points="260,125 290,125 290,145 260,145 260,125"/>
+      <line x1="145" y1="125" x2="165" y2="135"/>
+      <line x1="165" y1="125" x2="145" y2="135"/>
+      <line x1="265" y1="130" x2="285" y2="140"/>
+      <line x1="285" y1="130" x2="265" y2="140"/>
+    </g>
+  </g>
+  
+  <!-- Main UNBUILT text with neon effect -->
+  <text x="200" y="100" 
+        font-family="Arial Black, sans-serif" 
+        font-size="48" 
+        font-weight="900" 
+        text-anchor="middle" 
+        dominant-baseline="middle" 
+        fill="url(#textGradient)"
+        stroke="url(#textGradient)" 
+        stroke-width="1">
+    UNBUILT
+  </text>
+  
+  <!-- Neon glow effect -->
+  <text x="200" y="100" 
+        font-family="Arial Black, sans-serif" 
+        font-size="48" 
+        font-weight="900" 
+        text-anchor="middle" 
+        dominant-baseline="middle" 
+        fill="none"
+        stroke="#a855f7" 
+        stroke-width="3" 
+        opacity="0.6">
+    UNBUILT
+  </text>
+  
+  <!-- Outer glow -->
+  <text x="200" y="100" 
+        font-family="Arial Black, sans-serif" 
+        font-size="48" 
+        font-weight="900" 
+        text-anchor="middle" 
+        dominant-baseline="middle" 
+        fill="none"
+        stroke="#ec4899" 
+        stroke-width="5" 
+        opacity="0.3">
+    UNBUILT
+  </text>
+</svg>
