@@ -3,6 +3,8 @@ import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { CollaborationServer } from "./websocket";
+import { tokenCleanupService } from "./services/tokenCleanup";
+import { envValidator } from "./config/envValidator";
 
 const app = express();
 app.use(express.json());
@@ -45,6 +47,40 @@ app.get('/health', (req, res) => {
 });
 
 (async () => {
+  // Validate environment configuration on startup
+  log("Validating environment configuration...");
+  const requiredValidation = envValidator.validateRequired();
+  const optionalValidation = envValidator.validateOptional();
+
+  // Log validation results
+  if (requiredValidation.errors.length > 0) {
+    console.error("❌ Environment validation failed:");
+    requiredValidation.errors.forEach(error => {
+      console.error(`  - ${error.field}: ${error.message}`);
+    });
+    
+    if (process.env.NODE_ENV === 'production') {
+      console.error("Exiting due to configuration errors in production");
+      process.exit(1);
+    } else {
+      console.warn("⚠️  Continuing with configuration errors in development mode");
+    }
+  }
+
+  if (requiredValidation.warnings.length > 0 || optionalValidation.warnings.length > 0) {
+    console.warn("⚠️  Environment configuration warnings:");
+    [...requiredValidation.warnings, ...optionalValidation.warnings].forEach(warning => {
+      console.warn(`  - ${warning.field}: ${warning.message}`);
+      if (warning.suggestion) {
+        console.warn(`    Suggestion: ${warning.suggestion}`);
+      }
+    });
+  }
+
+  if (requiredValidation.isValid) {
+    log("✅ Environment configuration validated successfully");
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -58,6 +94,9 @@ app.get('/health', (req, res) => {
   // Set up WebSocket server for collaboration
   const collaborationServer = new CollaborationServer(server);
   log("WebSocket server initialized for real-time collaboration");
+
+  // Start JWT token cleanup service
+  tokenCleanupService.start();
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route

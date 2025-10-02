@@ -1,223 +1,401 @@
-import { Request, Response } from 'express';
+import { Router } from 'express';
 import { authService } from '../auth';
-import { 
-  loginSchema, 
-  registerSchema, 
-  forgotPasswordSchema,
-  resetPasswordSchema,
-  type LoginData, 
-  type RegisterData,
-  type ForgotPasswordData,
-  type ResetPasswordData
-} from '@shared/schema';
-import crypto from 'crypto';
-import { db } from '../db';
-import { sql } from 'drizzle-orm';
-import { sendPasswordResetEmail } from '../services/email';
+import { jwtService } from '../jwt';
+import { jwtAuth, authRateLimit } from '../middleware/jwtAuth';
+import { sanitizeInput, validateAuthInput } from '../middleware/inputSanitization';
+import { validateUserData, validateSensitiveOperation } from '../middleware/queryValidation';
+import { loginSchema, registerSchema } from '@shared/schema';
+import { z } from 'zod';
 
-export async function register(req: Request, res: Response) {
+const router = Router();
+
+// Rate limiting for auth endpoints
+const loginRateLimit = authRateLimit(5, 15 * 60 * 1000); // 5 attempts per 15 minutes
+const registerRateLimit = authRateLimit(3, 60 * 60 * 1000); // 3 attempts per hour
+
+// Helper function to extract device info safely
+function extractDeviceInfo(req: any) {
+  return {
+    userAgent: req.headers['user-agent'],
+    platform: typeof req.headers['sec-ch-ua-platform'] === 'string' 
+      ? req.headers['sec-ch-ua-platform'] 
+      : undefined,
+    browser: typeof req.headers['sec-ch-ua'] === 'string' 
+      ? req.headers['sec-ch-ua'] 
+      : undefined
+  };
+}
+
+/**
+ * POST /api/auth/login
+ * Authenticate user and return JWT tokens
+ */
+router.post('/login', sanitizeInput, validateAuthInput, loginRateLimit, validateSensitiveOperation(5, 15 * 60 * 1000), async (req, res) => {
   try {
-    const data: RegisterData = registerSchema.parse(req.body);
-    
-    // For local registration, password is required
-    if (!data.password) {
-      return res.status(400).json({ error: 'Password is required for registration' });
+    const { email, password } = loginSchema.parse(req.body);
+
+    // Validate user credentials
+    const user = await authService.validateUser(email, password);
+    if (!user) {
+      return res.status(401).json({
+        error: 'Authentication failed',
+        message: 'Invalid credentials',
+        code: 'INVALID_CREDENTIALS'
+      });
     }
-    
+
+    if (!user.isActive) {
+      return res.status(401).json({
+        error: 'Account inactive',
+        message: 'Your account has been deactivated',
+        code: 'ACCOUNT_INACTIVE'
+      });
+    }
+
+    // Extract device info
+    const deviceInfo = extractDeviceInfo(req);
+
+    // Generate JWT tokens
+    const tokens = await jwtService.generateTokens(
+      user,
+      deviceInfo,
+      req.ip || req.connection.remoteAddress
+    );
+
+    // Set refresh token as httpOnly cookie
+    res.cookie('refreshToken', tokens.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        accessToken: tokens.accessToken,
+        expiresIn: tokens.expiresIn,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          plan: user.plan,
+          avatar: user.avatar
+        }
+      }
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: 'Validation error',
+        message: 'Invalid input data',
+        details: error.errors,
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    console.error('Login error:', error);
+    res.status(500).json({
+      error: 'Login failed',
+      message: 'Internal server error',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * POST /api/auth/register
+ * Register new user and return JWT tokens
+ */
+router.post('/register', sanitizeInput, validateAuthInput, registerRateLimit, validateSensitiveOperation(3, 60 * 60 * 1000), async (req, res) => {
+  try {
+    const userData = registerSchema.parse(req.body);
+
     // Check if user already exists
-    const existingUser = await authService.getUserByEmail(data.email);
+    const existingUser = await authService.getUserByEmail(userData.email);
     if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
+      return res.status(409).json({
+        error: 'Registration failed',
+        message: 'User already exists',
+        code: 'USER_EXISTS'
+      });
     }
-    
+
     // Create new user
     const user = await authService.createUser({
-      email: data.email,
-      password: data.password,
-      name: data.name,
+      email: userData.email,
+      password: userData.password,
+      name: userData.name,
+      provider: 'local'
     });
-    
-    // Create session
-    const sessionId = await authService.createSession(user.id);
-    
-    // Set session cookie
-    res.cookie('sessionId', sessionId, {
+
+    // Extract device info
+    const deviceInfo = extractDeviceInfo(req);
+
+    // Generate JWT tokens
+    const tokens = await jwtService.generateTokens(
+      user,
+      deviceInfo,
+      req.ip || req.connection.remoteAddress
+    );
+
+    // Set refresh token as httpOnly cookie
+    res.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
-    
-    // Return user data (without sensitive fields)
-    const { password: _, ...userWithoutPassword } = user;
-    res.json({ user: userWithoutPassword, success: true });
+
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful',
+      data: {
+        accessToken: tokens.accessToken,
+        expiresIn: tokens.expiresIn,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          plan: user.plan,
+          avatar: user.avatar
+        }
+      }
+    });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: 'Validation error',
+        message: 'Invalid input data',
+        details: error.errors,
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
     console.error('Registration error:', error);
-    res.status(400).json({ error: 'Registration failed' });
+    res.status(500).json({
+      error: 'Registration failed',
+      message: 'Internal server error',
+      code: 'INTERNAL_ERROR'
+    });
   }
-}
+});
 
-export async function login(req: Request, res: Response) {
+/**
+ * POST /api/auth/refresh
+ * Refresh access token using refresh token
+ */
+router.post('/refresh', sanitizeInput, validateSensitiveOperation(10, 15 * 60 * 1000), async (req, res) => {
   try {
-    const data: LoginData = loginSchema.parse(req.body);
-    
-    // Validate user credentials
-    const user = await authService.validateUser(data.email, data.password);
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(401).json({
+        error: 'Refresh failed',
+        message: 'No refresh token provided',
+        code: 'NO_REFRESH_TOKEN'
+      });
     }
-    
-    // Create session
-    const sessionId = await authService.createSession(user.id);
-    
-    // Set session cookie
-    res.cookie('sessionId', sessionId, {
+
+    const tokens = await jwtService.refreshToken(refreshToken);
+    if (!tokens) {
+      // Clear invalid refresh token cookie
+      res.clearCookie('refreshToken');
+      return res.status(401).json({
+        error: 'Refresh failed',
+        message: 'Invalid or expired refresh token',
+        code: 'INVALID_REFRESH_TOKEN'
+      });
+    }
+
+    // Set new refresh token as httpOnly cookie
+    res.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
-    
-    // Return user data (without sensitive fields)
-    const { password: _, ...userWithoutPassword } = user;
-    res.json({ user: userWithoutPassword, success: true });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(400).json({ error: 'Login failed' });
-  }
-}
 
-export async function logout(req: Request, res: Response) {
+    res.json({
+      success: true,
+      message: 'Token refreshed successfully',
+      data: {
+        accessToken: tokens.accessToken,
+        expiresIn: tokens.expiresIn
+      }
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    res.status(500).json({
+      error: 'Refresh failed',
+      message: 'Internal server error',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * POST /api/auth/logout
+ * Logout user and revoke tokens
+ */
+router.post('/logout', jwtAuth, async (req, res) => {
   try {
-    const sessionId = req.cookies.sessionId;
-    
-    if (sessionId) {
-      await authService.deleteSession(sessionId);
+    const refreshToken = req.cookies.refreshToken;
+
+    // Revoke current access token
+    if (req.user?.jti) {
+      await jwtService.revokeToken(req.user.jti, req.user.id.toString());
     }
-    
-    res.clearCookie('sessionId');
-    res.json({ success: true });
+
+    // Revoke refresh token if provided
+    if (refreshToken) {
+      await jwtService.blacklistToken(refreshToken);
+    }
+
+    // Clear refresh token cookie
+    res.clearCookie('refreshToken');
+
+    res.json({
+      success: true,
+      message: 'Logout successful'
+    });
   } catch (error) {
     console.error('Logout error:', error);
-    res.status(500).json({ error: 'Logout failed' });
-  }
-}
-
-export async function getProfile(req: Request, res: Response) {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-    
-    const user = req.user as any;
-    const { password: _, ...userWithoutPassword } = user;
-    res.json({ user: userWithoutPassword });
-  } catch (error) {
-    console.error('Profile error:', error);
-    res.status(500).json({ error: 'Failed to get profile' });
-  }
-}
-
-export async function updateProfile(req: Request, res: Response) {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-    
-    const { name, preferences } = req.body;
-    const user = req.user as any;
-    
-    // Update user profile
-    const updatedUser = await authService.updateUserProfile(user.id, {
-      name,
-      preferences,
+    res.status(500).json({
+      error: 'Logout failed',
+      message: 'Internal server error',
+      code: 'INTERNAL_ERROR'
     });
-    
-    if (!updatedUser) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const { password: _, ...userWithoutPassword } = updatedUser;
-    res.json({ user: userWithoutPassword });
-  } catch (error) {
-    console.error('Profile update error:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
   }
-}
+});
 
-export async function forgotPassword(req: Request, res: Response) {
+/**
+ * POST /api/auth/logout-all
+ * Logout from all devices by revoking all user tokens
+ */
+router.post('/logout-all', jwtAuth, async (req, res) => {
   try {
-    const data: ForgotPasswordData = forgotPasswordSchema.parse(req.body);
-    
-    // Check if user exists
-    const user = await authService.getUserByEmail(data.email);
+    await jwtService.revokeAllUserTokens(req.user!.id, req.user!.id.toString());
+
+    // Clear refresh token cookie
+    res.clearCookie('refreshToken');
+
+    res.json({
+      success: true,
+      message: 'Logged out from all devices successfully'
+    });
+  } catch (error) {
+    console.error('Logout all error:', error);
+    res.status(500).json({
+      error: 'Logout failed',
+      message: 'Internal server error',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/auth/me
+ * Get current user information
+ */
+router.get('/me', jwtAuth, validateUserData, async (req, res) => {
+  try {
+    const user = await authService.getUserById(req.user!.id);
     if (!user) {
-      // Don't reveal that user doesn't exist for security
-      return res.json({ success: true, message: 'Password reset email sent if account exists' });
+      return res.status(404).json({
+        error: 'User not found',
+        message: 'User account not found',
+        code: 'USER_NOT_FOUND'
+      });
     }
-    
-    // Generate secure reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 1); // Token expires in 1 hour
-    
-    // Store reset token in database
-    await db.execute(sql`INSERT INTO password_reset_tokens (user_id, token, expires_at)
-      VALUES (${user.id}, ${resetToken}, ${expiresAt})`);
-    
-    // Send password reset email
-    const emailSent = await sendPasswordResetEmail(user.email, resetToken);
-    
-    if (!emailSent) {
-      console.error(`Failed to send password reset email to ${user.email}`);
-      // Still return success to avoid revealing user existence
-    } else {
-      console.log(`Password reset email sent successfully to ${user.email}`);
-    }
-    
-    res.json({ success: true, message: 'Password reset email sent if account exists' });
-  } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(400).json({ error: 'Failed to process password reset request' });
-  }
-}
 
-export async function resetPassword(req: Request, res: Response) {
-  try {
-    const data: ResetPasswordData = resetPasswordSchema.parse(req.body);
-    
-    // Find valid reset token
-    const tokenResult = await db.execute(sql`
-      SELECT prt.*, u.id as user_id 
-      FROM password_reset_tokens prt
-      JOIN users u ON prt.user_id = u.id
-      WHERE prt.token = ${data.token}
-        AND prt.expires_at > NOW() 
-        AND prt.used = false
-      LIMIT 1`);
-    
-    if (!tokenResult.rows || tokenResult.rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid or expired reset token' });
-    }
-    
-    const tokenRecord = tokenResult.rows[0];
-    
-    // Hash new password
-    const hashedPassword = await authService.hashPassword(data.password);
-    
-    // Update user password
-    await db.execute(sql`UPDATE users 
-      SET password = ${hashedPassword}, updated_at = NOW()
-      WHERE id = ${tokenRecord.user_id}`);
-    
-    // Mark token as used
-    await db.execute(sql`UPDATE password_reset_tokens 
-      SET used = true 
-      WHERE token = ${data.token}`);
-    
-    res.json({ success: true, message: 'Password reset successfully' });
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          plan: user.plan,
+          avatar: user.avatar,
+          searchCount: user.searchCount,
+          lastResetDate: user.lastResetDate,
+          createdAt: user.createdAt,
+          preferences: user.preferences
+        }
+      }
+    });
   } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(400).json({ error: 'Failed to reset password' });
+    console.error('Get user error:', error);
+    res.status(500).json({
+      error: 'Failed to get user',
+      message: 'Internal server error',
+      code: 'INTERNAL_ERROR'
+    });
   }
-}
+});
+
+/**
+ * GET /api/auth/user
+ * Compatibility endpoint for client - redirects to /me
+ */
+router.get('/user', jwtAuth, validateUserData, async (req, res) => {
+  try {
+    const user = await authService.getUserById(req.user!.id);
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found',
+        message: 'User account not found',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    // Return user data in the format expected by the client
+    res.json({
+      id: user.id,
+      email: user.email,
+      firstName: user.name?.split(' ')[0] || '',
+      lastName: user.name?.split(' ').slice(1).join(' ') || '',
+      profileImageUrl: user.avatar,
+      plan: user.plan,
+      searchCount: user.searchCount,
+      lastResetDate: user.lastResetDate,
+      createdAt: user.createdAt,
+      preferences: user.preferences
+    });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({
+      error: 'Failed to get user',
+      message: 'Internal server error',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/auth/sessions
+ * Get user's active sessions
+ */
+router.get('/sessions', jwtAuth, async (req, res) => {
+  try {
+    const activeTokensCount = await jwtService.getUserActiveTokensCount(req.user!.id);
+
+    res.json({
+      success: true,
+      data: {
+        activeSessions: activeTokensCount
+      }
+    });
+  } catch (error) {
+    console.error('Get sessions error:', error);
+    res.status(500).json({
+      error: 'Failed to get sessions',
+      message: 'Internal server error',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+export default router;

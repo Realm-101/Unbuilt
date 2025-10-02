@@ -1,7 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupSimpleAuth, isAuthenticated } from "./simpleAuth";
+import { jwtAuth, optionalJwtAuth } from "./middleware/jwtAuth";
+import { sanitizeInput, validateApiInput } from "./middleware/inputSanitization";
+import { validateQueryResults, validateSearchData } from "./middleware/queryValidation";
+import authRoutes from "./routes/auth";
 import { analyzeGaps } from "./services/gemini";
 import { generateBusinessPlan, generateMarketResearch } from "./services/xai";
 import { generateActionPlan, summarizeActionPlan } from "./services/actionPlanGenerator";
@@ -122,8 +125,11 @@ function applySearchFilters(gaps: any[], filters: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Simple auth setup
-  await setupSimpleAuth(app);
+  // Apply global input sanitization to all API routes
+  app.use('/api', sanitizeInput, validateApiInput);
+  
+  // JWT Authentication routes
+  app.use('/api/auth', authRoutes);
 
   // Analytics routes
   app.use('/api/analytics', analyticsRouter);
@@ -131,26 +137,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Assistant routes
   app.use('/api/ai-assistant', aiAssistantRouter);
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
-
 
 
   // Search endpoint - now requires authentication and supports filters
-  app.post("/api/search", isAuthenticated, async (req, res) => {
+  app.post("/api/search", jwtAuth, validateSearchData, async (req, res) => {
     try {
       const { query, filters } = req.body;
       const parsedQuery = insertSearchSchema.parse({ query });
-      const userId = (req.user as any).claims.sub;
+      const userId = req.user!.id;
       
       // Create search record
       const search = await storage.createSearch({ query: parsedQuery.query, userId });
@@ -188,9 +182,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get search results
-  app.get("/api/search/:id/results", async (req, res) => {
+  app.get("/api/search/:id/results", jwtAuth, validateSearchData, async (req, res) => {
     try {
       const searchId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      
+      // First verify the search belongs to the user
+      const searches = await storage.getSearches(userId.toString());
+      const userSearch = searches.find(s => s.id === searchId);
+      
+      if (!userSearch) {
+        return res.status(404).json({ message: 'Search not found or access denied' });
+      }
+      
       const results = await storage.getSearchResults(searchId);
       res.json(results);
     } catch (error) {
@@ -199,9 +203,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get search history
-  app.get("/api/searches", async (req, res) => {
+  app.get("/api/searches", jwtAuth, validateSearchData, async (req, res) => {
     try {
-      const searches = await storage.getSearches();
+      const userId = req.user!.id.toString();
+      const searches = await storage.getSearches(userId);
       res.json(searches);
     } catch (error) {
       res.status(500).json({ message: 'Failed to get search history' });
@@ -209,7 +214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Save/unsave result
-  app.patch("/api/results/:id/save", async (req, res) => {
+  app.patch("/api/results/:id/save", jwtAuth, validateQueryResults, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { isSaved } = req.body;
@@ -226,7 +231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get saved results
-  app.get("/api/results/saved", async (req, res) => {
+  app.get("/api/results/saved", jwtAuth, validateQueryResults, async (req, res) => {
     try {
       // For now return empty array until getAllSavedResults is implemented
       res.json([]);
@@ -236,13 +241,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Export results
-  app.post("/api/export", exportResults);
+  app.post("/api/export", jwtAuth, exportResults);
 
   // Send email report
-  app.post("/api/email-report", sendEmailReport);
+  app.post("/api/email-report", jwtAuth, sendEmailReport);
 
   // Business Plan Generation (xAI powered)
-  app.post("/api/business-plan", isAuthenticated, async (req, res) => {
+  app.post("/api/business-plan", jwtAuth, async (req, res) => {
     try {
       const { title, description, category, marketSize } = req.body;
       
@@ -261,7 +266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Market Research (xAI powered)
-  app.post("/api/market-research", isAuthenticated, async (req, res) => {
+  app.post("/api/market-research", jwtAuth, async (req, res) => {
     try {
       const { query } = req.body;
       
@@ -280,7 +285,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Action Plan Generation (xAI powered)
-  app.post("/api/action-plan", isAuthenticated, async (req, res) => {
+  app.post("/api/action-plan", jwtAuth, async (req, res) => {
     try {
       const { idea, validationScore, marketSize } = req.body;
       
@@ -302,10 +307,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Collaboration Endpoints
   
   // Create a team
-  app.post("/api/teams", isAuthenticated, async (req, res) => {
+  app.post("/api/teams", jwtAuth, async (req, res) => {
     try {
       const { name, description } = req.body;
-      const userId = (req.user as any).claims.sub;
+      const userId = req.user!.id.toString();
       
       if (!name) {
         return res.status(400).json({ message: 'Team name is required' });
@@ -320,9 +325,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get user's teams
-  app.get("/api/teams", isAuthenticated, async (req, res) => {
+  app.get("/api/teams", jwtAuth, async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = req.user!.id.toString();
       const teams = await getTeamsByUser(userId);
       res.json(teams);
     } catch (error) {
@@ -332,10 +337,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Share an idea
-  app.post("/api/ideas/:id/share", isAuthenticated, async (req, res) => {
+  app.post("/api/ideas/:id/share", jwtAuth, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
-      const userId = (req.user as any).claims.sub;
+      const userId = req.user!.id.toString();
       const { teamId, sharedWith, permissions, expiresAt } = req.body;
       
       const share = await shareIdea(ideaId, userId, {
@@ -353,9 +358,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get shared ideas
-  app.get("/api/shared-ideas", isAuthenticated, async (req, res) => {
+  app.get("/api/shared-ideas", jwtAuth, async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = req.user!.id.toString();
       const userTeams = await getTeamsByUser(userId);
       const teamIds = userTeams.map(t => t.id);
       
@@ -368,11 +373,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Add a comment to an idea
-  app.post("/api/ideas/:id/comments", isAuthenticated, async (req, res) => {
+  app.post("/api/ideas/:id/comments", jwtAuth, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
-      const userId = (req.user as any).claims.sub;
-      const userEmail = (req.user as any).claims.email || userId;
+      const userId = req.user!.id.toString();
+      const userEmail = req.user!.email;
       const { content, parentId } = req.body;
       
       if (!content) {
@@ -388,7 +393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get comments for an idea
-  app.get("/api/ideas/:id/comments", isAuthenticated, async (req, res) => {
+  app.get("/api/ideas/:id/comments", jwtAuth, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
       const includeReplies = req.query.includeReplies !== 'false';
@@ -402,10 +407,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Toggle comment reaction
-  app.post("/api/comments/:id/reactions", isAuthenticated, async (req, res) => {
+  app.post("/api/comments/:id/reactions", jwtAuth, async (req, res) => {
     try {
       const commentId = parseInt(req.params.id);
-      const userId = (req.user as any).claims.sub;
+      const userId = req.user!.id.toString();
       const { reaction } = req.body;
       
       if (!reaction) {
@@ -421,9 +426,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get activity feed
-  app.get("/api/activity-feed", isAuthenticated, async (req, res) => {
+  app.get("/api/activity-feed", jwtAuth, async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = req.user!.id.toString();
       const { teamId, ideaId, limit } = req.query;
       
       const activities = await getActivityFeed({
@@ -441,10 +446,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get action plan for specific idea
-  app.get("/api/ideas/:id/action-plan", isAuthenticated, async (req, res) => {
+  app.get("/api/ideas/:id/action-plan", jwtAuth, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
-      const userId = (req.user as any).claims.sub;
+      const userId = req.user!.id;
       
       const idea = await storage.getIdea(ideaId, userId);
       if (!idea) {
@@ -469,10 +474,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Idea validation and financial modeling routes
   
   // Create and validate new idea with AI insights
-  app.post("/api/ideas", isAuthenticated, async (req, res) => {
+  app.post("/api/ideas", jwtAuth, validateSearchData, async (req, res) => {
     try {
       const ideaData = validateIdeaSchema.parse(req.body);
-      const userId = (req.user as any).claims.sub;
+      const userId = req.user!.id;
       
       // Calculate traditional validation scores
       const scoringResult = calculateIdeaScore(ideaData);
@@ -518,9 +523,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get user's ideas
-  app.get("/api/ideas", isAuthenticated, async (req, res) => {
+  app.get("/api/ideas", jwtAuth, validateSearchData, async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = req.user!.id;
       const ideas = await storage.getIdeas(userId);
       res.json(ideas);
     } catch (error) {
@@ -530,10 +535,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get specific idea with detailed analysis
-  app.get("/api/ideas/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/ideas/:id", jwtAuth, validateSearchData, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
-      const userId = (req.user as any).claims.sub;
+      const userId = req.user!.id;
       
       const idea = await storage.getIdea(ideaId, userId);
       if (!idea) {
@@ -571,10 +576,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update idea and recalculate scores
-  app.put("/api/ideas/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/ideas/:id", jwtAuth, validateSearchData, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
-      const userId = (req.user as any).claims.sub;
+      const userId = req.user!.id;
       const updateData = validateIdeaSchema.parse(req.body);
       
       // Recalculate scores with updated data
@@ -609,12 +614,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stripe subscription routes
-  app.post('/api/create-subscription', isAuthenticated, async (req, res) => {
+  app.post('/api/create-subscription', jwtAuth, async (req, res) => {
     try {
       const { plan } = req.body;
-      const user = (req as any).user;
+      const user = req.user!;
 
-      if (!user.claims.email) {
+      if (!user.email) {
         return res.status(400).json({ error: 'User email required' });
       }
 
@@ -634,12 +639,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customer = await stripe.customers.retrieve(user.stripeCustomerId);
       } else {
         customer = await stripe.customers.create({
-          email: user.claims.email,
-          name: user.claims.first_name + ' ' + user.claims.last_name,
+          email: user.email,
+          name: user.email, // Use email as name for now
         });
         
         // Update user with Stripe customer ID
-        const currentUser = await storage.getUser(user.claims.sub);
+        const currentUser = await storage.getUser(user.id.toString());
         if (currentUser) {
           await storage.upsertUser({ 
             ...currentUser,
@@ -659,7 +664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Update user with subscription info
-      const currentUserForSub = await storage.getUser(user.claims.sub);
+      const currentUserForSub = await storage.getUser(user.id.toString());
       if (currentUserForSub) {
         await storage.upsertUser({
           ...currentUserForSub,
@@ -682,9 +687,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Activate free trial
-  app.post('/api/trial/activate', isAuthenticated, async (req, res) => {
+  app.post('/api/trial/activate', jwtAuth, async (req, res) => {
     try {
-      const userId = (req as any).user.claims.sub;
+      const userId = req.user!.id.toString();
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -725,9 +730,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Check subscription status
-  app.get('/api/subscription-status', isAuthenticated, async (req, res) => {
+  app.get('/api/subscription-status', jwtAuth, async (req, res) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
       
       if (!user.stripeSubscriptionId || !stripe) {
         return res.json({ status: 'none', plan: 'free' });
@@ -747,11 +752,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Export routes
-  app.post('/api/export', isAuthenticated, exportResults);
-  app.post('/api/send-report', isAuthenticated, sendEmailReport);
+  app.post('/api/export', jwtAuth, exportResults);
+  app.post('/api/send-report', jwtAuth, sendEmailReport);
 
   // AI Assistant endpoint
-  app.post('/api/assistant', async (req, res) => {
+  app.post('/api/assistant', jwtAuth, async (req, res) => {
     try {
       const { message } = req.body;
       

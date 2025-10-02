@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { processChat } from '../services/aiAssistant';
-import { isAuthenticated } from '../simpleAuth';
+import { jwtAuth } from '../middleware/jwtAuth';
 
 const router = Router();
 
 // Chat endpoint
-router.post('/chat', isAuthenticated, async (req, res) => {
+router.post('/chat', jwtAuth, async (req, res) => {
   try {
     const { message, context, sessionId } = req.body;
     
@@ -32,7 +32,7 @@ router.post('/chat', isAuthenticated, async (req, res) => {
 });
 
 // Get chat history (for future implementation)
-router.get('/history/:sessionId', isAuthenticated, async (req, res) => {
+router.get('/history/:sessionId', jwtAuth, async (req, res) => {
   try {
     const { sessionId } = req.params;
     // TODO: Implement chat history storage and retrieval

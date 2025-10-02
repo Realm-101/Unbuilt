@@ -71,6 +71,28 @@ export const sessions = pgTable("session", {
   index("IDX_session_expire").using("btree", table.expire.asc().nullsLast().op("timestamp_ops")),
 ]);
 
+// JWT Token blacklist table
+export const jwtTokens = pgTable("jwt_tokens", {
+  id: text().primaryKey(),
+  userId: integer("user_id").notNull(),
+  tokenType: text("token_type").notNull(), // 'access' | 'refresh'
+  issuedAt: timestamp("issued_at", { mode: 'string' }).notNull(),
+  expiresAt: timestamp("expires_at", { mode: 'string' }).notNull(),
+  isRevoked: boolean("is_revoked").default(false).notNull(),
+  revokedAt: timestamp("revoked_at", { mode: 'string' }),
+  revokedBy: text("revoked_by"),
+  deviceInfo: text("device_info"),
+  ipAddress: text("ip_address"),
+}, (table) => [
+  foreignKey({
+    columns: [table.userId],
+    foreignColumns: [users.id],
+    name: "jwt_tokens_user_id_users_id_fk"
+  }),
+  index("jwt_tokens_user_id_idx").on(table.userId),
+  index("jwt_tokens_expires_at_idx").on(table.expiresAt),
+]);
+
 export const ideas = pgTable("ideas", {
   id: serial().primaryKey().notNull(),
   userId: integer("user_id").notNull(),
@@ -112,6 +134,8 @@ export const ideas = pgTable("ideas", {
 
 export type User = typeof users.$inferSelect;
 export type UpsertUser = typeof users.$inferInsert;
+export type JWTToken = typeof jwtTokens.$inferSelect;
+export type InsertJWTToken = typeof jwtTokens.$inferInsert;
 
 export const insertSearchSchema = createInsertSchema(searches).pick({
   query: true,
