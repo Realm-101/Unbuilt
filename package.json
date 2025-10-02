@@ -11,7 +11,15 @@
     "db:push": "drizzle-kit push",
     "test": "vitest",
     "security:scan": "tsx server/scripts/detectCredentials.ts",
-    "security:scan-strict": "tsx server/scripts/detectCredentials.ts --fail-on-high"
+    "security:scan-strict": "tsx server/scripts/detectCredentials.ts --fail-on-high",
+    "migrate:security": "tsx server/scripts/runSecurityMigration.ts",
+    "validate:security": "tsx server/scripts/validateSecuritySchema.ts",
+    "security:maintenance": "tsx -e \"import { runSecurityMaintenance } from './server/scripts/runSecurityMigration.js'; await runSecurityMaintenance();\"",
+    "test:migration": "tsx server/scripts/testMigrationSyntax.ts",
+    "security:checklist": "tsx server/scripts/securityChecklist.ts",
+    "deployment:validate": "tsx server/scripts/deploymentValidation.ts",
+    "deployment:build": "npm run build && npm run security:checklist",
+    "deployment:production": "NODE_ENV=production npm run deployment:validate && npm start"
   },
   "dependencies": {
     "@google/genai": "^1.9.0",

@@ -1,10 +1,13 @@
 # Unbuilt - Innovation Gap Analysis Platform
 
-[![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://a89c34fb-a499-4213-be44-089e1af5a604-00-3v22fv7gmb01o.janeway.replit.dev/)
+[![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://unbuilt.one)
+[![Security](https://img.shields.io/badge/Security-Hardened-green)](docs/SECURITY.md)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-black)](https://github.com/Stackstudio-cloud/unbuilt.Cloud)
 
 > Discover what doesn't exist yet. Find market gaps and untapped opportunities with AI-powered analysis.
+
+**🔒 Enterprise-Grade Security** | **🚀 Production-Ready** | **📊 AI-Powered Analysis**
 
 ![Unbuilt Demo](./docs/demo.gif)
 
@@ -43,17 +46,29 @@ Unbuilt is a full-stack web application that helps entrepreneurs and innovators 
 
 ### Key Features
 
-- 🔍 **AI-Powered Gap Analysis** - Advanced market research using Google Gemini 2.5 Pro
-- 📊 **Comprehensive Insights** - Innovation scores, market potential, and feasibility ratings
-- 💼 **Action Plan Generator** - 4-phase development roadmaps for identified opportunities
-- 🎯 **Competitive Analysis** - Market positioning insights and competitor landscape
-- 📈 **Market Intelligence** - Demographics, growth opportunities, and market sizing
-- 📋 **Professional Export** - PDF reports, CSV data, and investor pitch decks
-- 🔐 **User Authentication** - Secure registration and login system
-- 💰 **Subscription Tiers** - Free (5 searches/month) and Pro (unlimited) plans
-- 🎨 **Professional UI** - Enhanced navigation with prominent branding and comprehensive help system
-- 📱 **Responsive Design** - Mobile-first approach with hamburger navigation
-- 🌙 **Dark Theme** - Neon flame aesthetic with perfect contrast optimization
+#### 🔍 Core Platform
+- **AI-Powered Gap Analysis** - Advanced market research using Google Gemini 2.5 Pro
+- **Comprehensive Insights** - Innovation scores, market potential, and feasibility ratings
+- **Action Plan Generator** - 4-phase development roadmaps for identified opportunities
+- **Competitive Analysis** - Market positioning insights and competitor landscape
+- **Market Intelligence** - Demographics, growth opportunities, and market sizing
+- **Professional Export** - PDF reports, CSV data, and investor pitch decks
+
+#### 🔒 Enterprise Security
+- **Multi-Layer Authentication** - JWT tokens with refresh rotation and session management
+- **Advanced Authorization** - Role-based access control with resource ownership validation
+- **Input Validation** - Comprehensive Zod schema validation with sanitization
+- **Rate Limiting** - Intelligent rate limiting with CAPTCHA integration
+- **Security Monitoring** - Real-time threat detection and security event logging
+- **Password Security** - Bcrypt hashing with history tracking and account lockout
+- **Session Security** - Secure session management with hijacking detection
+- **HTTPS Enforcement** - Production HTTPS with security headers and CSRF protection
+
+#### 🎨 User Experience
+- **Professional UI** - Enhanced navigation with prominent branding and comprehensive help system
+- **Responsive Design** - Mobile-first approach with hamburger navigation
+- **Dark Theme** - Neon flame aesthetic with perfect contrast optimization
+- **Subscription Tiers** - Free (5 searches/month) and Pro (unlimited) plans
 
 ## 🎨 Design Theme
 
@@ -71,6 +86,49 @@ Unbuilt features a unique "Neon Flame" theme with a mysterious "black hole" aest
 - Node.js 20+ 
 - PostgreSQL database
 - Google Gemini API key (optional for development)
+
+### Development Setup
+
+1. **Clone and Install**
+   ```bash
+   git clone https://github.com/Stackstudio-cloud/unbuilt.Cloud.git
+   cd unbuilt.Cloud
+   npm install
+   ```
+
+2. **Environment Configuration**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+3. **Database Setup**
+   ```bash
+   npm run db:push
+   npm run migrate:security
+   ```
+
+4. **Start Development Server**
+   ```bash
+   npm run dev
+   ```
+
+### Production Deployment
+
+For production deployment with full security features:
+
+```bash
+# Quick deployment
+./deployment/deploy
+
+# Or step-by-step
+npm run security:checklist
+npm run deployment:validate
+npm run deployment:build
+npm run deployment:production
+```
+
+See [Deployment Guide](deployment/README.md) for comprehensive production setup.
 
 
 ## 🏗️ Architecture
@@ -91,11 +149,23 @@ Unbuilt features a unique "Neon Flame" theme with a mysterious "black hole" aest
 - PostgreSQL with Drizzle ORM
 - Google Gemini API integration
 - RESTful API design
+- Enterprise security middleware stack
+
+**Security Infrastructure**
+- JWT authentication with token rotation
+- Role-based authorization system
+- Comprehensive input validation
+- Rate limiting and CAPTCHA protection
+- Security monitoring and logging
+- HTTPS enforcement with security headers
+- Session management with hijacking detection
 
 **Database**
 - PostgreSQL via Neon Database
 - Drizzle ORM with type safety
 - Schema migrations with Drizzle Kit
+- Security audit logging
+- Password history tracking
 
 ### Project Structure
 
@@ -107,12 +177,25 @@ Unbuilt features a unique "Neon Flame" theme with a mysterious "black hole" aest
 │   │   ├── hooks/       # Custom React hooks
 │   │   └── lib/         # Utilities and configurations
 ├── server/              # Express backend
-│   ├── routes.ts        # API routes
-│   ├── storage.ts       # Database operations
-│   └── vite.ts          # Development server setup
+│   ├── routes/          # API route handlers
+│   ├── middleware/      # Security and validation middleware
+│   ├── services/        # Business logic and security services
+│   ├── scripts/         # Database migrations and security tools
+│   ├── config/          # Configuration and environment validation
+│   └── utils/           # Utility functions and helpers
 ├── shared/              # Shared types and schemas
-│   └── schema.ts        # Database schema definitions
-└── attached_assets/     # Static assets and logos
+│   ├── schema.ts        # Database schema definitions
+│   └── auth-schema.ts   # Authentication schemas
+├── docs/                # Documentation
+│   ├── SECURITY.md      # Security documentation
+│   ├── *.md             # Feature-specific documentation
+├── deployment/          # Production deployment configuration
+│   ├── README.md        # Deployment guide
+│   ├── docker-compose.production.yml
+│   ├── nginx.conf       # Nginx configuration
+│   └── deploy.*         # Deployment scripts
+└── .kiro/               # Development specifications
+    └── specs/           # Feature specifications and tasks
 ```
 
 ### Demo Features
@@ -126,16 +209,70 @@ The live demo includes:
 
 ### API Endpoints
 
+#### Authentication & Authorization
+- `POST /api/auth/register` - User registration with validation
+- `POST /api/auth/login` - Secure login with rate limiting
+- `POST /api/auth/logout` - Secure logout with session cleanup
+- `POST /api/auth/refresh` - JWT token refresh
 - `GET /api/auth/user` - Get current user profile
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
+- `POST /api/auth/change-password` - Password change with history validation
+
+#### Core Features
 - `POST /api/search` - Create new gap analysis search
 - `GET /api/search/:id` - Get search results with detailed analysis
 - `GET /api/searches` - Get user's search history
 - `POST /api/trial/activate` - Activate free trial for Pro features
+
+#### Security & Monitoring
+- `GET /api/security/dashboard` - Security monitoring dashboard (admin)
+- `GET /api/security/events` - Security event logs (admin)
+- `POST /api/captcha/verify` - CAPTCHA verification
 - `GET /health` - Health check endpoint
 
-**Current Live Demo:** The application is currently deployed and accessible at HTTPS://UNBUILT.ONE
+#### Session Management
+- `GET /api/sessions` - List active sessions
+- `DELETE /api/sessions/:id` - Terminate specific session
+- `DELETE /api/sessions/all` - Terminate all sessions
+
+## 🔒 Security Features
+
+Unbuilt implements enterprise-grade security measures to protect user data and ensure platform integrity:
+
+### Authentication & Authorization
+- **Multi-Factor Authentication** - JWT tokens with refresh rotation
+- **Role-Based Access Control** - Admin, user, and guest permissions
+- **Session Management** - Secure session handling with hijacking detection
+- **Password Security** - Bcrypt hashing with complexity requirements and history tracking
+
+### Data Protection
+- **Input Validation** - Comprehensive Zod schema validation and sanitization
+- **SQL Injection Prevention** - Parameterized queries with Drizzle ORM
+- **XSS Protection** - Content Security Policy and input sanitization
+- **CSRF Protection** - Token-based CSRF validation
+
+### Infrastructure Security
+- **HTTPS Enforcement** - Automatic HTTP to HTTPS redirects
+- **Security Headers** - HSTS, CSP, X-Frame-Options, and more
+- **Rate Limiting** - Intelligent rate limiting with CAPTCHA integration
+- **DDoS Protection** - Request throttling and abuse detection
+
+### Monitoring & Compliance
+- **Security Event Logging** - Comprehensive audit trail
+- **Real-time Monitoring** - Threat detection and alerting
+- **Automated Security Scans** - Credential detection and vulnerability assessment
+- **Compliance Tools** - Security checklists and deployment validation
+
+For detailed security documentation, see [Security Guide](docs/SECURITY.md).
+
+## 📊 Performance & Scalability
+
+- **Database Optimization** - Connection pooling and query optimization
+- **Caching Strategy** - Intelligent caching with Redis support
+- **Load Balancing** - Nginx reverse proxy with SSL termination
+- **Container Support** - Docker deployment with health checks
+- **Monitoring** - Application performance monitoring and logging
+
+**Current Live Demo:** The application is currently deployed and accessible at [https://unbuilt.one](https://unbuilt.one)
 
 
 ## 📄 License
@@ -159,11 +296,48 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Database hosting provided by Neon Database
 - Deployed on Replit for seamless development and hosting
 
+## 📚 Documentation
+
+- **[Security Guide](docs/SECURITY.md)** - Comprehensive security documentation
+- **[Deployment Guide](deployment/README.md)** - Production deployment instructions
+- **[API Documentation](docs/API.md)** - Complete API reference
+- **[Environment Setup](docs/ENVIRONMENT_VALIDATION.md)** - Environment configuration guide
+- **[Rate Limiting](docs/RATE_LIMITING.md)** - Rate limiting configuration
+- **[Session Management](docs/SESSION_MANAGEMENT.md)** - Session security documentation
+- **[Password Security](docs/PASSWORD_SECURITY.md)** - Password policy and security
+- **[Authorization](docs/AUTHORIZATION.md)** - Role-based access control
+- **[Security Monitoring](docs/SECURITY_MONITORING.md)** - Monitoring and alerting
+
+## 🛠️ Development Tools
+
+### Security Tools
+```bash
+npm run security:checklist      # Run comprehensive security validation
+npm run security:scan          # Scan for credentials and vulnerabilities
+npm run deployment:validate    # Validate deployment readiness
+npm run migrate:security       # Run security database migrations
+```
+
+### Testing
+```bash
+npm test                       # Run all tests
+npm run test:security         # Run security-specific tests
+npm run test:integration      # Run integration tests
+```
+
+### Development
+```bash
+npm run dev                   # Start development server
+npm run build                 # Build for production
+npm run check                 # TypeScript type checking
+```
+
 ## 📞 Support
 
 - **GitHub Issues** - Report bugs and request features
-- **Live Demo** - Test all features before implementation
-- **Documentation** - Comprehensive help system built into the app
+- **Security Issues** - Email security@unbuilt.one for security concerns
+- **Live Demo** - Test all features at [unbuilt.one](https://unbuilt.one)
+- **Documentation** - Comprehensive guides in the `/docs` directory
 
 ---
 

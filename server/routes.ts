@@ -15,15 +15,24 @@ import {
   validateComment,
   validateSubscription,
   validateIdParam,
-  validatePagination,
-  generalRateLimit,
+  validatePagination
+} from "./middleware/validation";
+import {
+  apiRateLimit,
   searchRateLimit,
   aiRateLimit
-} from "./middleware/validation";
+} from "./middleware/rateLimiting";
 import authRoutes from "./routes/auth";
 import sessionRoutes from "./routes/sessions";
 import securityRoutes from "./routes/security";
+import adminRoutes from "./routes/admin";
+import securityMonitoringRoutes from "./routes/securityMonitoring";
+import securityDashboardRoutes from "./routes/securityDashboard";
+import captchaRoutes from "./routes/captcha";
 import { trackSession, monitorSessionSecurity } from "./middleware/sessionManagement";
+import { addUserAuthorization, requirePermission } from "./middleware/authorization";
+import { validateSearchOwnership, validateIdeaOwnership, enforceUserDataScope } from "./middleware/resourceOwnership";
+import { Permission } from "./services/authorizationService";
 import { 
   AppError, 
   ErrorType, 
@@ -157,6 +166,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apply session tracking and security monitoring to authenticated routes
   app.use('/api', trackSession, monitorSessionSecurity);
   
+  // Add user authorization info to all authenticated requests
+  app.use('/api', addUserAuthorization);
+  
   // JWT Authentication routes
   app.use('/api/auth', authRoutes);
   
@@ -165,6 +177,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Security management routes
   app.use('/api/security', securityRoutes);
+  
+  // CAPTCHA routes for abuse prevention
+  app.use('/api/captcha', captchaRoutes);
+  
+  // Admin routes (protected with role-based access control)
+  app.use('/api/admin', adminRoutes);
+
+  // Security monitoring routes (protected with role-based access control)
+  app.use('/api/security-monitoring', securityMonitoringRoutes);
+
+  // Security dashboard routes (protected with role-based access control)
+  app.use('/api/security-dashboard', securityDashboardRoutes);
 
   // Analytics routes
   app.use('/api/analytics', analyticsRouter);
@@ -175,7 +199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Search endpoint - now requires authentication and supports filters
-  app.post("/api/search", searchRateLimit, jwtAuth, validateSearch, validateSearchData, asyncHandler(async (req, res) => {
+  app.post("/api/search", searchRateLimit, jwtAuth, requirePermission(Permission.CREATE_IDEA), validateSearch, validateSearchData, asyncHandler(async (req, res) => {
     const { query, filters } = req.body;
     const parsedQuery = insertSearchSchema.parse({ query });
     const userId = req.user!.id;
@@ -212,25 +236,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Get search results
-  app.get("/api/search/:id/results", jwtAuth, validateIdParam, validateSearchData, asyncHandler(async (req, res) => {
+  app.get("/api/search/:id/results", apiRateLimit, jwtAuth, validateIdParam, validateSearchOwnership('read'), validateSearchData, asyncHandler(async (req, res) => {
     const searchId = parseInt(req.params.id);
-    const userId = req.user!.id;
-    
-    // First verify the search belongs to the user
-    const searches = await storage.getSearches(userId.toString());
-    const userSearch = searches.find(s => s.id === searchId);
-    
-    if (!userSearch) {
-      throw AppError.createNotFoundError('Search not found or access denied', 'SEARCH_NOT_FOUND');
-    }
-    
     const results = await storage.getSearchResults(searchId);
     sendSuccess(res, results);
   }));
 
   // Get search history
-  app.get("/api/searches", jwtAuth, validatePagination, validateSearchData, asyncHandler(async (req, res) => {
-    const userId = req.user!.id.toString();
+  app.get("/api/searches", apiRateLimit, jwtAuth, enforceUserDataScope, validatePagination, validateSearchData, asyncHandler(async (req, res) => {
+    const userId = req.query.userId as string;
     const searches = await storage.getSearches(userId);
     sendSuccess(res, searches);
   }));
@@ -253,7 +267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get saved results
-  app.get("/api/results/saved", jwtAuth, validateQueryResults, async (req, res) => {
+  app.get("/api/results/saved", apiRateLimit, jwtAuth, validateQueryResults, async (req, res) => {
     try {
       // For now return empty array until getAllSavedResults is implemented
       res.json([]);
@@ -263,10 +277,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Export results
-  app.post("/api/export", jwtAuth, exportResults);
+  app.post("/api/export", apiRateLimit, jwtAuth, exportResults);
 
   // Send email report
-  app.post("/api/email-report", jwtAuth, sendEmailReport);
+  app.post("/api/email-report", apiRateLimit, jwtAuth, sendEmailReport);
 
   // Business Plan Generation (xAI powered)
   app.post("/api/business-plan", aiRateLimit, jwtAuth, validateBusinessPlan, asyncHandler(async (req, res) => {
@@ -324,7 +338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Collaboration Endpoints
   
   // Create a team
-  app.post("/api/teams", jwtAuth, validateTeam, async (req, res) => {
+  app.post("/api/teams", apiRateLimit, jwtAuth, requirePermission(Permission.CREATE_TEAM), validateTeam, async (req, res) => {
     try {
       const { name, description } = req.body;
       const userId = req.user!.id.toString();
@@ -342,7 +356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get user's teams
-  app.get("/api/teams", jwtAuth, async (req, res) => {
+  app.get("/api/teams", apiRateLimit, jwtAuth, async (req, res) => {
     try {
       const userId = req.user!.id.toString();
       const teams = await getTeamsByUser(userId);
@@ -354,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Share an idea
-  app.post("/api/ideas/:id/share", jwtAuth, validateIdParam, async (req, res) => {
+  app.post("/api/ideas/:id/share", jwtAuth, validateIdeaOwnership('read'), requirePermission(Permission.SHARE_IDEA), validateIdParam, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
       const userId = req.user!.id.toString();
@@ -390,7 +404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Add a comment to an idea
-  app.post("/api/ideas/:id/comments", jwtAuth, validateIdParam, validateComment, async (req, res) => {
+  app.post("/api/ideas/:id/comments", jwtAuth, requirePermission(Permission.COMMENT_IDEA), validateIdParam, validateComment, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
       const userId = req.user!.id.toString();
@@ -491,7 +505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Idea validation and financial modeling routes
   
   // Create and validate new idea with AI insights
-  app.post("/api/ideas", aiRateLimit, jwtAuth, validateIdea, validateSearchData, async (req, res) => {
+  app.post("/api/ideas", aiRateLimit, jwtAuth, requirePermission(Permission.CREATE_IDEA), validateIdea, validateSearchData, async (req, res) => {
     try {
       const ideaData = validateIdeaSchema.parse(req.body);
       const userId = req.user!.id;
@@ -540,10 +554,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get user's ideas
-  app.get("/api/ideas", jwtAuth, validatePagination, validateSearchData, async (req, res) => {
+  app.get("/api/ideas", jwtAuth, enforceUserDataScope, validatePagination, validateSearchData, async (req, res) => {
     try {
-      const userId = req.user!.id;
-      const ideas = await storage.getIdeas(userId);
+      const userId = parseInt(req.query.userId as string);
+      const ideas = await storage.getIdeas(userId.toString());
       res.json(ideas);
     } catch (error) {
       console.error('Get ideas error:', error);
@@ -552,15 +566,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get specific idea with detailed analysis
-  app.get("/api/ideas/:id", jwtAuth, validateIdParam, validateSearchData, async (req, res) => {
+  app.get("/api/ideas/:id", jwtAuth, validateIdeaOwnership('read'), validateIdParam, validateSearchData, async (req, res) => {
     try {
-      const ideaId = parseInt(req.params.id);
-      const userId = req.user!.id;
-      
-      const idea = await storage.getIdea(ideaId, userId);
-      if (!idea) {
-        return res.status(404).json({ message: 'Idea not found' });
-      }
+      const idea = req.resource; // Loaded by validateIdeaOwnership middleware
       
       // Cast idea to ValidateIdea interface for financial analysis
       const ideaData = {
@@ -593,7 +601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update idea and recalculate scores
-  app.put("/api/ideas/:id", jwtAuth, validateIdParam, validateIdea, validateSearchData, async (req, res) => {
+  app.put("/api/ideas/:id", jwtAuth, validateIdeaOwnership('write'), validateIdParam, validateIdea, validateSearchData, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
       const userId = req.user!.id;

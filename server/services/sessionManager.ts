@@ -406,6 +406,47 @@ export class SessionManager {
       isActive: !session.isRevoked
     };
   }
+
+  /**
+   * Get count of active sessions across all users
+   */
+  async getActiveSessionsCount(): Promise<number> {
+    const now = new Date();
+    const [result] = await db
+      .select({ count: count() })
+      .from(jwtTokens)
+      .where(
+        and(
+          eq(jwtTokens.tokenType, 'access'),
+          eq(jwtTokens.isRevoked, false),
+          lt(now, jwtTokens.expiresAt)
+        )
+      );
+    
+    return result.count;
+  }
+
+  /**
+   * Get session statistics for monitoring
+   */
+  async getSessionStats(): Promise<{
+    totalActiveSessions: number;
+    totalUsers: number;
+    averageSessionsPerUser: number;
+  }> {
+    const activeSessions = await this.getActiveSessionsCount();
+    
+    const [userCount] = await db
+      .select({ count: count() })
+      .from(users)
+      .where(eq(users.isActive, true));
+
+    return {
+      totalActiveSessions: activeSessions,
+      totalUsers: userCount.count,
+      averageSessionsPerUser: userCount.count > 0 ? activeSessions / userCount.count : 0
+    };
+  }
 }
 
 export const sessionManager = new SessionManager();

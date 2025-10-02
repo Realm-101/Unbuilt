@@ -10,7 +10,7 @@ import {
   type ValidateIdea,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, like, desc, count } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -45,6 +45,10 @@ export interface IStorage {
   getIdeas(userId: string): Promise<Idea[]>;
   getIdea(id: number, userId: string): Promise<Idea | undefined>;
   updateIdea(id: number, updates: Partial<Idea>, userId: string): Promise<Idea | undefined>;
+  
+  // Admin operations
+  getAllUsers(options?: { page?: number; limit?: number; search?: string }): Promise<User[]>;
+  getSystemStats(): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -155,6 +159,36 @@ export class DatabaseStorage implements IStorage {
       .where(eq(ideas.id, id) && eq(ideas.userId, parseInt(userId)))
       .returning();
     return updated;
+  }
+
+  // Admin operations
+  async getAllUsers(options: { page?: number; limit?: number; search?: string } = {}): Promise<User[]> {
+    const { page = 1, limit = 50, search } = options;
+    const offset = (page - 1) * limit;
+
+    let query = db.select().from(users);
+
+    if (search) {
+      query = query.where(like(users.email, `%${search}%`));
+    }
+
+    return await query
+      .orderBy(desc(users.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async getSystemStats(): Promise<any> {
+    const [userCount] = await db.select({ count: count() }).from(users);
+    const [searchCount] = await db.select({ count: count() }).from(searches);
+    const [ideaCount] = await db.select({ count: count() }).from(ideas);
+
+    return {
+      totalUsers: userCount.count,
+      totalSearches: searchCount.count,
+      totalIdeas: ideaCount.count,
+      timestamp: new Date().toISOString()
+    };
   }
 }
 

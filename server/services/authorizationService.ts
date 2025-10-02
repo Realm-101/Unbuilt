@@ -40,42 +40,19 @@ export enum Permission {
   COMMENT_IDEA = 'comment_idea'
 }
 
-// Role-permission mapping
-const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
-  [UserRole.USER]: [
-    Permission.READ_OWN_DATA,
-    Permission.WRITE_OWN_DATA,
-    Permission.DELETE_OWN_DATA,
-    Permission.CREATE_TEAM,
-    Permission.CREATE_IDEA,
-    Permission.SHARE_IDEA,
-    Permission.COMMENT_IDEA
-  ],
-  [UserRole.ADMIN]: [
-    // All user permissions
-    ...ROLE_PERMISSIONS[UserRole.USER] || [],
-    // Additional admin permissions
-    Permission.READ_USER_DATA,
-    Permission.MANAGE_USERS,
-    Permission.VIEW_ANALYTICS,
-    Permission.VIEW_SECURITY_LOGS,
-    Permission.MANAGE_TEAM,
-    Permission.INVITE_MEMBERS
-  ],
-  [UserRole.SUPER_ADMIN]: [
-    // All admin permissions
-    ...ROLE_PERMISSIONS[UserRole.ADMIN] || [],
-    // Additional super admin permissions
-    Permission.WRITE_USER_DATA,
-    Permission.DELETE_USER_DATA,
-    Permission.MANAGE_SYSTEM,
-    Permission.MANAGE_SECURITY
-  ]
-};
+// Define base permissions for each role
+const USER_PERMISSIONS: Permission[] = [
+  Permission.READ_OWN_DATA,
+  Permission.WRITE_OWN_DATA,
+  Permission.DELETE_OWN_DATA,
+  Permission.CREATE_TEAM,
+  Permission.CREATE_IDEA,
+  Permission.SHARE_IDEA,
+  Permission.COMMENT_IDEA
+];
 
-// Initialize role permissions after declaration
-ROLE_PERMISSIONS[UserRole.ADMIN] = [
-  ...ROLE_PERMISSIONS[UserRole.USER],
+const ADMIN_PERMISSIONS: Permission[] = [
+  ...USER_PERMISSIONS,
   Permission.READ_USER_DATA,
   Permission.MANAGE_USERS,
   Permission.VIEW_ANALYTICS,
@@ -84,13 +61,20 @@ ROLE_PERMISSIONS[UserRole.ADMIN] = [
   Permission.INVITE_MEMBERS
 ];
 
-ROLE_PERMISSIONS[UserRole.SUPER_ADMIN] = [
-  ...ROLE_PERMISSIONS[UserRole.ADMIN],
+const SUPER_ADMIN_PERMISSIONS: Permission[] = [
+  ...ADMIN_PERMISSIONS,
   Permission.WRITE_USER_DATA,
   Permission.DELETE_USER_DATA,
   Permission.MANAGE_SYSTEM,
   Permission.MANAGE_SECURITY
 ];
+
+// Role-permission mapping
+const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
+  [UserRole.USER]: USER_PERMISSIONS,
+  [UserRole.ADMIN]: ADMIN_PERMISSIONS,
+  [UserRole.SUPER_ADMIN]: SUPER_ADMIN_PERMISSIONS
+};
 
 export interface AuthorizedUser extends User {
   role: UserRole;
@@ -103,11 +87,11 @@ export class AuthorizationService {
   static getUserRole(user: User): UserRole {
     // For now, determine role based on email patterns or user properties
     // In a real system, this would come from a roles table or user property
-    if (user.email.includes('admin@') || user.email.includes('support@')) {
-      return UserRole.ADMIN;
-    }
     if (user.email.includes('superadmin@') || user.email.includes('root@')) {
       return UserRole.SUPER_ADMIN;
+    }
+    if (user.email.includes('admin@') || user.email.includes('support@')) {
+      return UserRole.ADMIN;
     }
     return UserRole.USER;
   }

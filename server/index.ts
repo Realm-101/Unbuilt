@@ -7,11 +7,20 @@ import { CollaborationServer } from "./websocket";
 import { tokenCleanupService } from "./services/tokenCleanup";
 import { scheduledTaskService } from "./services/scheduledTasks";
 import { envValidator } from "./config/envValidator";
+import { securityHeadersMiddleware } from "./middleware/securityHeaders";
+import { httpsEnforcementMiddleware, secureCookieMiddleware, sessionSecurityMiddleware } from "./middleware/httpsEnforcement";
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+
+// Apply security middleware early in the stack
+app.use(httpsEnforcementMiddleware);
+app.use(securityHeadersMiddleware);
+app.use(secureCookieMiddleware);
+
+app.use(express.json({ limit: process.env.MAX_REQUEST_SIZE || '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: process.env.MAX_REQUEST_SIZE || '10mb' }));
 app.use(cookieParser());
+app.use(sessionSecurityMiddleware);
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -83,7 +92,15 @@ app.get('/health', (req, res) => {
     log("✅ Environment configuration validated successfully");
   }
 
+  // Add security monitoring middleware before routes
+  const { addSecurityContext, logApiAccess, securityErrorHandler } = await import("./middleware/securityMonitoring");
+  app.use(addSecurityContext);
+  app.use(logApiAccess);
+
   const server = await registerRoutes(app);
+
+  // Use security error handler before general error handling
+  app.use(securityErrorHandler);
 
   // Use standardized error handling middleware
   const { errorHandlerMiddleware } = await import("./middleware/errorHandler");

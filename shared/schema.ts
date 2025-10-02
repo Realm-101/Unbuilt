@@ -64,6 +64,11 @@ export const users = pgTable("users", {
   lastFailedLogin: timestamp("last_failed_login", { mode: 'string' }),
   accountLocked: boolean("account_locked").default(false).notNull(),
   lockoutExpires: timestamp("lockout_expires", { mode: 'string' }),
+  // Password security fields
+  lastPasswordChange: timestamp("last_password_change", { mode: 'string' }).defaultNow(),
+  passwordExpiryWarningSent: boolean("password_expiry_warning_sent").default(false).notNull(),
+  forcePasswordChange: boolean("force_password_change").default(false).notNull(),
+  passwordStrengthScore: integer("password_strength_score").default(0).notNull(),
 }, (table) => [
   unique("users_email_unique").on(table.email),
 ]);
@@ -305,6 +310,86 @@ export const activityFeed = pgTable("activity_feed", {
   }),
 ]);
 
+// Security audit logging tables
+export const securityAuditLogs = pgTable("security_audit_logs", {
+  id: serial().primaryKey().notNull(),
+  timestamp: timestamp({ mode: 'string' }).defaultNow().notNull(),
+  eventType: text("event_type").notNull(), // AUTH_SUCCESS, AUTH_FAILURE, SUSPICIOUS_ACTIVITY, etc.
+  userId: integer("user_id"),
+  userEmail: text("user_email"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  action: text().notNull(), // login, logout, password_change, etc.
+  resource: text(), // API endpoint or resource accessed
+  resourceId: text("resource_id"), // ID of specific resource if applicable
+  success: boolean().notNull(),
+  errorMessage: text("error_message"),
+  metadata: jsonb().default({}), // Additional context data
+  severity: text().default('info').notNull(), // info, warning, error, critical
+  sessionId: text("session_id"),
+  requestId: text("request_id"), // For correlation across services
+}, (table) => [
+  foreignKey({
+    columns: [table.userId],
+    foreignColumns: [users.id],
+    name: "security_audit_logs_user_id_users_id_fk"
+  }),
+  index("security_audit_logs_timestamp_idx").on(table.timestamp),
+  index("security_audit_logs_event_type_idx").on(table.eventType),
+  index("security_audit_logs_user_id_idx").on(table.userId),
+  index("security_audit_logs_ip_address_idx").on(table.ipAddress),
+  index("security_audit_logs_severity_idx").on(table.severity),
+]);
+
+export const securityAlerts = pgTable("security_alerts", {
+  id: serial().primaryKey().notNull(),
+  timestamp: timestamp({ mode: 'string' }).defaultNow().notNull(),
+  alertType: text("alert_type").notNull(), // BRUTE_FORCE, SUSPICIOUS_LOGIN, RATE_LIMIT_EXCEEDED, etc.
+  severity: text().default('medium').notNull(), // low, medium, high, critical
+  userId: integer("user_id"),
+  ipAddress: text("ip_address"),
+  description: text().notNull(),
+  details: jsonb().default({}),
+  status: text().default('open').notNull(), // open, investigating, resolved, false_positive
+  resolvedBy: integer("resolved_by"),
+  resolvedAt: timestamp("resolved_at", { mode: 'string' }),
+  resolutionNotes: text("resolution_notes"),
+  notificationsSent: boolean("notifications_sent").default(false).notNull(),
+}, (table) => [
+  foreignKey({
+    columns: [table.userId],
+    foreignColumns: [users.id],
+    name: "security_alerts_user_id_users_id_fk"
+  }),
+  foreignKey({
+    columns: [table.resolvedBy],
+    foreignColumns: [users.id],
+    name: "security_alerts_resolved_by_users_id_fk"
+  }),
+  index("security_alerts_timestamp_idx").on(table.timestamp),
+  index("security_alerts_alert_type_idx").on(table.alertType),
+  index("security_alerts_severity_idx").on(table.severity),
+  index("security_alerts_status_idx").on(table.status),
+]);
+
+// Password history table for tracking previous passwords
+export const passwordHistory = pgTable("password_history", {
+  id: serial().primaryKey().notNull(),
+  userId: integer("user_id").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
+  replacedAt: timestamp("replaced_at", { mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+  foreignKey({
+    columns: [table.userId],
+    foreignColumns: [users.id],
+    name: "password_history_user_id_users_id_fk"
+  }),
+  index("password_history_user_id_idx").on(table.userId),
+  index("password_history_created_at_idx").on(table.createdAt),
+  index("password_history_user_created_idx").on(table.userId, table.createdAt.desc()),
+]);
+
 export const PLAN_LIMITS = {
   free: { searches: 5, exports: 3 },
   pro: { searches: -1, exports: -1 }, // unlimited
@@ -362,3 +447,9 @@ export type TeamMember = typeof teamMembers.$inferSelect;
 export type IdeaShare = typeof ideaShares.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type ActivityFeedItem = typeof activityFeed.$inferSelect;
+export type SecurityAuditLog = typeof securityAuditLogs.$inferSelect;
+export type InsertSecurityAuditLog = typeof securityAuditLogs.$inferInsert;
+export type SecurityAlert = typeof securityAlerts.$inferSelect;
+export type InsertSecurityAlert = typeof securityAlerts.$inferInsert;
+export type PasswordHistory = typeof passwordHistory.$inferSelect;
+export type InsertPasswordHistory = typeof passwordHistory.$inferInsert;

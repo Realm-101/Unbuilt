@@ -7,6 +7,7 @@ import {
   validateIdeaSchema,
   insertSearchSchema 
 } from '../../shared/schema';
+import { changePasswordSchema, passwordStrengthSchema } from '../../shared/auth-schema';
 import { AppError } from './errorHandler';
 
 /**
@@ -178,6 +179,8 @@ function createValidator(schema: z.ZodSchema, source: 'body' | 'params' | 'query
 // Specific validation middleware for different endpoints
 export const validateLogin = createValidator(loginSchema);
 export const validateRegister = createValidator(registerSchema);
+export const validateChangePassword = createValidator(changePasswordSchema);
+export const validatePasswordStrength = createValidator(passwordStrengthSchema);
 export const validateIdParam = createValidator(idParamSchema, 'params');
 export const validatePagination = createValidator(paginationSchema, 'query');
 export const validateSearch = createValidator(searchQuerySchema);

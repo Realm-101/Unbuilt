@@ -1,10 +1,17 @@
 import { Router } from 'express';
 import { authService } from '../auth';
 import { jwtService } from '../jwt';
-import { jwtAuth, authRateLimit } from '../middleware/jwtAuth';
+import { jwtAuth } from '../middleware/jwtAuth';
 import { sanitizeInput, validateAuthInput } from '../middleware/inputSanitization';
 import { validateUserData, validateSensitiveOperation } from '../middleware/queryValidation';
-import { validateLogin, validateRegister, authRateLimit as newAuthRateLimit } from '../middleware/validation';
+import { validateLogin, validateRegister, validateChangePassword, validatePasswordStrength } from '../middleware/validation';
+import { 
+  authRateLimit, 
+  loginRateLimit, 
+  registerRateLimit, 
+  passwordResetRateLimit,
+  apiRateLimit 
+} from '../middleware/rateLimiting';
 import { sessionManager, SessionManager } from '../services/sessionManager';
 import { securityEventHandler } from '../services/securityEventHandler';
 import { loginSchema, registerSchema } from '@shared/schema';
@@ -15,10 +22,6 @@ import {
 } from '../middleware/errorHandler';
 
 const router = Router();
-
-// Rate limiting for auth endpoints
-const loginRateLimit = authRateLimit(5, 15 * 60 * 1000); // 5 attempts per 15 minutes
-const registerRateLimit = authRateLimit(3, 60 * 60 * 1000); // 3 attempts per hour
 
 // Helper function to get client IP address
 function getClientIp(req: any): string {
@@ -33,7 +36,7 @@ function getClientIp(req: any): string {
  * POST /api/auth/login
  * Authenticate user and return JWT tokens
  */
-router.post('/login', newAuthRateLimit, validateLogin, sanitizeInput, validateAuthInput, loginRateLimit, validateSensitiveOperation(5, 15 * 60 * 1000), asyncHandler(async (req, res) => {
+router.post('/login', loginRateLimit, validateLogin, sanitizeInput, validateAuthInput, validateSensitiveOperation(5, 15 * 60 * 1000), asyncHandler(async (req, res) => {
   const { email, password } = loginSchema.parse(req.body);
   const ipAddress = getClientIp(req);
 
@@ -47,7 +50,7 @@ router.post('/login', newAuthRateLimit, validateLogin, sanitizeInput, validateAu
   }
 
   // Validate user credentials
-  const user = await authService.validateUser(email, password);
+  const user = await authService.validateUser(email, password, ipAddress);
   if (!user) {
     // Handle failed login attempt
     await securityEventHandler.handleFailedLoginAttempt(
@@ -63,7 +66,11 @@ router.post('/login', newAuthRateLimit, validateLogin, sanitizeInput, validateAu
   }
 
   // Handle successful login (reset failed attempts)
-  await securityEventHandler.handleSuccessfulLogin(user.id);
+  await securityEventHandler.handleSuccessfulLogin(user.id, {
+    ipAddress,
+    userAgent: req.headers['user-agent'],
+    userEmail: user.email
+  });
 
   // Parse device info and get IP
   const deviceInfo = SessionManager.parseDeviceInfo(req.headers['user-agent']);
@@ -101,7 +108,7 @@ router.post('/login', newAuthRateLimit, validateLogin, sanitizeInput, validateAu
  * POST /api/auth/register
  * Register new user and return JWT tokens
  */
-router.post('/register', newAuthRateLimit, validateRegister, sanitizeInput, validateAuthInput, registerRateLimit, validateSensitiveOperation(3, 60 * 60 * 1000), asyncHandler(async (req, res) => {
+router.post('/register', registerRateLimit, validateRegister, sanitizeInput, validateAuthInput, validateSensitiveOperation(3, 60 * 60 * 1000), asyncHandler(async (req, res) => {
   const userData = registerSchema.parse(req.body);
 
   // Check if user already exists
@@ -155,7 +162,7 @@ router.post('/register', newAuthRateLimit, validateRegister, sanitizeInput, vali
  * POST /api/auth/refresh
  * Refresh access token using refresh token
  */
-router.post('/refresh', sanitizeInput, validateSensitiveOperation(10, 15 * 60 * 1000), asyncHandler(async (req, res) => {
+router.post('/refresh', authRateLimit, sanitizeInput, validateSensitiveOperation(10, 15 * 60 * 1000), asyncHandler(async (req, res) => {
   const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
   if (!refreshToken) {
@@ -222,7 +229,7 @@ router.post('/logout-all', jwtAuth, asyncHandler(async (req, res) => {
  * GET /api/auth/me
  * Get current user information
  */
-router.get('/me', jwtAuth, validateUserData, asyncHandler(async (req, res) => {
+router.get('/me', apiRateLimit, jwtAuth, validateUserData, asyncHandler(async (req, res) => {
   const user = await authService.getUserById(req.user!.id);
   if (!user) {
     throw AppError.createNotFoundError('User account not found', 'USER_NOT_FOUND');
@@ -247,7 +254,7 @@ router.get('/me', jwtAuth, validateUserData, asyncHandler(async (req, res) => {
  * GET /api/auth/user
  * Compatibility endpoint for client - redirects to /me
  */
-router.get('/user', jwtAuth, validateUserData, asyncHandler(async (req, res) => {
+router.get('/user', apiRateLimit, jwtAuth, validateUserData, asyncHandler(async (req, res) => {
   const user = await authService.getUserById(req.user!.id);
   if (!user) {
     throw AppError.createNotFoundError('User account not found', 'USER_NOT_FOUND');
@@ -272,7 +279,7 @@ router.get('/user', jwtAuth, validateUserData, asyncHandler(async (req, res) => 
  * GET /api/auth/sessions
  * Get user's active sessions with detailed information
  */
-router.get('/sessions', jwtAuth, asyncHandler(async (req, res) => {
+router.get('/sessions', apiRateLimit, jwtAuth, asyncHandler(async (req, res) => {
   const sessions = await sessionManager.getUserSessions(req.user!.id);
   const currentSessionId = req.user!.jti;
   
@@ -286,6 +293,70 @@ router.get('/sessions', jwtAuth, asyncHandler(async (req, res) => {
     sessions: sessionsWithCurrent,
     totalSessions: sessions.length,
     activeSessions: sessions.filter(s => s.isActive).length
+  });
+}));
+
+/**
+ * POST /api/auth/change-password
+ * Change user password with security validation
+ */
+router.post('/change-password', passwordResetRateLimit, jwtAuth, validateChangePassword, sanitizeInput, validateSensitiveOperation(3, 60 * 60 * 1000), asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  // Change password
+  const result = await authService.changePassword(req.user!.id, currentPassword, newPassword);
+  
+  if (!result.success) {
+    throw AppError.createValidationError(result.errors.join(', '), 'PASSWORD_CHANGE_FAILED');
+  }
+
+  // Log security event
+  const { securityLogger } = await import('../services/securityLogger');
+  await securityLogger.logSecurityEvent(
+    req.user!.id,
+    'PASSWORD_CHANGED',
+    'password_change',
+    true,
+    {
+      userEmail: req.user!.email,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      timestamp: new Date().toISOString()
+    },
+    'info'
+  );
+
+  sendSuccess(res, null, 'Password changed successfully');
+}));
+
+/**
+ * GET /api/auth/password-status
+ * Get password security status for current user
+ */
+router.get('/password-status', apiRateLimit, jwtAuth, asyncHandler(async (req, res) => {
+  const status = await authService.getPasswordSecurityStatus(req.user!.id);
+  
+  sendSuccess(res, {
+    passwordStatus: status,
+    requiresChange: await authService.shouldForcePasswordChange(req.user!.id)
+  });
+}));
+
+/**
+ * POST /api/auth/validate-password-strength
+ * Validate password strength without changing it
+ */
+router.post('/validate-password-strength', authRateLimit, validatePasswordStrength, sanitizeInput, asyncHandler(async (req, res) => {
+  const { password } = req.body;
+
+  const { passwordSecurityService } = await import('../services/passwordSecurity');
+  const strengthResult = passwordSecurityService.validatePasswordStrength(password);
+
+  sendSuccess(res, {
+    isValid: strengthResult.isValid,
+    score: strengthResult.score,
+    feedback: strengthResult.feedback,
+    requirements: strengthResult.requirements
   });
 }));
 

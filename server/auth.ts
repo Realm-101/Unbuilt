@@ -2,22 +2,40 @@ import bcrypt from 'bcrypt';
 import { db } from './db';
 import { users, sessions, type User, type InsertUser } from '@shared/schema';
 import { eq } from 'drizzle-orm';
+import { passwordSecurityService } from './services/passwordSecurity';
+import { passwordHistoryService } from './services/passwordHistory';
+import { accountLockoutService } from './services/accountLockout';
 
 export class AuthService {
   async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 10);
+    // Use the enhanced password security service
+    return passwordSecurityService.hashPassword(password);
   }
 
   async verifyPassword(password: string, hash: string): Promise<boolean> {
-    return bcrypt.compare(password, hash);
+    return passwordSecurityService.verifyPassword(password, hash);
   }
 
   async createUser(userData: InsertUser): Promise<User> {
-    const hashedPassword = userData.password ? await this.hashPassword(userData.password) : null;
+    let hashedPassword = null;
+    let passwordStrengthScore = 0;
+
+    if (userData.password) {
+      // Validate password strength before hashing
+      const strengthResult = passwordSecurityService.validatePasswordStrength(userData.password);
+      if (!strengthResult.isValid) {
+        throw new Error(`Password does not meet security requirements: ${strengthResult.feedback.join(', ')}`);
+      }
+      
+      hashedPassword = await this.hashPassword(userData.password);
+      passwordStrengthScore = strengthResult.score;
+    }
     
     const [user] = await db.insert(users).values({
       ...userData,
       password: hashedPassword,
+      passwordStrengthScore,
+      lastPasswordChange: new Date().toISOString(),
     }).returning();
     
     return user;
@@ -52,12 +70,27 @@ export class AuthService {
     return user;
   }
 
-  async validateUser(email: string, password: string): Promise<User | null> {
+  async validateUser(email: string, password: string, ipAddress?: string): Promise<User | null> {
     const user = await this.getUserByEmail(email);
     if (!user || !user.password) return null;
     
+    // Check if account is locked
+    const isLocked = await accountLockoutService.isAccountLocked(user.id);
+    if (isLocked) {
+      return null; // Don't reveal that account is locked in this method
+    }
+    
     const isValid = await this.verifyPassword(password, user.password);
-    if (!isValid) return null;
+    if (!isValid) {
+      // Record failed attempt if IP address is provided
+      if (ipAddress) {
+        await accountLockoutService.recordFailedAttempt(user.id, email, ipAddress);
+      }
+      return null;
+    }
+    
+    // Record successful login to reset failed attempts
+    await accountLockoutService.recordSuccessfulLogin(user.id);
     
     return user;
   }
@@ -148,6 +181,107 @@ export class AuthService {
     }
     
     return user.searchCount < 5; // Free tier limit
+  }
+
+  /**
+   * Change user password with security validation
+   */
+  async changePassword(
+    userId: number, 
+    currentPassword: string, 
+    newPassword: string
+  ): Promise<{ success: boolean; errors: string[] }> {
+    const user = await this.getUserById(userId);
+    if (!user || !user.password) {
+      return { success: false, errors: ['User not found or no password set'] };
+    }
+
+    // Get previous password hashes for validation
+    const previousPasswords = await passwordHistoryService.getRecentPasswordHashes(userId);
+
+    // Validate password change
+    const validation = await passwordSecurityService.validatePasswordChange(
+      currentPassword,
+      newPassword,
+      user.password,
+      previousPasswords
+    );
+
+    if (!validation.isValid) {
+      return { success: false, errors: validation.errors };
+    }
+
+    // Add current password to history before changing
+    await passwordHistoryService.addPasswordToHistory(userId, user.password, user.password);
+
+    // Hash new password and calculate strength score
+    const newPasswordHash = await this.hashPassword(newPassword);
+    const strengthResult = passwordSecurityService.validatePasswordStrength(newPassword);
+
+    // Update user with new password
+    await db.update(users).set({
+      password: newPasswordHash,
+      passwordStrengthScore: strengthResult.score,
+      lastPasswordChange: new Date().toISOString(),
+      forcePasswordChange: false,
+      passwordExpiryWarningSent: false,
+      updatedAt: new Date().toISOString()
+    }).where(eq(users.id, userId));
+
+    return { success: true, errors: [] };
+  }
+
+  /**
+   * Check if user needs to change password
+   */
+  async shouldForcePasswordChange(userId: number): Promise<boolean> {
+    const user = await this.getUserById(userId);
+    if (!user) return false;
+
+    // Check force password change flag
+    if (user.forcePasswordChange) return true;
+
+    // Check password expiration
+    if (user.lastPasswordChange) {
+      const lastChange = new Date(user.lastPasswordChange);
+      return passwordSecurityService.isPasswordExpired(lastChange);
+    }
+
+    return false;
+  }
+
+  /**
+   * Get password security status for a user
+   */
+  async getPasswordSecurityStatus(userId: number): Promise<{
+    strengthScore: number;
+    lastChanged: Date | null;
+    isExpired: boolean;
+    daysUntilExpiry: number;
+    forceChange: boolean;
+  }> {
+    const user = await this.getUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const lastChanged = user.lastPasswordChange ? new Date(user.lastPasswordChange) : null;
+    const isExpired = lastChanged ? passwordSecurityService.isPasswordExpired(lastChanged) : false;
+    
+    let daysUntilExpiry = 0;
+    if (lastChanged) {
+      const expiryDate = new Date(lastChanged.getTime() + (90 * 24 * 60 * 60 * 1000)); // 90 days
+      const now = new Date();
+      daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    return {
+      strengthScore: user.passwordStrengthScore || 0,
+      lastChanged,
+      isExpired,
+      daysUntilExpiry: Math.max(0, daysUntilExpiry),
+      forceChange: user.forcePasswordChange || false
+    };
   }
 
   private generateSessionId(): string {
