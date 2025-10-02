@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { jwtService, type JWTPayload } from '../jwt';
 import { authService } from '../auth';
+import { AppError, ErrorType } from './errorHandler';
 
 // Extend Express Request type to include user
 declare global {
@@ -37,33 +38,18 @@ export const jwtAuth = async (req: Request, res: Response, next: NextFunction): 
     const token = jwtService.extractTokenFromHeader(authHeader);
 
     if (!token) {
-      res.status(401).json({
-        error: 'Authentication required',
-        message: 'No token provided',
-        code: 'NO_TOKEN'
-      });
-      return;
+      return next(AppError.createAuthenticationError('No token provided', 'AUTH_NO_TOKEN'));
     }
 
     const payload = await jwtService.validateToken(token, 'access');
     if (!payload) {
-      res.status(401).json({
-        error: 'Authentication failed',
-        message: 'Invalid or expired token',
-        code: 'INVALID_TOKEN'
-      });
-      return;
+      return next(AppError.createAuthenticationError('Invalid or expired token', 'AUTH_INVALID_TOKEN'));
     }
 
     // Verify user still exists and is active
     const user = await authService.getUserById(parseInt(payload.sub));
     if (!user || !user.isActive) {
-      res.status(401).json({
-        error: 'Authentication failed',
-        message: 'User account not found or inactive',
-        code: 'USER_INACTIVE'
-      });
-      return;
+      return next(AppError.createAuthenticationError('User account not found or inactive', 'AUTH_USER_INACTIVE'));
     }
 
     // Attach user info to request
@@ -78,11 +64,7 @@ export const jwtAuth = async (req: Request, res: Response, next: NextFunction): 
     next();
   } catch (error) {
     console.error('JWT Auth middleware error:', error);
-    res.status(500).json({
-      error: 'Authentication error',
-      message: 'Internal server error during authentication',
-      code: 'AUTH_ERROR'
-    });
+    next(AppError.createSystemError('Internal server error during authentication', 'AUTH_SYSTEM_ERROR'));
   }
 };
 
@@ -128,21 +110,11 @@ export const requireRole = (roles: string | string[]) => {
   
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({
-        error: 'Authentication required',
-        message: 'User not authenticated',
-        code: 'NOT_AUTHENTICATED'
-      });
-      return;
+      return next(AppError.createAuthenticationError('User not authenticated', 'AUTH_NOT_AUTHENTICATED'));
     }
 
     if (!allowedRoles.includes(req.user.role)) {
-      res.status(403).json({
-        error: 'Access denied',
-        message: 'Insufficient permissions',
-        code: 'INSUFFICIENT_PERMISSIONS'
-      });
-      return;
+      return next(AppError.createAuthorizationError('Insufficient permissions', 'AUTHZ_INSUFFICIENT_PERMISSIONS'));
     }
 
     next();
@@ -254,13 +226,13 @@ export const authRateLimit = (maxAttempts: number = 5, windowMs: number = 15 * 6
     }
 
     if (clientAttempts.count >= maxAttempts) {
-      res.status(429).json({
-        error: 'Too many requests',
-        message: 'Rate limit exceeded. Please try again later.',
-        code: 'RATE_LIMIT_EXCEEDED',
-        retryAfter: Math.ceil((clientAttempts.resetTime - now) / 1000)
-      });
-      return;
+      const retryAfter = Math.ceil((clientAttempts.resetTime - now) / 1000);
+      const error = AppError.createRateLimitError(
+        'Rate limit exceeded. Please try again later.',
+        'RATE_LIMIT_EXCEEDED'
+      );
+      error.details = { retryAfter };
+      return next(error);
     }
 
     clientAttempts.count++;

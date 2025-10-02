@@ -5,6 +5,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { CollaborationServer } from "./websocket";
 import { tokenCleanupService } from "./services/tokenCleanup";
+import { scheduledTaskService } from "./services/scheduledTasks";
 import { envValidator } from "./config/envValidator";
 
 const app = express();
@@ -84,13 +85,9 @@ app.get('/health', (req, res) => {
 
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
+  // Use standardized error handling middleware
+  const { errorHandlerMiddleware } = await import("./middleware/errorHandler");
+  app.use(errorHandlerMiddleware);
 
   // Set up WebSocket server for collaboration
   const collaborationServer = new CollaborationServer(server);
@@ -98,6 +95,13 @@ app.get('/health', (req, res) => {
 
   // Start JWT token cleanup service
   tokenCleanupService.start();
+
+  // Start session management scheduled tasks
+  scheduledTaskService.start();
+
+  // Create demo user if configured
+  const { demoUserService } = await import("./services/demoUser");
+  await demoUserService.createDemoUserIfNeeded();
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route

@@ -11,16 +11,21 @@ const databaseUrl = process.env.SUPABASE_DB_URL ||
                    process.env.DATABASE_URL || 
                    process.env.SUPABASE_URL;
 
+let pool: Pool;
+let db: ReturnType<typeof drizzle>;
+
 if (!databaseUrl) {
   console.warn("⚠️ No database URL found. Using fallback configuration.");
   // Create a fallback pool that won't crash the app
-  export const pool = new Pool({ 
+  pool = new Pool({ 
     connectionString: "postgresql://user:pass@localhost:5432/fallback",
     max: 1,
     connectionTimeoutMillis: 1000,
   });
-  export const db = drizzle({ client: pool, schema });
+  db = drizzle({ client: pool, schema });
 } else {
-  export const pool = new Pool({ connectionString: databaseUrl });
-  export const db = drizzle({ client: pool, schema });
+  pool = new Pool({ connectionString: databaseUrl });
+  db = drizzle({ client: pool, schema });
 }
+
+export { pool, db };

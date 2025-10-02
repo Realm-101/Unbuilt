@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { CredentialDetector } from '../utils/credentialDetection';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -65,6 +66,9 @@ export class EnvironmentValidator {
     
     // Security Configuration
     this.validateSecurityConfig();
+    
+    // Credential Detection
+    this.validateCredentialSecurity();
 
     return {
       isValid: this.errors.length === 0,
@@ -319,6 +323,77 @@ export class EnvironmentValidator {
         message: 'GitHub OAuth keys should be configured together',
         suggestion: 'Set both GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET for GitHub authentication'
       });
+    }
+  }
+
+  private validateCredentialSecurity(): void {
+    // Run credential detection on environment variables
+    const envValidation = CredentialDetector.validateEnvironmentVariables();
+    
+    // Convert credential detection issues to validation errors/warnings
+    envValidation.issues.forEach(issue => {
+      if (issue.severity === 'high') {
+        this.errors.push({
+          field: issue.variable,
+          message: issue.issue,
+          severity: 'error'
+        });
+      } else {
+        this.warnings.push({
+          field: issue.variable,
+          message: issue.issue,
+          suggestion: 'Review security configuration'
+        });
+      }
+    });
+
+    // Add warnings
+    envValidation.warnings.forEach(warning => {
+      this.warnings.push({
+        field: 'SECURITY',
+        message: warning,
+        suggestion: 'Consider strengthening security configuration'
+      });
+    });
+
+    // Validate demo user configuration
+    this.validateDemoUserConfig();
+  }
+
+  private validateDemoUserConfig(): void {
+    const demoEmail = process.env.DEMO_USER_EMAIL;
+    const demoPassword = process.env.DEMO_USER_PASSWORD;
+    const nodeEnv = process.env.NODE_ENV;
+
+    // Check if demo credentials are set in production
+    if (nodeEnv === 'production' && (demoEmail || demoPassword)) {
+      this.errors.push({
+        field: 'DEMO_USER_CREDENTIALS',
+        message: 'Demo user credentials should not be set in production environment',
+        severity: 'error'
+      });
+    }
+
+    // Validate demo credentials format in development
+    if (nodeEnv !== 'production' && demoEmail && demoPassword) {
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(demoEmail)) {
+        this.warnings.push({
+          field: 'DEMO_USER_EMAIL',
+          message: 'Demo user email format is invalid',
+          suggestion: 'Use a valid email format for demo user'
+        });
+      }
+
+      // Password strength validation
+      if (demoPassword.length < 8) {
+        this.warnings.push({
+          field: 'DEMO_USER_PASSWORD',
+          message: 'Demo user password is weak (less than 8 characters)',
+          suggestion: 'Use a stronger password for demo user'
+        });
+      }
     }
   }
 

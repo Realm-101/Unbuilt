@@ -59,6 +59,11 @@ export const users = pgTable("users", {
   firstName: text("first_name"),
   lastName: text("last_name"),
   profileImageUrl: text("profile_image_url"),
+  // Security fields for session management
+  failedLoginAttempts: integer("failed_login_attempts").default(0).notNull(),
+  lastFailedLogin: timestamp("last_failed_login", { mode: 'string' }),
+  accountLocked: boolean("account_locked").default(false).notNull(),
+  lockoutExpires: timestamp("lockout_expires", { mode: 'string' }),
 }, (table) => [
   unique("users_email_unique").on(table.email),
 ]);

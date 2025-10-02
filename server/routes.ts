@@ -4,7 +4,33 @@ import { storage } from "./storage";
 import { jwtAuth, optionalJwtAuth } from "./middleware/jwtAuth";
 import { sanitizeInput, validateApiInput } from "./middleware/inputSanitization";
 import { validateQueryResults, validateSearchData } from "./middleware/queryValidation";
+import { 
+  validateApiInput as comprehensiveValidation,
+  validateSearch,
+  validateBusinessPlan,
+  validateMarketResearch,
+  validateActionPlan,
+  validateIdea,
+  validateTeam,
+  validateComment,
+  validateSubscription,
+  validateIdParam,
+  validatePagination,
+  generalRateLimit,
+  searchRateLimit,
+  aiRateLimit
+} from "./middleware/validation";
 import authRoutes from "./routes/auth";
+import sessionRoutes from "./routes/sessions";
+import securityRoutes from "./routes/security";
+import { trackSession, monitorSessionSecurity } from "./middleware/sessionManagement";
+import { 
+  AppError, 
+  ErrorType, 
+  asyncHandler, 
+  sendSuccess, 
+  sendError 
+} from "./middleware/errorHandler";
 import { analyzeGaps } from "./services/gemini";
 import { generateBusinessPlan, generateMarketResearch } from "./services/xai";
 import { generateActionPlan, summarizeActionPlan } from "./services/actionPlanGenerator";
@@ -125,11 +151,20 @@ function applySearchFilters(gaps: any[], filters: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Apply global input sanitization to all API routes
-  app.use('/api', sanitizeInput, validateApiInput);
+  // Apply global input sanitization and validation to all API routes
+  app.use('/api', generalRateLimit, comprehensiveValidation, sanitizeInput, validateApiInput);
+  
+  // Apply session tracking and security monitoring to authenticated routes
+  app.use('/api', trackSession, monitorSessionSecurity);
   
   // JWT Authentication routes
   app.use('/api/auth', authRoutes);
+  
+  // Session management routes
+  app.use('/api/sessions', sessionRoutes);
+  
+  // Security management routes
+  app.use('/api/security', securityRoutes);
 
   // Analytics routes
   app.use('/api/analytics', analyticsRouter);
@@ -140,81 +175,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Search endpoint - now requires authentication and supports filters
-  app.post("/api/search", jwtAuth, validateSearchData, async (req, res) => {
-    try {
-      const { query, filters } = req.body;
-      const parsedQuery = insertSearchSchema.parse({ query });
-      const userId = req.user!.id;
-      
-      // Create search record
-      const search = await storage.createSearch({ query: parsedQuery.query, userId });
-      
-      // Analyze gaps using Gemini with filters context
-      let gaps = await analyzeGaps(parsedQuery.query);
-      
-      // Apply filters if provided
-      if (filters) {
-        gaps = applySearchFilters(gaps, filters);
-      }
-      
-      // Create search results
-      const results = await Promise.all(
-        gaps.map(gap => 
-          storage.createSearchResult({
-            searchId: search.id,
-            title: gap.title,
-            description: gap.description,
-            category: gap.category,
-            feasibility: gap.feasibility,
-            marketPotential: gap.marketPotential,
-            innovationScore: Math.round(gap.innovationScore), // Ensure integer
-            marketSize: gap.marketSize,
-            gapReason: gap.gapReason,
-          })
-        )
-      );
-      
-      res.json({ search, results });
-    } catch (error) {
-      console.error('Search error:', error);
-      res.status(500).json({ message: 'Failed to perform search' });
+  app.post("/api/search", searchRateLimit, jwtAuth, validateSearch, validateSearchData, asyncHandler(async (req, res) => {
+    const { query, filters } = req.body;
+    const parsedQuery = insertSearchSchema.parse({ query });
+    const userId = req.user!.id;
+    
+    // Create search record
+    const search = await storage.createSearch({ query: parsedQuery.query, userId });
+    
+    // Analyze gaps using Gemini with filters context
+    let gaps = await analyzeGaps(parsedQuery.query);
+    
+    // Apply filters if provided
+    if (filters) {
+      gaps = applySearchFilters(gaps, filters);
     }
-  });
+    
+    // Create search results
+    const results = await Promise.all(
+      gaps.map(gap => 
+        storage.createSearchResult({
+          searchId: search.id,
+          title: gap.title,
+          description: gap.description,
+          category: gap.category,
+          feasibility: gap.feasibility,
+          marketPotential: gap.marketPotential,
+          innovationScore: Math.round(gap.innovationScore), // Ensure integer
+          marketSize: gap.marketSize,
+          gapReason: gap.gapReason,
+        })
+      )
+    );
+    
+    sendSuccess(res, { search, results });
+  }));
 
   // Get search results
-  app.get("/api/search/:id/results", jwtAuth, validateSearchData, async (req, res) => {
-    try {
-      const searchId = parseInt(req.params.id);
-      const userId = req.user!.id;
-      
-      // First verify the search belongs to the user
-      const searches = await storage.getSearches(userId.toString());
-      const userSearch = searches.find(s => s.id === searchId);
-      
-      if (!userSearch) {
-        return res.status(404).json({ message: 'Search not found or access denied' });
-      }
-      
-      const results = await storage.getSearchResults(searchId);
-      res.json(results);
-    } catch (error) {
-      res.status(500).json({ message: 'Failed to get search results' });
+  app.get("/api/search/:id/results", jwtAuth, validateIdParam, validateSearchData, asyncHandler(async (req, res) => {
+    const searchId = parseInt(req.params.id);
+    const userId = req.user!.id;
+    
+    // First verify the search belongs to the user
+    const searches = await storage.getSearches(userId.toString());
+    const userSearch = searches.find(s => s.id === searchId);
+    
+    if (!userSearch) {
+      throw AppError.createNotFoundError('Search not found or access denied', 'SEARCH_NOT_FOUND');
     }
-  });
+    
+    const results = await storage.getSearchResults(searchId);
+    sendSuccess(res, results);
+  }));
 
   // Get search history
-  app.get("/api/searches", jwtAuth, validateSearchData, async (req, res) => {
-    try {
-      const userId = req.user!.id.toString();
-      const searches = await storage.getSearches(userId);
-      res.json(searches);
-    } catch (error) {
-      res.status(500).json({ message: 'Failed to get search history' });
-    }
-  });
+  app.get("/api/searches", jwtAuth, validatePagination, validateSearchData, asyncHandler(async (req, res) => {
+    const userId = req.user!.id.toString();
+    const searches = await storage.getSearches(userId);
+    sendSuccess(res, searches);
+  }));
 
   // Save/unsave result
-  app.patch("/api/results/:id/save", jwtAuth, validateQueryResults, async (req, res) => {
+  app.patch("/api/results/:id/save", jwtAuth, validateIdParam, validateQueryResults, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { isSaved } = req.body;
@@ -247,26 +269,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/email-report", jwtAuth, sendEmailReport);
 
   // Business Plan Generation (xAI powered)
-  app.post("/api/business-plan", jwtAuth, async (req, res) => {
-    try {
-      const { title, description, category, marketSize } = req.body;
-      
-      if (!title || !description) {
-        return res.status(400).json({ message: 'Title and description are required' });
-      }
-      
-      console.log(`📊 Generating business plan for: ${title}`);
-      const businessPlan = await generateBusinessPlan(title, description, category, marketSize);
-      
-      res.json(businessPlan);
-    } catch (error) {
-      console.error('Business plan generation error:', error);
-      res.status(500).json({ message: 'Failed to generate business plan' });
+  app.post("/api/business-plan", aiRateLimit, jwtAuth, validateBusinessPlan, asyncHandler(async (req, res) => {
+    const { title, description, category, marketSize } = req.body;
+    
+    if (!title || !description) {
+      throw AppError.createValidationError('Title and description are required', 'VAL_MISSING_FIELDS');
     }
-  });
+    
+    console.log(`📊 Generating business plan for: ${title}`);
+    const businessPlan = await generateBusinessPlan(title, description, category, marketSize);
+    
+    sendSuccess(res, businessPlan);
+  }));
   
   // Market Research (xAI powered)
-  app.post("/api/market-research", jwtAuth, async (req, res) => {
+  app.post("/api/market-research", aiRateLimit, jwtAuth, validateMarketResearch, async (req, res) => {
     try {
       const { query } = req.body;
       
@@ -285,7 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Action Plan Generation (xAI powered)
-  app.post("/api/action-plan", jwtAuth, async (req, res) => {
+  app.post("/api/action-plan", aiRateLimit, jwtAuth, validateActionPlan, async (req, res) => {
     try {
       const { idea, validationScore, marketSize } = req.body;
       
@@ -307,7 +324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Collaboration Endpoints
   
   // Create a team
-  app.post("/api/teams", jwtAuth, async (req, res) => {
+  app.post("/api/teams", jwtAuth, validateTeam, async (req, res) => {
     try {
       const { name, description } = req.body;
       const userId = req.user!.id.toString();
@@ -337,7 +354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Share an idea
-  app.post("/api/ideas/:id/share", jwtAuth, async (req, res) => {
+  app.post("/api/ideas/:id/share", jwtAuth, validateIdParam, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
       const userId = req.user!.id.toString();
@@ -373,7 +390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Add a comment to an idea
-  app.post("/api/ideas/:id/comments", jwtAuth, async (req, res) => {
+  app.post("/api/ideas/:id/comments", jwtAuth, validateIdParam, validateComment, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
       const userId = req.user!.id.toString();
@@ -393,7 +410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get comments for an idea
-  app.get("/api/ideas/:id/comments", jwtAuth, async (req, res) => {
+  app.get("/api/ideas/:id/comments", jwtAuth, validateIdParam, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
       const includeReplies = req.query.includeReplies !== 'false';
@@ -407,7 +424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Toggle comment reaction
-  app.post("/api/comments/:id/reactions", jwtAuth, async (req, res) => {
+  app.post("/api/comments/:id/reactions", jwtAuth, validateIdParam, async (req, res) => {
     try {
       const commentId = parseInt(req.params.id);
       const userId = req.user!.id.toString();
@@ -446,7 +463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get action plan for specific idea
-  app.get("/api/ideas/:id/action-plan", jwtAuth, async (req, res) => {
+  app.get("/api/ideas/:id/action-plan", aiRateLimit, jwtAuth, validateIdParam, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
       const userId = req.user!.id;
@@ -474,7 +491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Idea validation and financial modeling routes
   
   // Create and validate new idea with AI insights
-  app.post("/api/ideas", jwtAuth, validateSearchData, async (req, res) => {
+  app.post("/api/ideas", aiRateLimit, jwtAuth, validateIdea, validateSearchData, async (req, res) => {
     try {
       const ideaData = validateIdeaSchema.parse(req.body);
       const userId = req.user!.id;
@@ -523,7 +540,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get user's ideas
-  app.get("/api/ideas", jwtAuth, validateSearchData, async (req, res) => {
+  app.get("/api/ideas", jwtAuth, validatePagination, validateSearchData, async (req, res) => {
     try {
       const userId = req.user!.id;
       const ideas = await storage.getIdeas(userId);
@@ -535,7 +552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get specific idea with detailed analysis
-  app.get("/api/ideas/:id", jwtAuth, validateSearchData, async (req, res) => {
+  app.get("/api/ideas/:id", jwtAuth, validateIdParam, validateSearchData, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
       const userId = req.user!.id;
@@ -576,7 +593,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update idea and recalculate scores
-  app.put("/api/ideas/:id", jwtAuth, validateSearchData, async (req, res) => {
+  app.put("/api/ideas/:id", jwtAuth, validateIdParam, validateIdea, validateSearchData, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
       const userId = req.user!.id;
@@ -614,7 +631,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stripe subscription routes
-  app.post('/api/create-subscription', jwtAuth, async (req, res) => {
+  app.post('/api/create-subscription', jwtAuth, validateSubscription, async (req, res) => {
     try {
       const { plan } = req.body;
       const user = req.user!;
@@ -697,7 +714,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user has already used trial (allow demo user to re-activate for testing)
-      if (user.trialUsed && user.email !== 'test@example.com') {
+      const { demoUserService } = await import("./services/demoUser");
+      if (user.trialUsed && !demoUserService.isDemoUser(user.email)) {
         return res.status(400).json({ error: "Free trial has already been used" });
       }
       

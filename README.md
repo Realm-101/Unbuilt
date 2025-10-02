@@ -13,8 +13,16 @@
 **Try Unbuilt demo now @ Unbuilt.one** 
 
 Demo credentials for testing:
-- **Email:** test@example.com
-- **Password:** demo123
+- **Email:** [DEMO_USER_EMAIL from environment]
+- **Password:** [DEMO_USER_PASSWORD from environment]
+
+Set these environment variables for development:
+```bash
+DEMO_USER_EMAIL=[your_demo_email]
+DEMO_USER_PASSWORD=[your_secure_password_min_8_chars]
+```
+
+**Note:** Replace the bracketed placeholders with actual values. Demo user credentials are only used in development and should never be set in production.
 
 ## 📸 Platform Demo
 

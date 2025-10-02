@@ -11,7 +11,7 @@ The `simpleAuth.ts` system bypasses all security and uses hardcoded demo users.
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export async function generateToken(userId: string): Promise<string> {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });

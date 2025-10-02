@@ -76,7 +76,7 @@ npm run db:push
 
 3. **Test authentication:**
    - Visit your app
-   - Try logging in with test@example.com / demo123
+   - Try logging in with your configured demo credentials (see environment variables)
    - Should work without session errors
 
 ## Current Status

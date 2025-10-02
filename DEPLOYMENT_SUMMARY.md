@@ -15,7 +15,7 @@ The Unbuilt application is now fully functional and running successfully on Repl
 1. **Simplified Authentication System**
    - Removed complex OAuth dependencies (Passport.js, OpenID)
    - Implemented clean demo authentication for immediate testing
-   - Demo user auto-created: `demo@unbuilt.com`
+   - Demo user auto-created from environment variables
    - All auth endpoints functional
 
 2. **Database Schema Fixed**
