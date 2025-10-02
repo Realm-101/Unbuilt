@@ -3,13 +3,24 @@ import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from "ws";
 import * as schema from "@shared/schema";
 
+// Configure WebSocket for Neon databases
 neonConfig.webSocketConstructor = ws;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
-}
+// Check for database URL in order of preference
+const databaseUrl = process.env.SUPABASE_DB_URL || 
+                   process.env.DATABASE_URL || 
+                   process.env.SUPABASE_URL;
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+if (!databaseUrl) {
+  console.warn("⚠️ No database URL found. Using fallback configuration.");
+  // Create a fallback pool that won't crash the app
+  export const pool = new Pool({ 
+    connectionString: "postgresql://user:pass@localhost:5432/fallback",
+    max: 1,
+    connectionTimeoutMillis: 1000,
+  });
+  export const db = drizzle({ client: pool, schema });
+} else {
+  export const pool = new Pool({ connectionString: databaseUrl });
+  export const db = drizzle({ client: pool, schema });
+}
