@@ -1,0 +1,35 @@
+# Test Fixtures
+
+Place test data and fixtures in this directory.
+
+Fixtures should:
+- Provide reusable test data
+- Be deterministic and predictable
+- Cover common test scenarios
+- Be easy to understand
+
+Example structure:
+```
+fixtures/
+├── users.ts          # Sample user data
+├── sessions.ts       # Sample session data
+├── searchResults.ts  # Sample search results
+└── apiResponses.ts   # Sample API responses
+```
+
+Example fixture file:
+```typescript
+// users.ts
+export const testUsers = {
+  validUser: {
+    email: 'test@example.com',
+    password: 'Test123!@#',
+    plan: 'free'
+  },
+  proUser: {
+    email: 'pro@example.com',
+    password: 'Pro123!@#',
+    plan: 'pro'
+  }
+};
+```

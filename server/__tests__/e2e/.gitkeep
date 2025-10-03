@@ -1,0 +1,17 @@
+# End-to-End Tests
+
+Place end-to-end tests in this directory.
+
+E2E tests should:
+- Test complete user workflows
+- Simulate real user interactions
+- Use real or test database
+- May take longer (1s+ per test)
+
+Example structure:
+```
+e2e/
+├── user-registration-flow.test.ts
+├── search-workflow.test.ts
+└── payment-flow.test.ts
+```

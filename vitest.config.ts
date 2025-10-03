@@ -5,7 +5,34 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/client/**']
+    exclude: ['**/node_modules/**', '**/dist/**', '**/client/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html', 'lcov'],
+      exclude: [
+        '**/node_modules/**',
+        '**/dist/**',
+        '**/client/**',
+        '**/*.config.{js,ts}',
+        '**/*.d.ts',
+        '**/types/**',
+        '**/scripts/**',
+        '**/__tests__/**',
+        '**/coverage/**',
+        '**/migrations/**'
+      ],
+      include: [
+        'server/**/*.ts'
+      ],
+      all: true,
+      lines: 70,
+      functions: 70,
+      branches: 70,
+      statements: 70
+    },
+    setupFiles: ['./server/__tests__/setup.ts'],
+    testTimeout: 10000,
+    hookTimeout: 10000
   },
   resolve: {
     alias: {

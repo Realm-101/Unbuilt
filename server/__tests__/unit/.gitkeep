@@ -1,0 +1,22 @@
+# Unit Tests
+
+Place unit tests in this directory.
+
+Unit tests should:
+- Test individual functions/classes in isolation
+- Mock all external dependencies
+- Be fast (<100ms per test)
+- Cover edge cases and error conditions
+
+Example structure:
+```
+unit/
+├── services/
+│   ├── passwordSecurity.test.ts
+│   └── sessionManager.test.ts
+├── middleware/
+│   ├── jwtAuth.test.ts
+│   └── validation.test.ts
+└── utils/
+    └── helpers.test.ts
+```

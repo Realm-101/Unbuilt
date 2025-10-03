@@ -1,0 +1,18 @@
+# Integration Tests
+
+Place integration tests in this directory.
+
+Integration tests should:
+- Test multiple components working together
+- Test API endpoints with real HTTP requests
+- May use test database or mocks
+- Take moderate time (100ms-1s per test)
+
+Example structure:
+```
+integration/
+├── auth.test.ts
+├── search.test.ts
+├── analytics.test.ts
+└── api.test.ts
+```

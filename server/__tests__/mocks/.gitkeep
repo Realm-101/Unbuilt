@@ -1,0 +1,31 @@
+# Test Mocks
+
+Place mock implementations in this directory.
+
+Mocks should:
+- Simulate external dependencies
+- Be simple and focused
+- Return predictable data
+- Be reusable across tests
+
+Example structure:
+```
+mocks/
+├── database.ts       # Mock database operations
+├── services.ts       # Mock external services
+├── middleware.ts     # Mock middleware
+└── express.ts        # Mock Express req/res objects
+```
+
+Example mock file:
+```typescript
+// services.ts
+export const mockEmailService = {
+  sendEmail: vi.fn().mockResolvedValue({ success: true }),
+  sendPasswordReset: vi.fn().mockResolvedValue({ success: true })
+};
+
+export const mockPaymentService = {
+  createCharge: vi.fn().mockResolvedValue({ id: 'ch_123', status: 'succeeded' })
+};
+```
