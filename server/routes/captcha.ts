@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { 
   createCaptchaChallenge, 
   verifyCaptchaResponse, 
@@ -36,7 +36,7 @@ const verifyCaptchaSchema = z.object({
  * POST /api/captcha/challenge
  * Create a new CAPTCHA challenge
  */
-router.post('/challenge', captchaRateLimit, sanitizeInput, asyncHandler(async (req, res) => {
+router.post('/challenge', captchaRateLimit, sanitizeInput, asyncHandler(async (req: Request, res: Response) => {
   const challenge = createCaptchaChallenge();
   
   sendSuccess(res, {
@@ -50,7 +50,7 @@ router.post('/challenge', captchaRateLimit, sanitizeInput, asyncHandler(async (r
  * POST /api/captcha/verify
  * Verify a CAPTCHA response
  */
-router.post('/verify', captchaRateLimit, sanitizeInput, asyncHandler(async (req, res) => {
+router.post('/verify', captchaRateLimit, sanitizeInput, asyncHandler(async (req: Request, res: Response) => {
   const validation = verifyCaptchaSchema.safeParse(req.body);
   
   if (!validation.success) {
@@ -84,7 +84,7 @@ router.post('/verify', captchaRateLimit, sanitizeInput, asyncHandler(async (req,
  * GET /api/captcha/challenge/:challengeId
  * Get CAPTCHA challenge information
  */
-router.get('/challenge/:challengeId', captchaRateLimit, sanitizeInput, asyncHandler(async (req, res) => {
+router.get('/challenge/:challengeId', captchaRateLimit, sanitizeInput, asyncHandler(async (req: Request, res: Response) => {
   const { challengeId } = req.params;
   
   if (!challengeId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(challengeId)) {
@@ -108,7 +108,7 @@ router.get('/challenge/:challengeId', captchaRateLimit, sanitizeInput, asyncHand
  * GET /api/captcha/stats
  * Get CAPTCHA statistics (admin only)
  */
-router.get('/stats', requireRole(['admin', 'enterprise']), asyncHandler(async (req, res) => {
+router.get('/stats', requireRole(['admin', 'enterprise']), asyncHandler(async (req: Request, res: Response) => {
   const stats = getCaptchaStats();
   
   sendSuccess(res, {

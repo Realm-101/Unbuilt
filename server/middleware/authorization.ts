@@ -2,16 +2,6 @@ import type { Request, Response, NextFunction } from 'express';
 import { AuthorizationService, Permission, UserRole } from '../services/authorizationService';
 import { AppError } from './errorHandler';
 
-// Extend Express Request type to include authorization info
-declare global {
-  namespace Express {
-    interface Request {
-      userRole?: UserRole;
-      userPermissions?: Permission[];
-    }
-  }
-}
-
 /**
  * Middleware to add user role and permissions to request
  */

@@ -29,6 +29,22 @@ interface ScanOptions {
   jsonOutput: boolean;
 }
 
+interface ScanResult {
+  file: string;
+  result: {
+    hasViolations: boolean;
+    violations: Array<{
+      line: number;
+      content: string;
+      match: string;
+      pattern: string;
+      severity: 'low' | 'medium' | 'high';
+      filename?: string;
+    }>;
+    summary: string;
+  };
+}
+
 class CredentialScannerCLI {
   private options: ScanOptions;
 
@@ -49,7 +65,7 @@ class CredentialScannerCLI {
     }
 
     // Exit with error code if high severity issues found and failOnHigh is set
-    if (this.options.failOnHigh && results.some(r => r.violations.some(v => v.severity === 'high'))) {
+    if (this.options.failOnHigh && results.some(r => r.result.violations.some((v: any) => v.severity === 'high'))) {
       process.exit(1);
     }
   }
@@ -89,7 +105,7 @@ class CredentialScannerCLI {
     return [...new Set(files)]; // Remove duplicates
   }
 
-  private async scanFiles(files: string[]): Promise<Array<{ file: string; result: any }>> {
+  private async scanFiles(files: string[]): Promise<ScanResult[]> {
     const results = [];
 
     for (const file of files) {
@@ -108,7 +124,7 @@ class CredentialScannerCLI {
     return results;
   }
 
-  private printResults(results: Array<{ file: string; result: any }>): void {
+  private printResults(results: ScanResult[]): void {
     if (results.length === 0) {
       console.log('✅ No credential violations found!');
       return;

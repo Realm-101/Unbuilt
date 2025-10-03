@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { jwtTokens, users } from '@shared/schema';
-import { eq, and, lt, desc, count } from 'drizzle-orm';
+import { eq, and, lt, desc, count, sql } from 'drizzle-orm';
 import { jwtService } from '../jwt';
 import crypto from 'crypto';
 
@@ -93,7 +93,7 @@ export class SessionManager {
           eq(jwtTokens.userId, userId),
           eq(jwtTokens.tokenType, 'refresh'),
           eq(jwtTokens.isRevoked, false),
-          lt(new Date().toISOString(), jwtTokens.expiresAt)
+          sql`${jwtTokens.expiresAt} > ${new Date().toISOString()}`
         )
       )
       .orderBy(desc(jwtTokens.issuedAt));
@@ -141,8 +141,8 @@ export class SessionManager {
             eq(jwtTokens.userId, refreshToken.userId),
             eq(jwtTokens.tokenType, 'access'),
             eq(jwtTokens.isRevoked, false),
-            lt(windowStart.toISOString(), jwtTokens.issuedAt),
-            lt(jwtTokens.issuedAt, windowEnd.toISOString())
+            sql`${jwtTokens.issuedAt} > ${windowStart.toISOString()}`,
+            sql`${jwtTokens.issuedAt} < ${windowEnd.toISOString()}`
           )
         );
     }
@@ -281,7 +281,7 @@ export class SessionManager {
         and(
           eq(jwtTokens.tokenType, 'refresh'),
           eq(jwtTokens.isRevoked, false),
-          lt(now.toISOString(), jwtTokens.expiresAt)
+          sql`${jwtTokens.expiresAt} > ${now.toISOString()}`
         )
       );
 
@@ -293,7 +293,7 @@ export class SessionManager {
         and(
           eq(jwtTokens.tokenType, 'refresh'),
           eq(jwtTokens.isRevoked, false),
-          lt(now.toISOString(), jwtTokens.expiresAt)
+          sql`${jwtTokens.expiresAt} > ${now.toISOString()}`
         )
       );
 
@@ -305,7 +305,7 @@ export class SessionManager {
         and(
           eq(jwtTokens.isRevoked, true),
           eq(jwtTokens.revokedBy, 'expired'),
-          lt(todayStart.toISOString(), jwtTokens.revokedAt || '')
+          sql`${jwtTokens.revokedAt} > ${todayStart.toISOString()}`
         )
       );
 
@@ -419,34 +419,13 @@ export class SessionManager {
         and(
           eq(jwtTokens.tokenType, 'access'),
           eq(jwtTokens.isRevoked, false),
-          lt(now, jwtTokens.expiresAt)
+          sql`${jwtTokens.expiresAt} > ${now.toISOString()}`
         )
       );
     
     return result.count;
   }
 
-  /**
-   * Get session statistics for monitoring
-   */
-  async getSessionStats(): Promise<{
-    totalActiveSessions: number;
-    totalUsers: number;
-    averageSessionsPerUser: number;
-  }> {
-    const activeSessions = await this.getActiveSessionsCount();
-    
-    const [userCount] = await db
-      .select({ count: count() })
-      .from(users)
-      .where(eq(users.isActive, true));
-
-    return {
-      totalActiveSessions: activeSessions,
-      totalUsers: userCount.count,
-      averageSessionsPerUser: userCount.count > 0 ? activeSessions / userCount.count : 0
-    };
-  }
 }
 
 export const sessionManager = new SessionManager();

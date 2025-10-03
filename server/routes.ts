@@ -161,7 +161,7 @@ function applySearchFilters(gaps: any[], filters: any) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Apply global input sanitization and validation to all API routes
-  app.use('/api', generalRateLimit, comprehensiveValidation, sanitizeInput, validateApiInput);
+  app.use('/api', apiRateLimit, comprehensiveValidation, sanitizeInput, validateApiInput);
   
   // Apply session tracking and security monitoring to authenticated routes
   app.use('/api', trackSession, monitorSessionSecurity);
@@ -205,7 +205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const userId = req.user!.id;
     
     // Create search record
-    const search = await storage.createSearch({ query: parsedQuery.query, userId });
+    const search = await storage.createSearch({ query: parsedQuery.query, userId: String(userId) });
     
     // Analyze gaps using Gemini with filters context
     let gaps = await analyzeGaps(parsedQuery.query);
@@ -482,7 +482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ideaId = parseInt(req.params.id);
       const userId = req.user!.id;
       
-      const idea = await storage.getIdea(ideaId, userId);
+      const idea = await storage.getIdea(ideaId, String(userId));
       if (!idea) {
         return res.status(404).json({ message: 'Idea not found' });
       }
@@ -508,7 +508,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ideas", aiRateLimit, jwtAuth, requirePermission(Permission.CREATE_IDEA), validateIdea, validateSearchData, async (req, res) => {
     try {
       const ideaData = validateIdeaSchema.parse(req.body);
-      const userId = req.user!.id;
+      const userId = String(req.user!.id);
       
       // Calculate traditional validation scores
       const scoringResult = calculateIdeaScore(ideaData);
@@ -604,7 +604,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/ideas/:id", jwtAuth, validateIdeaOwnership('write'), validateIdParam, validateIdea, validateSearchData, async (req, res) => {
     try {
       const ideaId = parseInt(req.params.id);
-      const userId = req.user!.id;
+      const userId = String(req.user!.id);
       const updateData = validateIdeaSchema.parse(req.body);
       
       // Recalculate scores with updated data
@@ -733,7 +733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update user to Pro trial
       await storage.upsertUser({
-        id: userId,
+        id: parseInt(userId),
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,

@@ -365,11 +365,10 @@ export async function getActivityFeed(options: {
     query = query.where(or(...conditions));
   }
   
-  const activities = await query
+  // @ts-ignore - Drizzle ORM type inference limitation with dynamic where conditions
+  return await query
     .orderBy(desc(activityFeed.timestamp))
     .limit(options.limit || 50);
-    
-  return activities;
 }
 
 // Helper function to check permissions

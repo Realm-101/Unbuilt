@@ -3,16 +3,6 @@ import { storage } from '../storage';
 import { AuthorizationService } from '../services/authorizationService';
 import { AppError } from './errorHandler';
 
-// Extend Express Request type to include loaded resource
-declare global {
-  namespace Express {
-    interface Request {
-      resource?: any;
-      resourceOwner?: number;
-    }
-  }
-}
-
 /**
  * Middleware to load and validate search ownership
  */
@@ -42,7 +32,7 @@ export const validateSearchOwnership = (operation: 'read' | 'write' | 'delete' =
 
       // Attach search to request for use in route handler
       req.resource = search;
-      req.resourceOwner = search.userId;
+      req.resourceOwner = search.userId ?? undefined;
 
       next();
     } catch (error) {
@@ -67,7 +57,7 @@ export const validateIdeaOwnership = (operation: 'read' | 'write' | 'delete' = '
     }
 
     try {
-      const idea = await storage.getIdea(ideaId, req.user.id);
+      const idea = await storage.getIdea(ideaId, String(req.user.id));
 
       if (!idea) {
         return next(AppError.createNotFoundError('Idea not found or access denied', 'IDEA_NOT_FOUND'));

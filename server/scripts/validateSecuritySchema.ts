@@ -37,7 +37,7 @@ async function checkTableExists(tableName: string): Promise<boolean> {
         WHERE table_name = ${tableName}
       );
     `);
-    return result.rows[0]?.exists || false;
+    return (result.rows[0]?.exists as boolean) || false;
   } catch (error) {
     console.error(`Error checking table ${tableName}:`, error);
     return false;
@@ -55,7 +55,7 @@ async function checkColumnExists(tableName: string, columnName: string): Promise
         WHERE table_name = ${tableName} AND column_name = ${columnName}
       );
     `);
-    return result.rows[0]?.exists || false;
+    return (result.rows[0]?.exists as boolean) || false;
   } catch (error) {
     console.error(`Error checking column ${tableName}.${columnName}:`, error);
     return false;
@@ -73,7 +73,7 @@ async function checkIndexExists(indexName: string): Promise<boolean> {
         WHERE indexname = ${indexName}
       );
     `);
-    return result.rows[0]?.exists || false;
+    return (result.rows[0]?.exists as boolean) || false;
   } catch (error) {
     console.error(`Error checking index ${indexName}:`, error);
     return false;
@@ -91,7 +91,7 @@ async function checkFunctionExists(functionName: string): Promise<boolean> {
         WHERE proname = ${functionName}
       );
     `);
-    return result.rows[0]?.exists || false;
+    return (result.rows[0]?.exists as boolean) || false;
   } catch (error) {
     console.error(`Error checking function ${functionName}:`, error);
     return false;
@@ -109,7 +109,7 @@ async function checkViewExists(viewName: string): Promise<boolean> {
         WHERE table_name = ${viewName}
       );
     `);
-    return result.rows[0]?.exists || false;
+    return (result.rows[0]?.exists as boolean) || false;
   } catch (error) {
     console.error(`Error checking view ${viewName}:`, error);
     return false;

@@ -134,21 +134,23 @@ async function logRateLimitEvent(
   const userAgent = req.headers['user-agent'] || 'unknown';
   
   await securityLogger.logSecurityEvent(
-    req.user?.id || null,
+    'RATE_LIMIT_EXCEEDED',
     eventType,
-    req.path,
     false,
     {
-      ip,
+      userId: req.user?.id,
+      ipAddress: ip,
       userAgent,
-      endpoint: req.path,
-      method: req.method,
-      attempts: record.count,
-      consecutiveFailures: record.consecutiveFailures,
-      timeWindow: new Date(record.firstAttempt).toISOString(),
-      ...additionalInfo
-    },
-    'warning'
+      resource: req.path,
+      metadata: {
+        endpoint: req.path,
+        method: req.method,
+        attempts: record.count,
+        consecutiveFailures: record.consecutiveFailures,
+        timeWindow: new Date(record.firstAttempt).toISOString(),
+        ...additionalInfo
+      }
+    }
   );
 }
 
@@ -188,9 +190,9 @@ export function createRateLimit(config: RateLimitConfig) {
         
         const error = AppError.createRateLimitError(
           `IP temporarily blocked. Try again in ${remainingTime} seconds.`,
-          'RATE_LIMIT_IP_BLOCKED'
+          'RATE_LIMIT_IP_BLOCKED',
+          { retryAfter: remainingTime }
         );
-        error.details = { retryAfter: remainingTime };
         return next(error);
       }
       
@@ -203,9 +205,9 @@ export function createRateLimit(config: RateLimitConfig) {
           
           const error = AppError.createValidationError(
             'CAPTCHA verification required',
-            'CAPTCHA_REQUIRED'
+            'CAPTCHA_REQUIRED',
+            { captchaRequired: true }
           );
-          error.details = { captchaRequired: true };
           return next(error);
         }
         
@@ -279,13 +281,13 @@ export function createRateLimit(config: RateLimitConfig) {
         
         const error = AppError.createRateLimitError(
           'Rate limit exceeded. Please try again later.',
-          'RATE_LIMIT_EXCEEDED'
+          'RATE_LIMIT_EXCEEDED',
+          { 
+            retryAfter,
+            captchaRequired: record.captchaRequired,
+            progressiveDelay: config.progressiveDelay
+          }
         );
-        error.details = { 
-          retryAfter,
-          captchaRequired: record.captchaRequired,
-          progressiveDelay: config.progressiveDelay
-        };
         return next(error);
       }
       
@@ -336,17 +338,18 @@ export const authRateLimit = createRateLimit({
   onLimitReached: async (req, info) => {
     const ip = getClientIP(req);
     await securityLogger.logSecurityEvent(
-      null,
-      'AUTH_RATE_LIMIT_EXCEEDED',
-      req.path,
+      'RATE_LIMIT_EXCEEDED',
+      'auth_rate_limit_exceeded',
       false,
       {
-        ip,
+        ipAddress: ip,
         userAgent: req.headers['user-agent'],
-        endpoint: req.path,
-        attempts: info.totalHits
-      },
-      'warning'
+        resource: req.path,
+        metadata: {
+          endpoint: req.path,
+          attempts: info.totalHits
+        }
+      }
     );
   }
 });
@@ -367,18 +370,18 @@ export const loginRateLimit = createRateLimit({
     const email = req.body?.email || 'unknown';
     
     await securityLogger.logSecurityEvent(
-      null,
-      'LOGIN_BRUTE_FORCE_DETECTED',
-      'login_attempt',
+      'SUSPICIOUS_LOGIN',
+      'login_brute_force_detected',
       false,
       {
-        ip,
-        email,
+        ipAddress: ip,
         userAgent: req.headers['user-agent'],
-        attempts: info.totalHits,
-        timeWindow: '15 minutes'
-      },
-      'error'
+        metadata: {
+          email,
+          attempts: info.totalHits,
+          timeWindow: '15 minutes'
+        }
+      }
     );
   }
 });

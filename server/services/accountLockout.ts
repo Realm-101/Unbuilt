@@ -62,18 +62,19 @@ export class AccountLockoutService {
       // Log security event for account lockout
       const { securityLogger } = await import('./securityLogger');
       await securityLogger.logSecurityEvent(
-        userId,
         'ACCOUNT_LOCKED',
         'account_lockout',
         true,
         {
+          userId,
           userEmail: email,
           ipAddress,
-          failedAttempts,
-          lockoutDuration,
-          lockoutExpires: lockoutExpires.toISOString()
-        },
-        'warning'
+          metadata: {
+            failedAttempts,
+            lockoutDuration,
+            lockoutExpires: lockoutExpires.toISOString()
+          }
+        }
       );
     }
 
@@ -170,16 +171,17 @@ export class AccountLockoutService {
       if (user) {
         const { securityLogger } = await import('./securityLogger');
         await securityLogger.logSecurityEvent(
-          userId,
           'ACCOUNT_UNLOCKED',
           'manual_unlock',
           true,
           {
+            userId,
             userEmail: user.email,
-            unlockedBy,
-            timestamp: now.toISOString()
-          },
-          'info'
+            metadata: {
+              unlockedBy,
+              timestamp: now.toISOString()
+            }
+          }
         );
       }
     }

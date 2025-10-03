@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { jwtAuth } from '../middleware/jwtAuth';
 import { 
   requireAdmin, 
@@ -12,6 +12,7 @@ import { Permission } from '../services/authorizationService';
 import { storage } from '../storage';
 import { sessionManager } from '../services/sessionManager';
 import { securityEventHandler } from '../services/securityEventHandler';
+import bcrypt from 'bcrypt';
 import { 
   AppError, 
   asyncHandler, 
@@ -31,7 +32,7 @@ router.use(addUserAuthorization);
 router.get('/users', 
   requirePermission(Permission.MANAGE_USERS),
   logAuthorizationEvent('view_all_users'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 50;
     const search = req.query.search as string;
@@ -76,7 +77,7 @@ router.get('/users',
 router.get('/users/:id',
   requirePermission(Permission.READ_USER_DATA),
   logAuthorizationEvent('view_user_details'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = parseInt(req.params.id);
     
     if (isNaN(userId)) {
@@ -94,7 +95,7 @@ router.get('/users/:id',
     
     // Get user's recent activity
     const searches = await storage.getSearches(userId.toString());
-    const ideas = await storage.getIdeas(userId);
+    const ideas = await storage.getIdeas(String(userId));
 
     sendSuccess(res, {
       user: {
@@ -127,7 +128,7 @@ router.get('/users/:id',
 router.put('/users/:id',
   requirePermission(Permission.WRITE_USER_DATA),
   logAuthorizationEvent('update_user'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = parseInt(req.params.id);
     
     if (isNaN(userId)) {
@@ -169,7 +170,7 @@ router.put('/users/:id',
 router.post('/users/:id/unlock',
   requirePermission(Permission.MANAGE_USERS),
   logAuthorizationEvent('unlock_user_account'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = parseInt(req.params.id);
     
     if (isNaN(userId)) {
@@ -189,7 +190,7 @@ router.post('/users/:id/unlock',
 router.post('/users/:id/reset-password',
   requireSuperAdmin,
   logAuthorizationEvent('admin_reset_password'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = parseInt(req.params.id);
     
     if (isNaN(userId)) {
@@ -211,7 +212,13 @@ router.post('/users/:id/reset-password',
     }
 
     // Update password
-    await authService.updatePassword(user.email, newPassword);
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await storage.upsertUser({
+      ...user,
+      password: hashedPassword,
+      lastPasswordChange: new Date().toISOString(),
+      forcePasswordChange: false
+    });
 
     // Invalidate all user sessions
     await sessionManager.invalidateAllUserSessions(userId, `admin_${req.user!.id}_password_reset`);
@@ -227,7 +234,7 @@ router.post('/users/:id/reset-password',
 router.delete('/users/:id/sessions',
   requirePermission(Permission.MANAGE_USERS),
   logAuthorizationEvent('invalidate_user_sessions'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = parseInt(req.params.id);
     
     if (isNaN(userId)) {
@@ -252,7 +259,7 @@ router.delete('/users/:id/sessions',
 router.get('/analytics',
   requirePermission(Permission.VIEW_ANALYTICS),
   logAuthorizationEvent('view_system_analytics'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     // Get system statistics
     const stats = await storage.getSystemStats();
     
@@ -278,7 +285,7 @@ router.get('/analytics',
 router.get('/security-logs',
   requirePermission(Permission.VIEW_SECURITY_LOGS),
   logAuthorizationEvent('view_security_logs'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 100;
     const eventType = req.query.eventType as string;
@@ -307,7 +314,7 @@ router.get('/security-logs',
 router.post('/system/maintenance',
   requireSuperAdmin,
   logAuthorizationEvent('system_maintenance'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { task } = req.body;
     
     let result;

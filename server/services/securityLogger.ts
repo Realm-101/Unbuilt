@@ -284,13 +284,15 @@ export class SecurityLogger {
     if (ipAddress) conditions.push(eq(securityAuditLogs.ipAddress, ipAddress));
     if (severity) conditions.push(eq(securityAuditLogs.severity, severity));
     if (success !== undefined) conditions.push(eq(securityAuditLogs.success, success));
-    if (startDate) conditions.push(gte(securityAuditLogs.timestamp, startDate.toISOString()));
-    if (endDate) conditions.push(gte(endDate.toISOString(), securityAuditLogs.timestamp));
+    // Use sql template for date comparisons with string-mode timestamps
+    if (startDate) conditions.push(sql`${securityAuditLogs.timestamp} >= ${startDate.toISOString()}`);
+    if (endDate) conditions.push(sql`${securityAuditLogs.timestamp} <= ${endDate.toISOString()}`);
 
     if (conditions.length > 0) {
       query = query.where(and(...conditions));
     }
 
+    // @ts-ignore - Drizzle ORM type inference limitation with dynamic where conditions
     return await query
       .orderBy(desc(securityAuditLogs.timestamp))
       .limit(limit)
@@ -326,13 +328,15 @@ export class SecurityLogger {
     if (alertType) conditions.push(eq(securityAlerts.alertType, alertType));
     if (severity) conditions.push(eq(securityAlerts.severity, severity));
     if (status) conditions.push(eq(securityAlerts.status, status));
-    if (startDate) conditions.push(gte(securityAlerts.timestamp, startDate.toISOString()));
-    if (endDate) conditions.push(gte(endDate.toISOString(), securityAlerts.timestamp));
+    // Use sql template for date comparisons with string-mode timestamps
+    if (startDate) conditions.push(sql`${securityAlerts.timestamp} >= ${startDate.toISOString()}`);
+    if (endDate) conditions.push(sql`${securityAlerts.timestamp} <= ${endDate.toISOString()}`);
 
     if (conditions.length > 0) {
       query = query.where(and(...conditions));
     }
 
+    // @ts-ignore - Drizzle ORM type inference limitation with dynamic where conditions
     return await query
       .orderBy(desc(securityAlerts.timestamp))
       .limit(limit)

@@ -33,15 +33,16 @@ router.get('/', async (req, res) => {
         sql`created_at >= ${startDate.toISOString()} AND created_at <= ${endDate.toISOString()}`
       );
 
-    // Get validation statistics
+    // Get validation statistics (using search results as proxy since ideaValidations doesn't exist)
     const validationStats = await db
       .select({
         total: sql<number>`count(*)`,
-        avgScore: sql<number>`avg(score)`,
+        avgScore: sql<number>`avg(${schema.searchResults.innovationScore})`,
       })
-      .from(schema.ideaValidations)
+      .from(schema.searchResults)
+      .innerJoin(schema.searches, sql`${schema.searchResults.searchId} = ${schema.searches.id}`)
       .where(
-        sql`created_at >= ${startDate.toISOString()} AND created_at <= ${endDate.toISOString()}`
+        sql`${schema.searches.timestamp} >= ${startDate.toISOString()} AND ${schema.searches.timestamp} <= ${endDate.toISOString()}`
       );
 
     // Get category distribution from search results
@@ -53,23 +54,23 @@ router.get('/', async (req, res) => {
       .from(schema.searchResults)
       .innerJoin(schema.searches, sql`${schema.searchResults.searchId} = ${schema.searches.id}`)
       .where(
-        sql`${schema.searches.createdAt} >= ${startDate.toISOString()} AND ${schema.searches.createdAt} <= ${endDate.toISOString()}`
+        sql`${schema.searches.timestamp} >= ${startDate.toISOString()} AND ${schema.searches.timestamp} <= ${endDate.toISOString()}`
       )
       .groupBy(schema.searchResults.category);
 
     // Get time series data
     const timeSeries = await db
       .select({
-        date: sql<string>`date(created_at)`,
+        date: sql<string>`date(timestamp)`,
         searches: sql<number>`count(*)`,
         uniqueUsers: sql<number>`count(distinct user_id)`,
       })
       .from(schema.searches)
       .where(
-        sql`created_at >= ${startDate.toISOString()} AND created_at <= ${endDate.toISOString()}`
+        sql`timestamp >= ${startDate.toISOString()} AND timestamp <= ${endDate.toISOString()}`
       )
-      .groupBy(sql`date(created_at)`)
-      .orderBy(sql`date(created_at)`);
+      .groupBy(sql`date(timestamp)`)
+      .orderBy(sql`date(timestamp)`);
 
     // Get top opportunities from search results
     const topOpportunities = await db
@@ -82,7 +83,7 @@ router.get('/', async (req, res) => {
       .from(schema.searchResults)
       .innerJoin(schema.searches, sql`${schema.searchResults.searchId} = ${schema.searches.id}`)
       .where(
-        sql`${schema.searches.createdAt} >= ${startDate.toISOString()} AND ${schema.searches.createdAt} <= ${endDate.toISOString()}`
+        sql`${schema.searches.timestamp} >= ${startDate.toISOString()} AND ${schema.searches.timestamp} <= ${endDate.toISOString()}`
       )
       .orderBy(sql`${schema.searchResults.innovationScore} desc`)
       .limit(10);

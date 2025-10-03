@@ -53,7 +53,7 @@ export class HTTPSEnforcementMiddleware {
         next();
       } catch (error) {
         await securityLogger.logSecurityEvent(
-          'SYSTEM_ERROR',
+          'SECURITY_VIOLATION',
           'https_enforcement_error',
           false,
           {
@@ -117,7 +117,7 @@ export class HTTPSEnforcementMiddleware {
 
   private async logHTTPSRedirect(req: Request): Promise<void> {
     await securityLogger.logSecurityEvent(
-      'SYSTEM_EVENT',
+      'API_ACCESS',
       'https_redirect',
       true,
       {
@@ -301,7 +301,7 @@ export class SessionSecurityMiddleware {
           
           // Log session regeneration (fire and forget)
           securityLogger.logSecurityEvent(
-            'SYSTEM_EVENT',
+            'SESSION_CREATED',
             'session_regenerated',
             true,
             {

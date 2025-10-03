@@ -1232,6 +1232,352 @@ For issues or questions:
 
 ---
 
+## General Troubleshooting
+
+This section covers common issues that may affect multiple services or the overall service infrastructure.
+
+### Environment Configuration Issues
+
+#### Issue: Environment variables not loading
+**Symptoms:**
+- Services fall back to demo/mock data
+- "API key not configured" warnings in logs
+- Features work but use fallback behavior
+
+**Solutions:**
+1. Verify `.env` file exists in project root
+2. Check variable names match exactly (case-sensitive)
+3. Restart the application after changing `.env`
+4. In production, verify environment variables are set in deployment platform
+5. Use `server/config/envValidator.ts` to validate configuration
+
+**Debug Commands:**
+```bash
+# Check if .env file exists
+ls -la .env
+
+# Verify environment variables are loaded (development)
+node -e "require('dotenv').config(); console.log(process.env.PERPLEXITY_API_KEY ? 'Loaded' : 'Missing')"
+```
+
+#### Issue: Services work in development but fail in production
+**Symptoms:**
+- Local development works fine
+- Production deployment uses fallback data
+- No errors in logs
+
+**Solutions:**
+1. Verify environment variables are set in production platform (Replit, Heroku, etc.)
+2. Check that variable names match between `.env` and production config
+3. Ensure API keys are valid and not expired
+4. Verify network access from production environment to external APIs
+5. Check production logs for specific error messages
+
+### API Integration Issues
+
+#### Issue: External API calls timing out
+**Symptoms:**
+- Requests take >30 seconds
+- `ETIMEDOUT` or `ECONNREFUSED` errors
+- Services fall back to demo data
+
+**Solutions:**
+1. Check internet connectivity from server
+2. Verify API endpoint URLs are correct
+3. Check if API service is experiencing downtime (status pages)
+4. Increase timeout values in axios configuration
+5. Implement retry logic with exponential backoff
+
+**Example Timeout Configuration:**
+```typescript
+import axios from 'axios';
+
+const api = axios.create({
+  timeout: 30000, // 30 seconds
+  retry: 3,
+  retryDelay: 1000
+});
+```
+
+#### Issue: Rate limiting errors
+**Symptoms:**
+- `429 Too Many Requests` errors
+- Services work initially then fail
+- Errors occur during high traffic
+
+**Solutions:**
+1. Implement application-level rate limiting
+2. Add caching to reduce API calls
+3. Upgrade API plan for higher limits
+4. Implement request queuing
+5. Use exponential backoff for retries
+
+**Example Rate Limiting:**
+```typescript
+import rateLimit from 'express-rate-limit';
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests, please try again later'
+});
+
+app.use('/api/', apiLimiter);
+```
+
+### Performance Issues
+
+#### Issue: Slow service response times
+**Symptoms:**
+- API calls take >5 seconds
+- Users experience delays
+- Timeout errors under load
+
+**Solutions:**
+1. **Enable Caching:**
+   ```typescript
+   import { aiCache } from './services/ai-cache';
+   
+   // Check cache before API call
+   const cached = aiCache.get(query);
+   if (cached) return cached;
+   
+   // Make API call and cache result
+   const result = await service.call(query);
+   aiCache.set(query, result);
+   ```
+
+2. **Implement Request Debouncing:**
+   - Prevent duplicate simultaneous requests
+   - Use request deduplication
+   - Implement client-side debouncing
+
+3. **Optimize Database Queries:**
+   - Add indexes for frequently queried fields
+   - Use connection pooling
+   - Implement query result caching
+
+4. **Monitor Performance:**
+   - Track API response times
+   - Set up alerts for slow requests
+   - Use APM tools (Application Performance Monitoring)
+
+### Security Issues
+
+#### Issue: API keys exposed in logs or errors
+**Symptoms:**
+- API keys visible in error messages
+- Keys logged to console
+- Keys in stack traces
+
+**Solutions:**
+1. **Sanitize Logs:**
+   ```typescript
+   const sanitizeError = (error: any) => {
+     const sanitized = { ...error };
+     delete sanitized.config?.headers?.Authorization;
+     delete sanitized.config?.headers?.['api-key'];
+     return sanitized;
+   };
+   
+   console.error('API Error:', sanitizeError(error));
+   ```
+
+2. **Use Environment Variables:**
+   - Never hardcode API keys
+   - Use `.env` files (not committed to git)
+   - Rotate keys regularly
+
+3. **Implement Key Rotation:**
+   - Set up key expiration
+   - Use multiple keys for different environments
+   - Monitor key usage for anomalies
+
+#### Issue: Unauthorized access to services
+**Symptoms:**
+- Services called without authentication
+- Unauthorized users accessing premium features
+- API abuse
+
+**Solutions:**
+1. **Implement Authentication:**
+   ```typescript
+   import { jwtAuth } from './middleware/jwtAuth';
+   
+   // Protect routes
+   app.post('/api/export', jwtAuth, exportHandler);
+   ```
+
+2. **Add Authorization Checks:**
+   ```typescript
+   // Check user plan for premium features
+   if (format === 'pitch' || format === 'executive') {
+     if (req.user.plan !== 'pro') {
+       return res.status(403).json({ 
+         error: 'Premium feature requires Pro plan' 
+       });
+     }
+   }
+   ```
+
+3. **Implement Rate Limiting:**
+   - Limit requests per user
+   - Implement IP-based rate limiting
+   - Add CAPTCHA for suspicious activity
+
+### Monitoring and Debugging
+
+#### Enabling Debug Mode
+
+**For Perplexity Service:**
+```bash
+# Set environment variable
+DEBUG=perplexity:*
+
+# Or add to .env
+DEBUG=perplexity:*
+```
+
+**For All Services:**
+```bash
+# Enable verbose logging
+LOG_LEVEL=debug
+
+# Or in code
+console.log('Service request:', { service, params, timestamp });
+console.log('Service response:', { service, status, duration });
+```
+
+#### Monitoring Service Health
+
+**Health Check Endpoint:**
+```typescript
+// server/routes/health.ts
+app.get('/api/health', async (req, res) => {
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    services: {
+      perplexity: !!process.env.PERPLEXITY_API_KEY,
+      sendgrid: !!process.env.SENDGRID_API_KEY,
+      database: await checkDatabaseConnection(),
+    }
+  };
+  
+  res.json(health);
+});
+```
+
+**Logging Best Practices:**
+1. Log service calls with timestamps
+2. Log errors with full context
+3. Use structured logging (JSON format)
+4. Implement log levels (debug, info, warn, error)
+5. Set up log aggregation (e.g., Logtail, Papertrail)
+
+#### Common Error Patterns
+
+**Pattern 1: Intermittent Failures**
+```
+Service works sometimes, fails randomly
+```
+**Likely Causes:**
+- Network instability
+- API rate limiting
+- Concurrent request issues
+- Memory leaks
+
+**Pattern 2: Consistent Failures After Deployment**
+```
+Service worked before deployment, now fails
+```
+**Likely Causes:**
+- Environment variables not set in production
+- API keys not migrated
+- Network/firewall restrictions
+- Dependency version mismatches
+
+**Pattern 3: Slow Performance Over Time**
+```
+Service starts fast, gets slower
+```
+**Likely Causes:**
+- Memory leaks
+- Cache not expiring
+- Database connection pool exhaustion
+- Unhandled promise rejections
+
+### Getting Help
+
+#### Before Requesting Support
+
+1. **Check Service Status:**
+   - Perplexity: https://status.perplexity.ai/
+   - SendGrid: https://status.sendgrid.com/
+
+2. **Review Logs:**
+   - Check application logs for errors
+   - Review API response logs
+   - Check system resource usage
+
+3. **Verify Configuration:**
+   - Confirm environment variables are set
+   - Verify API keys are valid
+   - Check service quotas and limits
+
+4. **Test in Isolation:**
+   - Test service independently
+   - Use curl or Postman to test APIs directly
+   - Verify network connectivity
+
+#### Support Resources
+
+- **Documentation:** This file and related docs in `/docs`
+- **API Documentation:**
+  - Perplexity: https://docs.perplexity.ai/
+  - SendGrid: https://docs.sendgrid.com/
+- **Community:** GitHub Issues, Stack Overflow
+- **Development Team:** Contact via project repository
+
+#### Reporting Issues
+
+When reporting service issues, include:
+1. Service name and version
+2. Error messages (full stack trace)
+3. Steps to reproduce
+4. Environment (development/production)
+5. Recent changes or deployments
+6. Relevant configuration (sanitized, no API keys)
+
+**Example Issue Report:**
+```markdown
+**Service:** Perplexity Service
+**Environment:** Production
+**Error:** 429 Too Many Requests
+
+**Steps to Reproduce:**
+1. User searches for "AI healthcare"
+2. Service makes API call to Perplexity
+3. Receives 429 error after 10 requests
+
+**Logs:**
+```
+[2025-10-03 14:23:45] Perplexity API error: 429
+[2025-10-03 14:23:45] Rate limit exceeded: 10/10 requests used
+```
+
+**Recent Changes:**
+- Deployed new search feature yesterday
+- Increased traffic by 3x
+
+**Configuration:**
+- PERPLEXITY_API_KEY: Set (verified)
+- Cache: Enabled
+- Rate limiting: Not implemented
+```
+
+---
+
 **Last Updated:** October 3, 2025  
 **Maintained By:** Development Team  
 **Version:** 1.0

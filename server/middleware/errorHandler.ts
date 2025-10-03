@@ -140,8 +140,8 @@ export class AppError extends Error {
     return new AppError(message, ErrorType.CONFLICT, 409, code);
   }
 
-  static createRateLimitError(message = 'Too many requests', code = 'RATE_EXCEEDED'): AppError {
-    return new AppError(message, ErrorType.RATE_LIMIT, 429, code);
+  static createRateLimitError(message = 'Too many requests', code = 'RATE_EXCEEDED', details?: Record<string, any>): AppError {
+    return new AppError(message, ErrorType.RATE_LIMIT, 429, code, true, details);
   }
 
   static createSystemError(message = 'Internal server error', code = 'SYS_ERROR'): AppError {
@@ -341,7 +341,7 @@ export const errorHandlerMiddleware = (
 };
 
 // Async error wrapper for route handlers
-export const asyncHandler = (fn: Function) => {
+export const asyncHandler = (fn: (req: Request, res: Response, next?: NextFunction) => Promise<void>) => {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };

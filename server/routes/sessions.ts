@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { sessionManager } from '../services/sessionManager';
 import { jwtAuth } from '../middleware/jwtAuth';
 import { AppError, asyncHandler, sendSuccess } from '../middleware/errorHandler';
@@ -6,6 +6,9 @@ import { validateApiInput } from '../middleware/validation';
 import { z } from 'zod';
 
 const router = Router();
+
+// Helper to safely get jti from authenticated user
+const getJti = (req: Request): string => (req.user as any)?.jti;
 
 // Validation schemas
 const invalidateSessionSchema = z.object({
@@ -19,12 +22,12 @@ const bulkInvalidateSchema = z.object({
 /**
  * Get all active sessions for the current user
  */
-router.get('/', jwtAuth, asyncHandler(async (req, res) => {
+router.get('/', jwtAuth, asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.id;
   const sessions = await sessionManager.getUserSessions(userId);
   
   // Add current session indicator
-  const currentSessionId = req.user!.jti;
+  const currentSessionId = getJti(req);
   const sessionsWithCurrent = sessions.map(session => ({
     ...session,
     isCurrent: session.id === currentSessionId
@@ -39,8 +42,8 @@ router.get('/', jwtAuth, asyncHandler(async (req, res) => {
 /**
  * Get current session details
  */
-router.get('/current', jwtAuth, asyncHandler(async (req, res) => {
-  const sessionId = req.user!.jti;
+router.get('/current', jwtAuth, asyncHandler(async (req: Request, res: Response) => {
+  const sessionId = getJti(req);
   const session = await sessionManager.getSessionById(sessionId);
   
   if (!session) {
@@ -58,10 +61,10 @@ router.get('/current', jwtAuth, asyncHandler(async (req, res) => {
 /**
  * Invalidate a specific session
  */
-router.delete('/:sessionId', jwtAuth, validateApiInput(invalidateSessionSchema), asyncHandler(async (req, res) => {
+router.delete('/:sessionId', jwtAuth, validateApiInput, asyncHandler(async (req: Request, res: Response) => {
   const { sessionId } = req.params;
   const userId = req.user!.id;
-  const currentSessionId = req.user!.jti;
+  const currentSessionId = getJti(req);
 
   // Verify the session belongs to the user
   const session = await sessionManager.getSessionById(sessionId);
@@ -89,10 +92,10 @@ router.delete('/:sessionId', jwtAuth, validateApiInput(invalidateSessionSchema),
 /**
  * Invalidate multiple sessions
  */
-router.post('/invalidate-bulk', jwtAuth, validateApiInput(bulkInvalidateSchema), asyncHandler(async (req, res) => {
+router.post('/invalidate-bulk', jwtAuth, validateApiInput, asyncHandler(async (req: Request, res: Response) => {
   const { sessionIds } = req.body;
   const userId = req.user!.id;
-  const currentSessionId = req.user!.jti;
+  const currentSessionId = getJti(req);
 
   // Filter out current session
   const sessionsToInvalidate = sessionIds.filter((id: string) => id !== currentSessionId);
@@ -134,9 +137,9 @@ router.post('/invalidate-bulk', jwtAuth, validateApiInput(bulkInvalidateSchema),
 /**
  * Invalidate all other sessions (keep current session active)
  */
-router.post('/invalidate-others', jwtAuth, asyncHandler(async (req, res) => {
+router.post('/invalidate-others', jwtAuth, asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.id;
-  const currentSessionId = req.user!.jti;
+  const currentSessionId = getJti(req);
 
   const invalidatedCount = await sessionManager.invalidateAllUserSessions(
     userId,
@@ -153,7 +156,7 @@ router.post('/invalidate-others', jwtAuth, asyncHandler(async (req, res) => {
 /**
  * Get session statistics (admin or for monitoring)
  */
-router.get('/stats', jwtAuth, asyncHandler(async (req, res) => {
+router.get('/stats', jwtAuth, asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.id;
   
   // Get user-specific stats
@@ -193,7 +196,7 @@ router.get('/stats', jwtAuth, asyncHandler(async (req, res) => {
 /**
  * Force logout from all devices (invalidate all sessions including current)
  */
-router.post('/logout-all', jwtAuth, asyncHandler(async (req, res) => {
+router.post('/logout-all', jwtAuth, asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.id;
 
   const invalidatedCount = await sessionManager.invalidateAllUserSessions(

@@ -2,21 +2,6 @@ import type { Request, Response, NextFunction } from 'express';
 import { sessionManager, SessionManager } from '../services/sessionManager';
 import { AppError } from './errorHandler';
 
-// Extend Express Request type to include session info
-declare global {
-  namespace Express {
-    interface Request {
-      sessionInfo?: {
-        id: string;
-        deviceInfo: any;
-        ipAddress: string;
-        issuedAt: Date;
-        expiresAt: Date;
-      };
-    }
-  }
-}
-
 /**
  * Session tracking middleware
  * Tracks session activity and device information
@@ -24,11 +9,11 @@ declare global {
 export const trackSession = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Only track if user is authenticated
-    if (!req.user || !req.user.jti) {
+    if (!req.user || !(req.user as any).jti) {
       return next();
     }
 
-    const sessionId = req.user.jti;
+    const sessionId = (req.user as any).jti;
     const deviceInfo = SessionManager.parseDeviceInfo(req.headers['user-agent']);
     const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
 
@@ -37,10 +22,13 @@ export const trackSession = async (req: Request, res: Response, next: NextFuncti
     if (sessionInfo) {
       req.sessionInfo = {
         id: sessionInfo.id,
+        userId: sessionInfo.userId,
         deviceInfo: sessionInfo.deviceInfo,
         ipAddress: sessionInfo.ipAddress,
         issuedAt: sessionInfo.issuedAt,
-        expiresAt: sessionInfo.expiresAt
+        expiresAt: sessionInfo.expiresAt,
+        lastActivity: sessionInfo.lastActivity,
+        isActive: sessionInfo.isActive
       };
 
       // Update session activity

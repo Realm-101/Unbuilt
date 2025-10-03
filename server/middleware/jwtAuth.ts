@@ -4,17 +4,10 @@ import { authService } from '../auth';
 import { AppError, ErrorType } from './errorHandler';
 import type { User } from '@shared/schema';
 
-// Extend Express Request type to include user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: User;
-      token?: string;
-      jti?: string; // JWT token ID for revocation
-    }
-  }
-}
-
+/**
+ * Authenticated Request type
+ * Represents a request that has been authenticated and has user information
+ */
 export interface AuthenticatedRequest extends Request {
   user: User;
   token: string;
@@ -45,8 +38,8 @@ export const jwtAuth = async (req: Request, res: Response, next: NextFunction): 
       return next(AppError.createAuthenticationError('User account not found or inactive', 'AUTH_USER_INACTIVE'));
     }
 
-    // Attach full user object and token info to request
-    req.user = user;
+    // Attach full user object with JWT claims and token info to request
+    req.user = { ...user, jti: payload.jti } as typeof req.user;
     req.token = token;
     req.jti = payload.jti;
 
@@ -71,7 +64,7 @@ export const optionalJwtAuth = async (req: Request, res: Response, next: NextFun
       if (payload) {
         const user = await authService.getUserById(parseInt(payload.sub));
         if (user && user.isActive) {
-          req.user = user;
+          req.user = { ...user, jti: payload.jti } as typeof req.user;
           req.token = token;
           req.jti = payload.jti;
         }
@@ -214,9 +207,9 @@ export const authRateLimit = (maxAttempts: number = 5, windowMs: number = 15 * 6
       const retryAfter = Math.ceil((clientAttempts.resetTime - now) / 1000);
       const error = AppError.createRateLimitError(
         'Rate limit exceeded. Please try again later.',
-        'RATE_LIMIT_EXCEEDED'
+        'RATE_LIMIT_EXCEEDED',
+        { retryAfter }
       );
-      error.details = { retryAfter };
       return next(error);
     }
 

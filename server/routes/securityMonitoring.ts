@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { securityLogger } from '../services/securityLogger';
 import { jwtAuth, requireRole } from '../middleware/jwtAuth';
 import { AppError, asyncHandler, sendSuccess } from '../middleware/errorHandler';
@@ -49,10 +49,13 @@ router.get('/events',
   jwtAuth,
   requireRole(['admin', 'enterprise']),
   logDataAccess('security_events', 'read'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const validatedQuery = getEventsSchema.parse(req.query);
     
-    const events = await securityLogger.getSecurityEvents(validatedQuery);
+    const events = await securityLogger.getSecurityEvents({
+      ...validatedQuery,
+      eventType: validatedQuery.eventType as any // Query string validated by Zod
+    });
     
     sendSuccess(res, {
       events,
@@ -73,10 +76,13 @@ router.get('/alerts',
   jwtAuth,
   requireRole(['admin', 'enterprise']),
   logDataAccess('security_alerts', 'read'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const validatedQuery = getAlertsSchema.parse(req.query);
     
-    const alerts = await securityLogger.getSecurityAlerts(validatedQuery);
+    const alerts = await securityLogger.getSecurityAlerts({
+      ...validatedQuery,
+      alertType: validatedQuery.alertType as any // Query string validated by Zod
+    });
     
     sendSuccess(res, {
       alerts,
@@ -97,7 +103,7 @@ router.get('/metrics',
   jwtAuth,
   requireRole(['admin', 'enterprise']),
   logDataAccess('security_metrics', 'read'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { timeWindow } = metricsSchema.parse(req.query);
     
     const metrics = await securityLogger.getSecurityMetrics(timeWindow);
@@ -117,9 +123,9 @@ router.get('/metrics',
 router.post('/alerts/:alertId/resolve',
   jwtAuth,
   requireRole(['admin', 'enterprise']),
-  validateApiInput(resolveAlertSchema.omit({ alertId: true })),
+  validateApiInput,
   logDataAccess('security_alerts', 'update'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const alertId = parseInt(req.params.alertId);
     if (isNaN(alertId)) {
       throw AppError.createValidationError('Invalid alert ID', 'INVALID_ALERT_ID');
@@ -147,7 +153,7 @@ router.get('/user-events/:userId',
   jwtAuth,
   requireRole(['admin', 'enterprise']),
   logDataAccess('user_security_events', 'read'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) {
       throw AppError.createValidationError('Invalid user ID', 'INVALID_USER_ID');
@@ -157,7 +163,8 @@ router.get('/user-events/:userId',
     
     const events = await securityLogger.getSecurityEvents({
       ...validatedQuery,
-      userId
+      userId,
+      eventType: validatedQuery.eventType as any // Query string validated by Zod
     });
     
     sendSuccess(res, {
@@ -179,7 +186,7 @@ router.get('/user-events/:userId',
 router.get('/my-events',
   jwtAuth,
   logDataAccess('my_security_events', 'read'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user!.id;
     const validatedQuery = getEventsSchema.parse(req.query);
     
@@ -194,7 +201,8 @@ router.get('/my-events',
 
     const events = await securityLogger.getSecurityEvents({
       ...validatedQuery,
-      userId
+      userId,
+      eventType: validatedQuery.eventType as any // Query string validated by Zod
     });
 
     // Filter events to only show allowed types for regular users
@@ -210,7 +218,7 @@ router.get('/my-events',
       userAgent: event.userAgent,
       // Don't expose sensitive metadata to regular users
       metadata: event.eventType === 'AUTH_SUCCESS' || event.eventType === 'AUTH_FAILURE' 
-        ? { endpoint: event.metadata?.endpoint }
+        ? { endpoint: (event.metadata as any)?.endpoint }
         : {}
     }));
     
@@ -233,7 +241,7 @@ router.get('/ip-events/:ipAddress',
   jwtAuth,
   requireRole(['admin', 'enterprise']),
   logDataAccess('ip_security_events', 'read'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const ipAddress = req.params.ipAddress;
     
     // Basic IP address validation
@@ -245,7 +253,8 @@ router.get('/ip-events/:ipAddress',
     
     const events = await securityLogger.getSecurityEvents({
       ...validatedQuery,
-      ipAddress
+      ipAddress,
+      eventType: validatedQuery.eventType as any // Query string validated by Zod
     });
     
     sendSuccess(res, {
@@ -268,7 +277,7 @@ router.get('/dashboard',
   jwtAuth,
   requireRole(['admin', 'enterprise']),
   logDataAccess('security_dashboard', 'read'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { timeWindow } = metricsSchema.parse(req.query);
     
     // Get metrics and recent alerts in parallel

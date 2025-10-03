@@ -2,22 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { securityLogger } from '../services/securityLogger';
 import { v4 as uuidv4 } from 'uuid';
 
-// Extend Request interface to include security context
-declare global {
-  namespace Express {
-    interface Request {
-      requestId?: string;
-      securityContext?: {
-        ipAddress: string;
-        userAgent: string;
-        userId?: number;
-        userEmail?: string;
-        sessionId?: string;
-      };
-    }
-  }
-}
-
 /**
  * Middleware to add security context to requests
  */
@@ -39,7 +23,7 @@ export function addSecurityContext(req: Request, res: Response, next: NextFuncti
     userAgent,
     userId: req.user?.id,
     userEmail: req.user?.email,
-    sessionId: req.user?.jti // JWT ID serves as session ID
+    sessionId: (req.user as any)?.jti // JWT ID serves as session ID
   };
 
   next();
@@ -52,8 +36,8 @@ export function logApiAccess(req: Request, res: Response, next: NextFunction): v
   const startTime = Date.now();
 
   // Override res.end to capture response details
-  const originalEnd = res.end;
-  res.end = function(chunk?: any, encoding?: any) {
+  const originalEnd = res.end.bind(res);
+  res.end = ((...args: any[]) => {
     const duration = Date.now() - startTime;
     
     // Log the API access
@@ -80,9 +64,9 @@ export function logApiAccess(req: Request, res: Response, next: NextFunction): v
       console.error('Failed to log API access:', error);
     });
 
-    // Call original end method
-    originalEnd.call(this, chunk, encoding);
-  };
+    // Call original end method with all arguments
+    return originalEnd(...args);
+  }) as typeof res.end;
 
   next();
 }

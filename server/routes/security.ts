@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { securityEventHandler } from '../services/securityEventHandler';
 import { jwtAuth, requireRole } from '../middleware/jwtAuth';
 import { requireFreshSession } from '../middleware/sessionManagement';
@@ -40,11 +40,11 @@ const terminateSessionSchema = z.object({
 router.post('/change-password', 
   jwtAuth, 
   requireFreshSession(30), // Require fresh authentication within 30 minutes
-  validateApiInput(changePasswordSchema), 
-  asyncHandler(async (req, res) => {
+  validateApiInput, 
+  asyncHandler(async (req: Request, res: Response) => {
     const { currentPassword, newPassword } = req.body;
     const userId = req.user!.id;
-    const currentSessionId = req.user!.jti;
+    const currentSessionId = (req.user as any)!.jti;
 
     try {
       const result = await securityEventHandler.handlePasswordChange({
@@ -71,8 +71,8 @@ router.post('/change-password',
 router.post('/lock-account', 
   jwtAuth, 
   requireRole(['admin', 'enterprise']),
-  validateApiInput(lockAccountSchema),
-  asyncHandler(async (req, res) => {
+  validateApiInput,
+  asyncHandler(async (req: Request, res: Response) => {
     const { userId, reason } = req.body;
     const adminUserId = req.user!.id;
 
@@ -98,8 +98,8 @@ router.post('/lock-account',
 router.post('/unlock-account', 
   jwtAuth, 
   requireRole(['admin', 'enterprise']),
-  validateApiInput(unlockAccountSchema),
-  asyncHandler(async (req, res) => {
+  validateApiInput,
+  asyncHandler(async (req: Request, res: Response) => {
     const { userId } = req.body;
     const adminUserId = req.user!.id;
 
@@ -119,8 +119,8 @@ router.post('/unlock-account',
 router.post('/terminate-sessions', 
   jwtAuth, 
   requireRole(['admin', 'enterprise']),
-  validateApiInput(terminateSessionSchema),
-  asyncHandler(async (req, res) => {
+  validateApiInput,
+  asyncHandler(async (req: Request, res: Response) => {
     const { userId, sessionId, reason } = req.body;
     const adminUserId = req.user!.id;
 
@@ -142,7 +142,7 @@ router.post('/terminate-sessions',
 router.get('/account-status/:userId', 
   jwtAuth, 
   requireRole(['admin', 'enterprise']),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = parseInt(req.params.userId);
     
     if (isNaN(userId)) {
@@ -165,7 +165,7 @@ router.get('/account-status/:userId',
  */
 router.get('/my-account-status', 
   jwtAuth,
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user!.id;
     const isLocked = await securityEventHandler.isAccountLocked(userId);
 

@@ -36,31 +36,39 @@ export class SecurityHeadersMiddleware {
         this.setCustomHeaders(res);
         
         // Log security header application
-        securityLogger.logSecurityEvent({
-          type: 'SECURITY_HEADERS_APPLIED',
-          userId: (req as any).user?.id,
-          ip: req.ip || req.connection.remoteAddress || 'unknown',
-          userAgent: req.get('User-Agent') || 'unknown',
-          details: {
-            path: req.path,
-            method: req.method,
-            headers: this.getAppliedHeaders()
+        securityLogger.logSecurityEvent(
+          'API_ACCESS',
+          'security_headers_applied',
+          true,
+          {
+            userId: (req as any).user?.id,
+            ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+            userAgent: req.get('User-Agent') || 'unknown',
+            metadata: {
+              path: req.path,
+              method: req.method,
+              headers: this.getAppliedHeaders()
+            }
           }
-        });
+        );
 
         next();
       } catch (error) {
-        securityLogger.logSecurityEvent({
-          type: 'SECURITY_HEADERS_ERROR',
-          userId: (req as any).user?.id,
-          ip: req.ip || req.connection.remoteAddress || 'unknown',
-          userAgent: req.get('User-Agent') || 'unknown',
-          details: {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            path: req.path,
-            method: req.method
-          }
-        });
+        securityLogger.logSecurityEvent(
+          'SECURITY_VIOLATION',
+          'security_headers_error',
+          false,
+          {
+            userId: (req as any).user?.id,
+            ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+            userAgent: req.get('User-Agent') || 'unknown',
+            metadata: {
+              path: req.path,
+              method: req.method
+            }
+          },
+          error instanceof Error ? error.message : 'Unknown error'
+        );
         
         // Continue even if header setting fails
         next();
@@ -155,19 +163,23 @@ export class CSRFProtectionMiddleware {
         const sessionToken = this.getSessionCSRFToken(req);
 
         if (!token || !sessionToken || token !== sessionToken) {
-          securityLogger.logSecurityEvent({
-            type: 'CSRF_PROTECTION_TRIGGERED',
-            userId: (req as any).user?.id,
-            ip: req.ip || req.connection.remoteAddress || 'unknown',
-            userAgent: req.get('User-Agent') || 'unknown',
-            details: {
-              path: req.path,
-              method: req.method,
-              hasToken: !!token,
-              hasSessionToken: !!sessionToken,
-              tokensMatch: token === sessionToken
+          securityLogger.logSecurityEvent(
+            'SECURITY_VIOLATION',
+            'csrf_protection_triggered',
+            false,
+            {
+              userId: (req as any).user?.id,
+              ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+              userAgent: req.get('User-Agent') || 'unknown',
+              metadata: {
+                path: req.path,
+                method: req.method,
+                hasToken: !!token,
+                hasSessionToken: !!sessionToken,
+                tokensMatch: token === sessionToken
+              }
             }
-          });
+          );
 
           return res.status(403).json({
             error: 'CSRF token validation failed',
@@ -178,17 +190,21 @@ export class CSRFProtectionMiddleware {
 
         next();
       } catch (error) {
-        securityLogger.logSecurityEvent({
-          type: 'CSRF_PROTECTION_ERROR',
-          userId: (req as any).user?.id,
-          ip: req.ip || req.connection.remoteAddress || 'unknown',
-          userAgent: req.get('User-Agent') || 'unknown',
-          details: {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            path: req.path,
-            method: req.method
-          }
-        });
+        securityLogger.logSecurityEvent(
+          'SECURITY_VIOLATION',
+          'csrf_protection_error',
+          false,
+          {
+            userId: (req as any).user?.id,
+            ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+            userAgent: req.get('User-Agent') || 'unknown',
+            metadata: {
+              path: req.path,
+              method: req.method
+            }
+          },
+          error instanceof Error ? error.message : 'Unknown error'
+        );
 
         return res.status(500).json({
           error: 'CSRF protection error',

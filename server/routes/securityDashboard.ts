@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { securityLogger } from '../services/securityLogger';
 import { jwtAuth, requireRole } from '../middleware/jwtAuth';
 import { AppError, asyncHandler, sendSuccess } from '../middleware/errorHandler';
@@ -14,7 +14,7 @@ router.get('/',
   jwtAuth,
   requireRole(['admin', 'enterprise']),
   logDataAccess('security_dashboard_view', 'read'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     // Get security metrics for the last 24 hours
     const metrics = await securityLogger.getSecurityMetrics(24);
     const recentAlerts = await securityLogger.getSecurityAlerts({ limit: 10, status: 'open' });
