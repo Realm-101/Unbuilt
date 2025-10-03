@@ -8,6 +8,7 @@ export default defineConfig({
   out: "./migrations",
   schema: "./shared/schema.ts",
   dialect: "postgresql",
+  driver: "aws-data-api",
   dbCredentials: {
     url: process.env.DATABASE_URL,
   },

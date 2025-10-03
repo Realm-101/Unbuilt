@@ -32,8 +32,8 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    host: "0.0.0.0",
-    port: 5000,
+    host: process.env.HOST || "0.0.0.0",
+    port: parseInt(process.env.PORT || '5000', 10),
     fs: {
       strict: true,
       deny: ["**/.*"],

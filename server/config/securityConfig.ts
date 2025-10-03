@@ -119,20 +119,21 @@ export class SecurityConfigManager {
   private generateCSP(isProduction: boolean, baseUrl: string): string {
     const policies = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Allow inline scripts for React dev
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://replit.com", // Allow Stripe and Replit
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: https:",
-      "connect-src 'self' ws: wss:",
+      "connect-src 'self' ws: wss: https://api.stripe.com", // Allow Stripe API
+      "frame-src https://js.stripe.com", // Allow Stripe iframes
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'"
     ];
 
     if (!isProduction) {
-      // Allow development tools
-      policies.push("script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:*");
-      policies.push("connect-src 'self' ws://localhost:* wss://localhost:* http://localhost:*");
+      // Allow development tools in development
+      policies[1] = "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://replit.com http://localhost:* ws://localhost:*";
+      policies[5] = "connect-src 'self' ws://localhost:* wss://localhost:* http://localhost:* https://api.stripe.com";
     }
 
     return policies.join('; ');

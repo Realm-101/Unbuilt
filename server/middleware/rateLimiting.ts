@@ -389,7 +389,7 @@ export const loginRateLimit = createRateLimit({
 // Registration rate limiting
 export const registerRateLimit = createRateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  maxAttempts: 3,
+  maxAttempts: process.env.NODE_ENV === 'development' ? 100 : 3, // More lenient in dev
   progressiveDelay: true,
   captchaThreshold: 2,
   keyGenerator: (req) => generateKey(req, 'register')

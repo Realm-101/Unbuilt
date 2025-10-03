@@ -70,6 +70,10 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Landing} />
+          <Route path="/auth/login" component={Login} />
+          <Route path="/auth/register" component={Register} />
+          <Route path="/auth/forgot-password" component={ForgotPassword} />
+          <Route path="/auth/reset-password" component={ResetPassword} />
           <Route path="/about" component={About} />
           <Route path="/help" component={Help} />
           <Route path="/privacy" component={Privacy} />
