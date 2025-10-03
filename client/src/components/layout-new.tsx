@@ -91,7 +91,7 @@ export default function Layout({ children }: LayoutProps) {
               </button>
 
               {/* Main Navigation - Desktop Only */}
-              {user && (
+              {typedUser && (
                 <nav className="hidden lg:flex items-center gap-1">
                   {mainNavItems.map((item) => {
                     const Icon = item.icon;
@@ -113,7 +113,7 @@ export default function Layout({ children }: LayoutProps) {
             </div>
 
             {/* Center: Search Bar */}
-            {user && (
+            {typedUser && (
               <div className="hidden md:flex flex-1 max-w-xl mx-8">
                 <form onSubmit={handleSearch} className="w-full relative">
                   <div className="relative">
@@ -146,7 +146,7 @@ export default function Layout({ children }: LayoutProps) {
 
             {/* Right: User Actions */}
             <div className="flex items-center gap-2">
-              {user ? (
+              {typedUser ? (
                 <>
                   {/* Quick Actions */}
                   <Button 
@@ -293,7 +293,7 @@ export default function Layout({ children }: LayoutProps) {
           <div className="lg:hidden border-t border-border bg-background">
             <div className="px-4 py-4 space-y-2">
               {/* Mobile Search */}
-              {user && (
+              {typedUser && (
                 <form onSubmit={handleSearch} className="mb-4">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -309,7 +309,7 @@ export default function Layout({ children }: LayoutProps) {
               )}
 
               {/* Mobile Navigation */}
-              {user ? (
+              {typedUser ? (
                 <>
                   <div className="space-y-1 pb-2">
                     {mainNavItems.map((item) => {

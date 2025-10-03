@@ -17,4 +17,8 @@ export interface TreemapCellProps {
   name: string;
   value: number;
   growth: number;
+  depth?: number;
+  index?: number;
+  root?: any;
+  [key: string]: any; // Allow additional props from Recharts
 }

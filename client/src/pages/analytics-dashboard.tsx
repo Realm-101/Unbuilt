@@ -28,6 +28,49 @@ interface MetricCard {
   trend: 'up' | 'down' | 'neutral';
 }
 
+// Custom Treemap Cell Component
+const CustomTreemapCell: React.FC<TreemapCellProps> = (props) => {
+  const { x, y, width, height, name, value, growth } = props;
+  return (
+    <g>
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        style={{
+          fill: growth > 40 ? '#10b981' : growth > 30 ? '#3b82f6' : '#8b5cf6',
+          stroke: '#fff',
+          strokeWidth: 2,
+        }}
+      />
+      {width > 80 && height > 40 && (
+        <>
+          <text
+            x={x + width / 2}
+            y={y + height / 2 - 10}
+            textAnchor="middle"
+            fill="#fff"
+            fontSize={12}
+            fontWeight="bold"
+          >
+            {name}
+          </text>
+          <text
+            x={x + width / 2}
+            y={y + height / 2 + 10}
+            textAnchor="middle"
+            fill="#fff"
+            fontSize={10}
+          >
+            {value}% growth
+          </text>
+        </>
+      )}
+    </g>
+  );
+};
+
 export default function AnalyticsDashboard() {
   const [timeRange, setTimeRange] = useState('30d');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -394,47 +437,7 @@ export default function AnalyticsDashboard() {
                       aspectRatio={4 / 3}
                       stroke="#fff"
                       fill="#8b5cf6"
-                      content={(props: TreemapCellProps) => {
-                        const { x, y, width, height, name, value, growth } = props;
-                        return (
-                          <g>
-                            <rect
-                              x={x}
-                              y={y}
-                              width={width}
-                              height={height}
-                              style={{
-                                fill: growth > 40 ? '#10b981' : growth > 30 ? '#3b82f6' : '#8b5cf6',
-                                stroke: '#fff',
-                                strokeWidth: 2,
-                              }}
-                            />
-                            {width > 80 && height > 40 && (
-                              <>
-                                <text
-                                  x={x + width / 2}
-                                  y={y + height / 2 - 10}
-                                  textAnchor="middle"
-                                  fill="#fff"
-                                  fontSize={12}
-                                  fontWeight="bold"
-                                >
-                                  {name}
-                                </text>
-                                <text
-                                  x={x + width / 2}
-                                  y={y + height / 2 + 10}
-                                  textAnchor="middle"
-                                  fill="#fff"
-                                  fontSize={10}
-                                >
-                                  {value} | +{growth}%
-                                </text>
-                              </>
-                            )}
-                          </g>
-                        );
-                      }}
+                      content={CustomTreemapCell as any}
                     />
                   </ResponsiveContainer>
                   <div className="mt-4 flex items-center justify-center gap-4">

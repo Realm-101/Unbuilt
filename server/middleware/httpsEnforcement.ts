@@ -281,7 +281,7 @@ export class SessionSecurityMiddleware {
             sessionId: session.id
           }
         }
-      });
+      );
     }
   }
 
