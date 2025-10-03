@@ -289,10 +289,10 @@ export class SecurityLogger {
     if (endDate) conditions.push(sql`${securityAuditLogs.timestamp} <= ${endDate.toISOString()}`);
 
     if (conditions.length > 0) {
+      // @ts-ignore - Drizzle ORM type inference limitation with dynamic where conditions
       query = query.where(and(...conditions));
     }
 
-    // @ts-ignore - Drizzle ORM type inference limitation with dynamic where conditions
     return await query
       .orderBy(desc(securityAuditLogs.timestamp))
       .limit(limit)
@@ -333,10 +333,10 @@ export class SecurityLogger {
     if (endDate) conditions.push(sql`${securityAlerts.timestamp} <= ${endDate.toISOString()}`);
 
     if (conditions.length > 0) {
+      // @ts-ignore - Drizzle ORM type inference limitation with dynamic where conditions
       query = query.where(and(...conditions));
     }
 
-    // @ts-ignore - Drizzle ORM type inference limitation with dynamic where conditions
     return await query
       .orderBy(desc(securityAlerts.timestamp))
       .limit(limit)

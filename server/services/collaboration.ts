@@ -362,10 +362,10 @@ export async function getActivityFeed(options: {
   }
   
   if (conditions.length > 0) {
+    // @ts-ignore - Drizzle ORM type inference limitation with dynamic where conditions
     query = query.where(or(...conditions));
   }
   
-  // @ts-ignore - Drizzle ORM type inference limitation with dynamic where conditions
   return await query
     .orderBy(desc(activityFeed.timestamp))
     .limit(options.limit || 50);

@@ -169,10 +169,10 @@ export class DatabaseStorage implements IStorage {
     let query = db.select().from(users);
 
     if (search) {
+      // @ts-ignore - Drizzle ORM type inference limitation with dynamic where conditions
       query = query.where(like(users.email, `%${search}%`));
     }
 
-    // @ts-ignore - Drizzle ORM type inference limitation with dynamic where conditions
     return await query
       .orderBy(desc(users.createdAt))
       .limit(limit)

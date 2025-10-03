@@ -4,13 +4,13 @@
  * Mock implementations of Express request, response, and next objects
  */
 
-import { vi } from 'vitest';
+import { vi, expect } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
 
 /**
  * Create a mock Express Request object
  */
-export function mockRequest(overrides: Partial<Request> = {}): Partial<Request> {
+export function mockRequest(overrides: Partial<Request> = {}): Partial<Request> & { session?: any } {
   return {
     body: {},
     params: {},
@@ -29,9 +29,9 @@ export function mockRequest(overrides: Partial<Request> = {}): Partial<Request> 
     secure: false,
     xhr: false,
     get: vi.fn((header: string) => {
-      const headers = (overrides.headers || {}) as Record<string, string>;
+      const headers = (overrides.headers || {}) as Record<string, string | string[]>;
       return headers[header.toLowerCase()];
-    }),
+    }) as any,
     header: vi.fn(),
     accepts: vi.fn(),
     acceptsCharsets: vi.fn(),
@@ -39,7 +39,7 @@ export function mockRequest(overrides: Partial<Request> = {}): Partial<Request> 
     acceptsLanguages: vi.fn(),
     is: vi.fn(),
     ...overrides,
-  } as Partial<Request>;
+  };
 }
 
 /**
@@ -99,8 +99,9 @@ export function mockAuthenticatedRequest(user: any, overrides: Partial<Request> 
 /**
  * Create a mock request with session
  */
-export function mockRequestWithSession(session: any, overrides: Partial<Request> = {}): Partial<Request> {
+export function mockRequestWithSession(session: any, overrides: Partial<Request> = {}): Partial<Request> & { session?: any } {
   return mockRequest({
+    ...overrides,
     session: {
       id: 'session_123',
       cookie: {
@@ -109,9 +110,8 @@ export function mockRequestWithSession(session: any, overrides: Partial<Request>
         secure: false,
       },
       ...session,
-    } as any,
-    ...overrides,
-  });
+    },
+  } as any);
 }
 
 /**
