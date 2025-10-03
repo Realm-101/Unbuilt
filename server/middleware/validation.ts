@@ -5,9 +5,10 @@ import {
   loginSchema, 
   registerSchema, 
   validateIdeaSchema,
-  insertSearchSchema 
-} from '../../shared/schema';
-import { changePasswordSchema, passwordStrengthSchema } from '../../shared/auth-schema';
+  insertSearchSchema,
+  changePasswordSchema,
+  passwordStrengthSchema
+} from '@shared/index';
 import { AppError } from './errorHandler';
 
 /**

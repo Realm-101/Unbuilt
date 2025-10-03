@@ -1,189 +1,135 @@
-/**
- * Database Mock Helper for Drizzle ORM
- * 
- * Provides comprehensive mocks for Drizzle ORM query builder
- * to support integration tests without a real database
- */
-
 import { vi } from 'vitest';
 
 /**
- * Creates a chainable query builder mock
+ * Creates a comprehensive mock for Drizzle ORM database operations
+ * Supports chaining methods like .from(), .where(), .set(), etc.
  */
-export function createQueryBuilderMock(returnValue: any = []) {
-  const mock: any = {
-    select: vi.fn().mockReturnThis(),
-    from: vi.fn().mockReturnThis(),
-    where: vi.fn().mockReturnThis(),
-    and: vi.fn().mockReturnThis(),
-    or: vi.fn().mockReturnThis(),
-    orderBy: vi.fn().mockReturnThis(),
-    groupBy: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-    offset: vi.fn().mockReturnThis(),
-    leftJoin: vi.fn().mockReturnThis(),
-    rightJoin: vi.fn().mockReturnThis(),
-    innerJoin: vi.fn().mockReturnThis(),
-    then: vi.fn((resolve) => resolve(returnValue)),
-  };
-  
-  // Make it thenable (Promise-like)
-  mock[Symbol.toStringTag] = 'Promise';
-  
-  return mock;
-}
+export function createDatabaseMock() {
+  const createQueryMock = (resolvedValue: any) => ({
+    from: vi.fn().mockReturnValue({
+      where: vi.fn().mockResolvedValue(resolvedValue),
+      orderBy: vi.fn().mockResolvedValue(resolvedValue),
+      limit: vi.fn().mockResolvedValue(resolvedValue),
+      offset: vi.fn().mockResolvedValue(resolvedValue),
+    }),
+    where: vi.fn().mockResolvedValue(resolvedValue),
+    orderBy: vi.fn().mockResolvedValue(resolvedValue),
+    limit: vi.fn().mockResolvedValue(resolvedValue),
+    offset: vi.fn().mockResolvedValue(resolvedValue),
+  });
 
-/**
- * Creates an update query builder mock
- */
-export function createUpdateBuilderMock(returnValue: any = { rowsAffected: 1 }) {
-  const mock: any = {
-    set: vi.fn().mockReturnThis(),
-    where: vi.fn().mockReturnThis(),
-    returning: vi.fn().mockReturnThis(),
-    then: vi.fn((resolve) => resolve(returnValue)),
-  };
-  
-  mock[Symbol.toStringTag] = 'Promise';
-  
-  return mock;
-}
+  const createUpdateMock = (resolvedValue: any) => ({
+    set: vi.fn().mockReturnValue({
+      where: vi.fn().mockResolvedValue(resolvedValue),
+      returning: vi.fn().mockResolvedValue(resolvedValue),
+    }),
+  });
 
-/**
- * Creates an insert query builder mock
- */
-export function createInsertBuilderMock(returnValue: any = { insertId: 1 }) {
-  const mock: any = {
-    values: vi.fn().mockReturnThis(),
-    returning: vi.fn().mockReturnThis(),
-    onConflictDoNothing: vi.fn().mockReturnThis(),
-    onConflictDoUpdate: vi.fn().mockReturnThis(),
-    then: vi.fn((resolve) => resolve(returnValue)),
-  };
-  
-  mock[Symbol.toStringTag] = 'Promise';
-  
-  return mock;
-}
+  const createInsertMock = (resolvedValue: any) => ({
+    values: vi.fn().mockReturnValue({
+      returning: vi.fn().mockResolvedValue(resolvedValue),
+      onConflictDoNothing: vi.fn().mockResolvedValue(resolvedValue),
+      onConflictDoUpdate: vi.fn().mockResolvedValue(resolvedValue),
+    }),
+    returning: vi.fn().mockResolvedValue(resolvedValue),
+  });
 
-/**
- * Creates a delete query builder mock
- */
-export function createDeleteBuilderMock(returnValue: any = { rowsAffected: 1 }) {
-  const mock: any = {
-    where: vi.fn().mockReturnThis(),
-    returning: vi.fn().mockReturnThis(),
-    then: vi.fn((resolve) => resolve(returnValue)),
-  };
-  
-  mock[Symbol.toStringTag] = 'Promise';
-  
-  return mock;
-}
+  const createDeleteMock = (resolvedValue: any) => ({
+    where: vi.fn().mockResolvedValue(resolvedValue),
+    returning: vi.fn().mockResolvedValue(resolvedValue),
+  });
 
-/**
- * Creates a complete database mock with all query builders
- */
-export function createDatabaseMock(options: {
-  selectResult?: any[];
-  insertResult?: any;
-  updateResult?: any;
-  deleteResult?: any;
-} = {}) {
-  const {
-    selectResult = [],
-    insertResult = { insertId: 1 },
-    updateResult = { rowsAffected: 1 },
-    deleteResult = { rowsAffected: 1 },
-  } = options;
-  
   return {
-    select: vi.fn(() => createQueryBuilderMock(selectResult)),
-    insert: vi.fn(() => createInsertBuilderMock(insertResult)),
-    update: vi.fn(() => createUpdateBuilderMock(updateResult)),
-    delete: vi.fn(() => createDeleteBuilderMock(deleteResult)),
-    query: {
-      users: {
-        findFirst: vi.fn().mockResolvedValue(null),
-        findMany: vi.fn().mockResolvedValue([]),
-      },
-      jwtTokens: {
-        findFirst: vi.fn().mockResolvedValue(null),
-        findMany: vi.fn().mockResolvedValue([]),
-      },
-      securityAuditLogs: {
-        findFirst: vi.fn().mockResolvedValue(null),
-        findMany: vi.fn().mockResolvedValue([]),
-      },
-      securityAlerts: {
-        findFirst: vi.fn().mockResolvedValue(null),
-        findMany: vi.fn().mockResolvedValue([]),
-      },
-    },
-    transaction: vi.fn(async (callback) => {
-      // Execute the callback with the mock db
-      return callback(createDatabaseMock(options));
+    select: vi.fn().mockImplementation((fields?: any) => createQueryMock([])),
+    update: vi.fn().mockImplementation((table: any) => createUpdateMock([])),
+    insert: vi.fn().mockImplementation((table: any) => createInsertMock([])),
+    delete: vi.fn().mockImplementation((table: any) => createDeleteMock([])),
+    transaction: vi.fn().mockImplementation(async (callback: any) => {
+      return await callback({
+        select: vi.fn().mockImplementation(() => createQueryMock([])),
+        update: vi.fn().mockImplementation(() => createUpdateMock([])),
+        insert: vi.fn().mockImplementation(() => createInsertMock([])),
+        delete: vi.fn().mockImplementation(() => createDeleteMock([])),
+      });
     }),
   };
 }
 
 /**
- * Creates a mock for a specific table query
+ * Creates a mock for a specific query result
  */
-export function createTableQueryMock(data: any[] = []) {
+export function mockQueryResult(data: any[]) {
   return {
-    findFirst: vi.fn().mockResolvedValue(data[0] || null),
-    findMany: vi.fn().mockResolvedValue(data),
+    from: vi.fn().mockReturnValue({
+      where: vi.fn().mockResolvedValue(data),
+      orderBy: vi.fn().mockResolvedValue(data),
+      limit: vi.fn().mockResolvedValue(data),
+      offset: vi.fn().mockResolvedValue(data),
+      groupBy: vi.fn().mockResolvedValue(data),
+    }),
+    where: vi.fn().mockResolvedValue(data),
+    orderBy: vi.fn().mockResolvedValue(data),
+    limit: vi.fn().mockResolvedValue(data),
+    offset: vi.fn().mockResolvedValue(data),
+    groupBy: vi.fn().mockResolvedValue(data),
   };
 }
 
 /**
- * Sets up database mock in the module system
+ * Creates a mock for update operations
  */
-export function setupDatabaseMock(mockData: {
-  users?: any[];
-  jwtTokens?: any[];
-  securityAuditLogs?: any[];
-  securityAlerts?: any[];
-} = {}) {
-  const db = createDatabaseMock();
-  
-  // Configure query mocks with provided data
-  if (mockData.users) {
-    db.query.users = createTableQueryMock(mockData.users);
-  }
-  if (mockData.jwtTokens) {
-    db.query.jwtTokens = createTableQueryMock(mockData.jwtTokens);
-  }
-  if (mockData.securityAuditLogs) {
-    db.query.securityAuditLogs = createTableQueryMock(mockData.securityAuditLogs);
-  }
-  if (mockData.securityAlerts) {
-    db.query.securityAlerts = createTableQueryMock(mockData.securityAlerts);
-  }
-  
-  vi.mock('../../db', () => ({
-    db,
-  }));
-  
-  return db;
+export function mockUpdateResult(data: any[]) {
+  return {
+    set: vi.fn().mockReturnValue({
+      where: vi.fn().mockResolvedValue(data),
+      returning: vi.fn().mockResolvedValue(data),
+    }),
+  };
 }
 
 /**
- * Helper to create a user mock object
+ * Creates a mock for insert operations
  */
-export function createMockUser(overrides: Partial<any> = {}) {
+export function mockInsertResult(data: any[]) {
+  return {
+    values: vi.fn().mockReturnValue({
+      returning: vi.fn().mockResolvedValue(data),
+      onConflictDoNothing: vi.fn().mockResolvedValue(data),
+      onConflictDoUpdate: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue(data),
+        }),
+      }),
+    }),
+    returning: vi.fn().mockResolvedValue(data),
+  };
+}
+
+/**
+ * Creates a mock for delete operations
+ */
+export function mockDeleteResult(data: any[]) {
+  return {
+    where: vi.fn().mockResolvedValue(data),
+    returning: vi.fn().mockResolvedValue(data),
+  };
+}
+
+/**
+ * Helper to create a user fixture
+ */
+export function createUserFixture(overrides: Partial<any> = {}) {
   return {
     id: 1,
     email: 'test@example.com',
     password: '$2a$10$hashedpassword',
-    firstName: 'Test',
-    lastName: 'User',
     plan: 'free',
-    isActive: true,
     failedLoginAttempts: 0,
-    lastFailedLogin: null,
     accountLockedUntil: null,
+    refreshToken: null,
+    refreshTokenExpiry: null,
+    resetToken: null,
+    resetTokenExpiry: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -191,59 +137,17 @@ export function createMockUser(overrides: Partial<any> = {}) {
 }
 
 /**
- * Helper to create a JWT token mock object
+ * Helper to create a session fixture
  */
-export function createMockJwtToken(overrides: Partial<any> = {}) {
-  return {
-    id: 'jwt-id-123',
-    userId: 1,
-    issuedAt: new Date(),
-    expiresAt: new Date(Date.now() + 3600000), // 1 hour from now
-    isActive: true,
-    deviceInfo: JSON.stringify({
-      userAgent: 'Mozilla/5.0',
-      platform: 'Windows',
-      browser: 'Chrome',
-    }),
-    ipAddress: '127.0.0.1',
-    ...overrides,
-  };
-}
-
-/**
- * Helper to create a security audit log mock object
- */
-export function createMockSecurityAuditLog(overrides: Partial<any> = {}) {
+export function createSessionFixture(overrides: Partial<any> = {}) {
   return {
     id: 1,
-    eventType: 'AUTH_SUCCESS',
-    action: 'login_success',
     userId: 1,
-    ipAddress: '127.0.0.1',
+    token: 'session-token-123',
+    ipAddress: '192.168.1.1',
     userAgent: 'Mozilla/5.0',
-    success: true,
-    metadata: {},
-    timestamp: new Date(),
-    ...overrides,
-  };
-}
-
-/**
- * Helper to create a security alert mock object
- */
-export function createMockSecurityAlert(overrides: Partial<any> = {}) {
-  return {
-    id: 1,
-    alertType: 'BRUTE_FORCE_ATTACK',
-    severity: 'high',
-    userId: 1,
-    ipAddress: '127.0.0.1',
-    description: 'Multiple failed login attempts detected',
-    status: 'active',
-    metadata: {},
     createdAt: new Date(),
-    resolvedAt: null,
-    resolvedBy: null,
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     ...overrides,
   };
 }

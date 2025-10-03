@@ -18,7 +18,7 @@ import {
 import { motion } from 'framer-motion';
 import { format, subDays } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
-import { TreemapCellProps } from '@/types/analytics';
+import { TreemapCellProps } from '@/types';
 
 interface MetricCard {
   title: string;

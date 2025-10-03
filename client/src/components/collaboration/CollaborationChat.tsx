@@ -9,7 +9,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { MessageCircle, Send, X, Minimize2, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { ChatMessage } from '@/types/collaboration';
+import { ChatMessage } from '@/types';
 
 interface CollaborationChatProps {
   roomId: string;

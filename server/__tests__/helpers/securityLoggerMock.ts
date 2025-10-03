@@ -1,57 +1,84 @@
-/**
- * Security Logger Mock Helper
- * 
- * Provides properly configured mocks for securityLogger that return Promises
- * to avoid "Cannot read properties of undefined (reading 'catch')" errors
- */
-
 import { vi } from 'vitest';
 
 /**
- * Creates a mock security logger with all methods returning resolved Promises
+ * Creates a properly mocked security logger that returns Promises
+ * This ensures all async operations are handled correctly in tests
  */
 export function createSecurityLoggerMock() {
   return {
     logSecurityEvent: vi.fn().mockResolvedValue(undefined),
-    logAuthenticationEvent: vi.fn().mockResolvedValue(undefined),
-    logApiAccess: vi.fn().mockResolvedValue(undefined),
-    logDataAccess: vi.fn().mockResolvedValue(undefined),
-    createSecurityAlert: vi.fn().mockResolvedValue(undefined),
-    logSuspiciousActivity: vi.fn().mockResolvedValue(undefined),
-    getSecurityEvents: vi.fn().mockResolvedValue([]),
-    getSecurityAlerts: vi.fn().mockResolvedValue([]),
-    getSecurityMetrics: vi.fn().mockResolvedValue({
-      totalEvents: 0,
-      failedLogins: 0,
-      suspiciousActivities: 0,
-      activeAlerts: 0,
-    }),
-    resolveSecurityAlert: vi.fn().mockResolvedValue(undefined),
+    logAuthEvent: vi.fn().mockResolvedValue(undefined),
+    logAccessEvent: vi.fn().mockResolvedValue(undefined),
+    logDataEvent: vi.fn().mockResolvedValue(undefined),
+    logSystemEvent: vi.fn().mockResolvedValue(undefined),
+    logError: vi.fn().mockResolvedValue(undefined),
+    getRecentEvents: vi.fn().mockResolvedValue([]),
+    getEventsByUser: vi.fn().mockResolvedValue([]),
+    getEventsByType: vi.fn().mockResolvedValue([]),
   };
 }
 
 /**
- * Sets up security logger mock in the module system
- * Use this in beforeEach/beforeAll hooks
+ * Creates a security logger mock that simulates errors
  */
-export function setupSecurityLoggerMock() {
-  const mockLogger = createSecurityLoggerMock();
-  
-  vi.mock('../../services/securityLogger', () => ({
-    securityLogger: mockLogger,
-  }));
-  
-  return mockLogger;
+export function createFailingSecurityLoggerMock() {
+  return {
+    logSecurityEvent: vi.fn().mockRejectedValue(new Error('Security logger unavailable')),
+    logAuthEvent: vi.fn().mockRejectedValue(new Error('Security logger unavailable')),
+    logAccessEvent: vi.fn().mockRejectedValue(new Error('Security logger unavailable')),
+    logDataEvent: vi.fn().mockRejectedValue(new Error('Security logger unavailable')),
+    logSystemEvent: vi.fn().mockRejectedValue(new Error('Security logger unavailable')),
+    logError: vi.fn().mockRejectedValue(new Error('Security logger unavailable')),
+    getRecentEvents: vi.fn().mockRejectedValue(new Error('Security logger unavailable')),
+    getEventsByUser: vi.fn().mockRejectedValue(new Error('Security logger unavailable')),
+    getEventsByType: vi.fn().mockRejectedValue(new Error('Security logger unavailable')),
+  };
 }
 
 /**
- * Resets all security logger mocks
- * Use this in afterEach hooks
+ * Helper to verify security event was logged with correct parameters
  */
-export function resetSecurityLoggerMock(mockLogger: ReturnType<typeof createSecurityLoggerMock>) {
-  Object.values(mockLogger).forEach(mock => {
-    if (typeof mock === 'function' && 'mockClear' in mock) {
-      mock.mockClear();
+export function expectSecurityEventLogged(
+  mockLogger: any,
+  eventType: string,
+  action: string,
+  success: boolean,
+  contextMatcher?: any
+) {
+  expect(mockLogger.logSecurityEvent).toHaveBeenCalledWith(
+    eventType,
+    action,
+    success,
+    contextMatcher ? expect.objectContaining(contextMatcher) : expect.any(Object),
+    expect.anything()
+  );
+}
+
+/**
+ * Helper to reset all security logger mocks
+ */
+export function resetSecurityLoggerMock(mockLogger: any) {
+  Object.values(mockLogger).forEach((fn: any) => {
+    if (typeof fn.mockClear === 'function') {
+      fn.mockClear();
     }
   });
+}
+
+/**
+ * Helper to create a security event fixture
+ */
+export function createSecurityEventFixture(overrides: Partial<any> = {}) {
+  return {
+    id: 1,
+    eventType: 'LOGIN_SUCCESS',
+    action: 'user_login',
+    success: true,
+    userId: 1,
+    ipAddress: '192.168.1.1',
+    userAgent: 'Mozilla/5.0',
+    timestamp: new Date(),
+    metadata: {},
+    ...overrides,
+  };
 }

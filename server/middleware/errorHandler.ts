@@ -2,7 +2,19 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import crypto from 'crypto';
 
-// Error types for classification
+/**
+ * Error Handler Middleware
+ * 
+ * Provides centralized error handling with security-focused error sanitization,
+ * standardized error responses, and security event logging.
+ * 
+ * @module errorHandler
+ */
+
+/**
+ * Error types for classification
+ * Used to categorize errors for appropriate handling and logging
+ */
 export enum ErrorType {
   AUTHENTICATION = 'AUTHENTICATION',
   AUTHORIZATION = 'AUTHORIZATION',
@@ -13,7 +25,10 @@ export enum ErrorType {
   CONFLICT = 'CONFLICT'
 }
 
-// Security event types for logging
+/**
+ * Security event types for logging
+ * Used to categorize security-related events for monitoring and auditing
+ */
 export enum SecurityEventType {
   AUTH_FAILURE = 'AUTH_FAILURE',
   AUTHORIZATION_FAILURE = 'AUTHORIZATION_FAILURE',
@@ -23,7 +38,10 @@ export enum SecurityEventType {
   SYSTEM_ERROR = 'SYSTEM_ERROR'
 }
 
-// Standard error response interface
+/**
+ * Standard error response interface
+ * Defines the structure of all error responses sent to clients
+ */
 export interface ErrorResponse {
   success: false;
   error: string;
@@ -34,7 +52,10 @@ export interface ErrorResponse {
   statusCode?: number;
 }
 
-// Security event interface for logging
+/**
+ * Security event interface for logging
+ * Defines the structure of security events for audit trails
+ */
 export interface SecurityEvent {
   type: SecurityEventType;
   userId?: string;
@@ -87,7 +108,22 @@ const ERROR_CODE_MAP: Record<ErrorType, { prefix: string; defaultMessage: string
   [ErrorType.CONFLICT]: { prefix: 'CONFLICT', defaultMessage: 'Resource conflict' }
 };
 
-// Custom error class for application errors
+/**
+ * Custom error class for application errors
+ * 
+ * Extends the standard Error class with additional properties for error classification,
+ * HTTP status codes, and operational error identification.
+ * 
+ * @example
+ * ```typescript
+ * throw new AppError(
+ *   'User not found',
+ *   ErrorType.NOT_FOUND,
+ *   404,
+ *   'USER_NOT_FOUND'
+ * );
+ * ```
+ */
 export class AppError extends Error {
   public readonly type: ErrorType;
   public readonly statusCode: number;
@@ -114,46 +150,113 @@ export class AppError extends Error {
   }
 
   /**
-   * Create specific error types for common scenarios
+   * Create an authentication error (401)
+   * 
+   * @param message - Error message
+   * @param code - Error code for client identification
+   * @returns AppError instance with 401 status
    */
   static createAuthenticationError(message = 'Authentication failed', code = 'AUTH_FAILED'): AppError {
     return new AppError(message, ErrorType.AUTHENTICATION, 401, code);
   }
 
+  /**
+   * Create an authorization error (403)
+   * 
+   * @param message - Error message
+   * @param code - Error code for client identification
+   * @returns AppError instance with 403 status
+   */
   static createAuthorizationError(message = 'Access denied', code = 'AUTHZ_DENIED'): AppError {
     return new AppError(message, ErrorType.AUTHORIZATION, 403, code);
   }
 
+  /**
+   * Create a forbidden error (403)
+   * 
+   * @param message - Error message
+   * @param code - Error code for client identification
+   * @returns AppError instance with 403 status
+   */
   static createForbiddenError(message = 'Forbidden', code = 'FORBIDDEN'): AppError {
     return new AppError(message, ErrorType.AUTHORIZATION, 403, code);
   }
 
+  /**
+   * Create a validation error (400)
+   * 
+   * @param message - Error message
+   * @param code - Error code for client identification
+   * @param details - Additional validation error details
+   * @returns AppError instance with 400 status
+   */
   static createValidationError(message = 'Invalid input data', code = 'VAL_INVALID', details?: Record<string, any>): AppError {
     return new AppError(message, ErrorType.VALIDATION, 400, code, true, details);
   }
 
+  /**
+   * Create a not found error (404)
+   * 
+   * @param message - Error message
+   * @param code - Error code for client identification
+   * @returns AppError instance with 404 status
+   */
   static createNotFoundError(message = 'Resource not found', code = 'NOT_FOUND'): AppError {
     return new AppError(message, ErrorType.NOT_FOUND, 404, code);
   }
 
+  /**
+   * Create a conflict error (409)
+   * 
+   * @param message - Error message
+   * @param code - Error code for client identification
+   * @returns AppError instance with 409 status
+   */
   static createConflictError(message = 'Resource conflict', code = 'CONFLICT'): AppError {
     return new AppError(message, ErrorType.CONFLICT, 409, code);
   }
 
+  /**
+   * Create a rate limit error (429)
+   * 
+   * @param message - Error message
+   * @param code - Error code for client identification
+   * @param details - Additional rate limit details (e.g., retryAfter)
+   * @returns AppError instance with 429 status
+   */
   static createRateLimitError(message = 'Too many requests', code = 'RATE_EXCEEDED', details?: Record<string, any>): AppError {
     return new AppError(message, ErrorType.RATE_LIMIT, 429, code, true, details);
   }
 
+  /**
+   * Create a system error (500)
+   * 
+   * @param message - Error message
+   * @param code - Error code for client identification
+   * @returns AppError instance with 500 status
+   */
   static createSystemError(message = 'Internal server error', code = 'SYS_ERROR'): AppError {
     return new AppError(message, ErrorType.SYSTEM, 500, code);
   }
 }
 
+/**
+ * Secure error handler class
+ * 
+ * Handles error sanitization, logging, and response generation with security best practices.
+ * Prevents sensitive information leakage in error messages.
+ */
 class SecureErrorHandler {
   private securityLogger: SecurityEvent[] = [];
 
   /**
    * Sanitize error message to remove sensitive information
+   * 
+   * Replaces sensitive patterns and known sensitive messages with generic alternatives
+   * to prevent information disclosure.
+   * 
+   * @param message - Original error message
+   * @returns Sanitized error message safe for client consumption
    */
   private sanitizeErrorMessage(message: string): string {
     let sanitized = message;
@@ -177,6 +280,10 @@ class SecureErrorHandler {
 
   /**
    * Generate a unique request ID for tracking
+   * 
+   * Creates a random hex string for correlating errors across logs and responses.
+   * 
+   * @returns 16-character hex string
    */
   private generateRequestId(): string {
     return crypto.randomBytes(8).toString('hex');
@@ -184,6 +291,11 @@ class SecureErrorHandler {
 
   /**
    * Log security event for monitoring and auditing
+   * 
+   * Records security-related events for analysis and compliance.
+   * In production, this should integrate with a proper logging service.
+   * 
+   * @param event - Security event to log
    */
   private logSecurityEvent(event: SecurityEvent): void {
     // In production, this would write to a secure logging system
@@ -198,6 +310,13 @@ class SecureErrorHandler {
 
   /**
    * Create standardized error response
+   * 
+   * Generates a consistent error response structure with sanitized messages.
+   * 
+   * @param error - Error object to convert to response
+   * @param requestId - Unique request identifier for tracking
+   * @param statusCode - Optional HTTP status code override
+   * @returns Standardized error response object
    */
   private createErrorResponse(
     error: Error | AppError,
@@ -224,6 +343,14 @@ class SecureErrorHandler {
 
   /**
    * Handle different types of errors and create appropriate responses
+   * 
+   * Main error handling method that processes errors, logs security events,
+   * and sends sanitized responses to clients.
+   * 
+   * @param error - Error to handle
+   * @param req - Express request object
+   * @param res - Express response object
+   * @param next - Express next function
    */
   public handleError(
     error: Error | AppError,
@@ -314,6 +441,11 @@ class SecureErrorHandler {
 
   /**
    * Get security events (for monitoring/debugging)
+   * 
+   * Returns a copy of all logged security events.
+   * Useful for testing and monitoring purposes.
+   * 
+   * @returns Array of security events
    */
   public getSecurityEvents(): SecurityEvent[] {
     return [...this.securityLogger];
@@ -321,16 +453,36 @@ class SecureErrorHandler {
 
   /**
    * Clear security events (for testing)
+   * 
+   * Removes all logged security events from memory.
+   * Should only be used in testing environments.
    */
   public clearSecurityEvents(): void {
     this.securityLogger = [];
   }
 }
 
-// Create singleton instance
+/**
+ * Singleton instance of the secure error handler
+ */
 export const secureErrorHandler = new SecureErrorHandler();
 
-// Express error handling middleware
+/**
+ * Express error handling middleware
+ * 
+ * Catches all errors thrown in the application and processes them through
+ * the secure error handler. Should be registered after all other middleware.
+ * 
+ * @param error - Error object
+ * @param req - Express request object
+ * @param res - Express response object
+ * @param next - Express next function
+ * 
+ * @example
+ * ```typescript
+ * app.use(errorHandlerMiddleware);
+ * ```
+ */
 export const errorHandlerMiddleware = (
   error: Error | AppError,
   req: Request,
@@ -340,14 +492,44 @@ export const errorHandlerMiddleware = (
   secureErrorHandler.handleError(error, req, res, next);
 };
 
-// Async error wrapper for route handlers
+/**
+ * Async error wrapper for route handlers
+ * 
+ * Wraps async route handlers to automatically catch and forward errors to the error handler.
+ * Eliminates the need for try-catch blocks in every async route.
+ * 
+ * @param fn - Async route handler function
+ * @returns Express middleware function
+ * 
+ * @example
+ * ```typescript
+ * app.get('/api/users', asyncHandler(async (req, res) => {
+ *   const users = await getUsersFromDB();
+ *   res.json(users);
+ * }));
+ * ```
+ */
 export const asyncHandler = (fn: (req: Request, res: Response, next?: NextFunction) => Promise<void>) => {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
 
-// Helper function to send standardized success responses
+/**
+ * Helper function to send standardized success responses
+ * 
+ * Creates a consistent success response structure across the application.
+ * 
+ * @param res - Express response object
+ * @param data - Response data
+ * @param message - Success message
+ * @param statusCode - HTTP status code (default: 200)
+ * 
+ * @example
+ * ```typescript
+ * sendSuccess(res, { user }, 'User created successfully', 201);
+ * ```
+ */
 export const sendSuccess = (
   res: Response,
   data: any,
@@ -362,7 +544,23 @@ export const sendSuccess = (
   });
 };
 
-// Helper function to send standardized error responses
+/**
+ * Helper function to send standardized error responses
+ * 
+ * Manually sends an error response without going through the error handler middleware.
+ * Useful for early returns in middleware.
+ * 
+ * @param res - Express response object
+ * @param error - Error object
+ * @param requestId - Optional request ID for tracking
+ * 
+ * @example
+ * ```typescript
+ * if (!user) {
+ *   return sendError(res, AppError.createNotFoundError('User not found'));
+ * }
+ * ```
+ */
 export const sendError = (
   res: Response,
   error: AppError | Error,

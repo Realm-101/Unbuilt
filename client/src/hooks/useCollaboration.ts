@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { create } from 'zustand';
 import { useAuth } from './useAuth';
-import { ChatMessage } from '@/types/collaboration';
+import { ChatMessage } from '@/types';
 
 interface Participant {
   userId: number;

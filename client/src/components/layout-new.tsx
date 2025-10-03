@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import type { UserProfile } from "@/types/user";
+import type { UserProfile } from "@/types";
 import { 
   User as UserIcon, Search, Bookmark, History, TrendingUp, LogOut, Settings, 
   Crown, HelpCircle, Info, Menu, X, Lightbulb, Activity, 

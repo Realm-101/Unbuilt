@@ -6,10 +6,29 @@ This document provides comprehensive documentation for all active services in th
 
 ## Table of Contents
 
-1. [Perplexity Service](#perplexity-service)
-2. [PDF Generator Service](#pdf-generator-service)
-3. [Email Service](#email-service)
-4. [Service Status Overview](#service-status-overview)
+### Core Services
+1. [Perplexity Service](#perplexity-service) - Market gap discovery with web search
+2. [PDF Generator Service](#pdf-generator-service) - Professional report generation
+3. [Email Service](#email-service) - Transactional email (future)
+4. [Gemini Service](#gemini-service) - Primary AI gap analysis engine
+5. [Session Manager Service](#session-manager-service) - Session lifecycle and security
+6. [Security Logger Service](#security-logger-service) - Security event logging and auditing
+7. [Authorization Service](#authorization-service) - Role-based access control
+8. [AI Cache Service](#ai-cache-service) - AI response caching
+
+### Additional Services
+- **XAI Service** - Business plan and market research generation
+- **Action Plan Generator** - Strategic action plan generation
+- **Idea Validation** - Idea scoring and risk assessment
+- **Financial Modeling** - Financial projections and analysis
+- **Collaboration** - Team collaboration features
+- **Password Security** - Password validation and hashing
+- **Account Lockout** - Brute force protection
+- **CAPTCHA Service** - Bot protection
+
+### Reference
+9. [Service Status Overview](#service-status-overview) - Complete service inventory
+10. [General Troubleshooting](#general-troubleshooting) - Common issues and solutions
 
 ---
 
@@ -1216,12 +1235,660 @@ For issues or questions:
 
 ---
 
+## Gemini Service
+
+**File:** `server/services/gemini.ts`  
+**Status:** ✅ Active  
+**Version:** 1.0  
+**Last Updated:** October 2025
+
+### Overview
+
+The Gemini service is the primary AI engine powering Unbuilt's gap analysis functionality. It orchestrates market research by leveraging Perplexity for real-time web search and provides intelligent caching for optimal performance.
+
+### Purpose
+
+- Primary AI gap analysis engine
+- Orchestrates Perplexity service for market research
+- Provides intelligent caching layer via AI Cache service
+- Converts market gaps into standardized analysis results
+- Fallback to demo data when APIs unavailable
+
+### Architecture
+
+```
+┌─────────────────┐
+│  Search Route   │
+│  POST /api/search│
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Gemini Service  │
+│ analyzeGaps()   │
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    │         │
+    ▼         ▼
+┌────────┐ ┌──────────┐
+│AI Cache│ │Perplexity│
+│Service │ │ Service  │
+└────────┘ └──────────┘
+```
+
+### API Reference
+
+#### `analyzeGaps(query: string): Promise<GapAnalysisResult[]>`
+
+Analyzes market gaps for a given query using Perplexity AI with intelligent caching.
+
+**Parameters:**
+- `query` (string) - The market research query or topic to analyze
+
+**Returns:**
+- `Promise<GapAnalysisResult[]>` - Array of gap analysis results
+
+**Example:**
+```typescript
+import { analyzeGaps } from './services/gemini';
+
+const results = await analyzeGaps('AI-powered healthcare solutions');
+
+console.log(results);
+// [
+//   {
+//     title: "AI Health Companion for Chronic Conditions",
+//     description: "24/7 AI-powered health monitoring...",
+//     category: "Tech That's Missing",
+//     feasibility: "high",
+//     marketPotential: "high",
+//     innovationScore: 8,
+//     marketSize: "$4.2B",
+//     gapReason: "Privacy concerns and regulatory approval...",
+//     targetAudience: "Chronic disease patients...",
+//     keyTrends: ["Aging population", "AI in healthcare"]
+//   }
+// ]
+```
+
+### Data Types
+
+#### `GapAnalysisResult` Interface
+
+```typescript
+export interface GapAnalysisResult {
+  title: string;
+  description: string;
+  category: string;
+  feasibility: 'high' | 'medium' | 'low';
+  marketPotential: 'high' | 'medium' | 'low';
+  innovationScore: number;
+  marketSize: string;
+  gapReason: string;
+  targetAudience?: string;
+  keyTrends?: string[];
+}
+```
+
+### Configuration
+
+#### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GEMINI_API_KEY` | Optional | Google Gemini API key (currently uses Perplexity) |
+
+### Dependencies
+
+| Service | Purpose |
+|---------|---------|
+| Perplexity Service | Market gap discovery with web search |
+| AI Cache Service | Response caching for performance |
+
+### Integration Points
+
+- **Search Routes** (`server/routes.ts`) - Primary consumer
+- **AI Cache** - Automatic caching of results
+- **Perplexity** - Delegates to Perplexity for actual analysis
+
+### Performance
+
+- **Cache Hit:** <10ms (instant response)
+- **Cache Miss:** 2-5 seconds (Perplexity API call)
+- **Fallback:** <100ms (demo data)
+
+---
+
+## Session Manager Service
+
+**File:** `server/services/sessionManager.ts`  
+**Status:** ✅ Active  
+**Version:** 1.0  
+**Last Updated:** October 2025
+
+### Overview
+
+The Session Manager service provides comprehensive session lifecycle management with device tracking, security monitoring, and concurrent session limits. It's a critical security component that prevents session hijacking and manages user authentication state.
+
+### Purpose
+
+- Manage JWT token lifecycle (access and refresh tokens)
+- Track device information and session metadata
+- Enforce concurrent session limits
+- Detect and prevent session hijacking
+- Provide session termination capabilities
+- Support security event handling
+
+### API Reference
+
+#### `createSession(userId: number, deviceInfo: DeviceInfo, ipAddress: string): Promise<SessionTokens>`
+
+Creates a new session with device tracking and security monitoring.
+
+**Parameters:**
+- `userId` (number) - User ID
+- `deviceInfo` (DeviceInfo) - Device and browser information
+- `ipAddress` (string) - Client IP address
+
+**Returns:**
+- `Promise<SessionTokens>` - Access and refresh tokens
+
+**Example:**
+```typescript
+import { sessionManager } from './services/sessionManager';
+
+const tokens = await sessionManager.createSession(
+  user.id,
+  {
+    userAgent: req.headers['user-agent'],
+    platform: 'web',
+    browser: 'Chrome',
+    os: 'Windows',
+    deviceType: 'desktop'
+  },
+  req.ip
+);
+
+res.json({
+  accessToken: tokens.accessToken,
+  refreshToken: tokens.refreshToken
+});
+```
+
+#### `getUserSessions(userId: number): Promise<SessionInfo[]>`
+
+Retrieves all active sessions for a user.
+
+**Example:**
+```typescript
+const sessions = await sessionManager.getUserSessions(user.id);
+
+// Returns array of active sessions with device info
+console.log(sessions);
+// [
+//   {
+//     id: "jti-123",
+//     userId: 1,
+//     deviceInfo: { browser: "Chrome", os: "Windows" },
+//     ipAddress: "192.168.1.1",
+//     issuedAt: Date,
+//     expiresAt: Date,
+//     lastActivity: Date,
+//     isActive: true
+//   }
+// ]
+```
+
+#### `terminateSession(jti: string, userId: number): Promise<void>`
+
+Terminates a specific session.
+
+**Example:**
+```typescript
+await sessionManager.terminateSession(sessionId, user.id);
+```
+
+#### `terminateAllSessions(userId: number, exceptJti?: string): Promise<void>`
+
+Terminates all sessions for a user, optionally keeping the current session.
+
+**Example:**
+```typescript
+// Terminate all other sessions (keep current)
+await sessionManager.terminateAllSessions(user.id, currentJti);
+
+// Terminate ALL sessions (logout everywhere)
+await sessionManager.terminateAllSessions(user.id);
+```
+
+#### `handleSecurityEvent(event: SecurityEvent): Promise<void>`
+
+Handles security events that require session termination.
+
+**Example:**
+```typescript
+await sessionManager.handleSecurityEvent({
+  type: 'PASSWORD_CHANGE',
+  userId: user.id,
+  timestamp: new Date()
+});
+// Automatically terminates all sessions
+```
+
+### Data Types
+
+```typescript
+export interface SessionInfo {
+  id: string;
+  userId: number;
+  deviceInfo: DeviceInfo;
+  ipAddress: string;
+  issuedAt: Date;
+  expiresAt: Date;
+  lastActivity: Date;
+  isActive: boolean;
+}
+
+export interface DeviceInfo {
+  userAgent?: string;
+  platform?: string;
+  browser?: string;
+  os?: string;
+  deviceType?: 'desktop' | 'mobile' | 'tablet';
+}
+
+export interface SessionLimits {
+  maxConcurrentSessions: number;
+  sessionTimeoutMinutes: number;
+  refreshTokenExpiryDays: number;
+}
+```
+
+### Configuration
+
+**Default Limits:**
+- Max Concurrent Sessions: 5
+- Session Timeout: 15 minutes (access token)
+- Refresh Token Expiry: 7 days
+
+### Security Features
+
+1. **Concurrent Session Limits** - Prevents unlimited session creation
+2. **Device Tracking** - Monitors device and location changes
+3. **Session Hijacking Detection** - Detects suspicious session activity
+4. **Automatic Cleanup** - Removes expired sessions
+5. **Security Event Integration** - Auto-terminates on security events
+
+### Integration Points
+
+- **Authentication Routes** (`server/routes/auth.ts`) - Session creation/termination
+- **Session Routes** (`server/routes/sessions.ts`) - Session management API
+- **JWT Middleware** (`server/middleware/jwtAuth.ts`) - Token validation
+- **Admin Routes** (`server/routes/admin.ts`) - Admin session management
+
+---
+
+## Security Logger Service
+
+**File:** `server/services/securityLogger.ts`  
+**Status:** ✅ Active  
+**Version:** 1.0  
+**Last Updated:** October 2025
+
+### Overview
+
+The Security Logger service provides comprehensive security event logging and auditing capabilities. It records all security-relevant events, generates alerts for suspicious activity, and provides analytics for security monitoring.
+
+### Purpose
+
+- Log all security events with full context
+- Generate security alerts for suspicious activity
+- Provide security analytics and reporting
+- Support compliance and audit requirements
+- Enable real-time security monitoring
+
+### API Reference
+
+#### `logSecurityEvent(eventType, action, success, context, errorMessage?): Promise<void>`
+
+Logs a security event with full context.
+
+**Parameters:**
+- `eventType` (SecurityEventType) - Type of security event
+- `action` (string) - Specific action performed
+- `success` (boolean) - Whether action succeeded
+- `context` (SecurityEventContext) - Event context and metadata
+- `errorMessage` (string, optional) - Error message if failed
+
+**Example:**
+```typescript
+import { securityLogger } from './services/securityLogger';
+
+await securityLogger.logSecurityEvent(
+  'AUTH_SUCCESS',
+  'user_login',
+  true,
+  {
+    userId: user.id,
+    userEmail: user.email,
+    ipAddress: req.ip,
+    userAgent: req.headers['user-agent'],
+    sessionId: jti,
+    requestId: req.id
+  }
+);
+```
+
+#### `createSecurityAlert(alertType, context): Promise<void>`
+
+Creates a security alert for suspicious activity.
+
+**Example:**
+```typescript
+await securityLogger.createSecurityAlert(
+  'BRUTE_FORCE_ATTACK',
+  {
+    userId: user.id,
+    ipAddress: req.ip,
+    details: { attemptCount: 5 },
+    severity: 'high'
+  }
+);
+```
+
+#### `getSecurityEvents(filters): Promise<SecurityAuditLog[]>`
+
+Retrieves security events with filtering.
+
+**Example:**
+```typescript
+const events = await securityLogger.getSecurityEvents({
+  userId: user.id,
+  eventType: 'AUTH_FAILURE',
+  startDate: new Date('2025-01-01'),
+  limit: 100
+});
+```
+
+#### `getSecurityAlerts(filters): Promise<SecurityAlert[]>`
+
+Retrieves security alerts with filtering.
+
+**Example:**
+```typescript
+const alerts = await securityLogger.getSecurityAlerts({
+  severity: 'high',
+  resolved: false,
+  limit: 50
+});
+```
+
+### Data Types
+
+```typescript
+export type SecurityEventType = 
+  | 'AUTH_SUCCESS'
+  | 'AUTH_FAILURE' 
+  | 'PASSWORD_CHANGE'
+  | 'ACCOUNT_LOCKED'
+  | 'ACCOUNT_UNLOCKED'
+  | 'SESSION_CREATED'
+  | 'SESSION_TERMINATED'
+  | 'SUSPICIOUS_LOGIN'
+  | 'RATE_LIMIT_EXCEEDED'
+  | 'ADMIN_ACTION'
+  | 'AUTHORIZATION_FAILURE'
+  | 'DATA_ACCESS'
+  | 'DATA_MODIFICATION'
+  | 'API_ACCESS'
+  | 'SECURITY_VIOLATION';
+
+export interface SecurityEventContext {
+  userId?: number;
+  userEmail?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  sessionId?: string;
+  requestId?: string;
+  resource?: string;
+  resourceId?: string;
+  metadata?: Record<string, any>;
+}
+```
+
+### Integration Points
+
+- **All Middleware** - Logs security events throughout request pipeline
+- **Authentication** - Logs login attempts and password changes
+- **Authorization** - Logs access control decisions
+- **Rate Limiting** - Logs rate limit violations
+- **Security Routes** - Provides security dashboard data
+
+### Performance
+
+- **Async Logging** - Non-blocking event logging
+- **Batch Processing** - Efficient database writes
+- **Indexed Queries** - Fast event retrieval
+
+---
+
+## Authorization Service
+
+**File:** `server/services/authorizationService.ts`  
+**Status:** ✅ Active  
+**Version:** 1.0  
+**Last Updated:** October 2025
+
+### Overview
+
+The Authorization Service implements role-based access control (RBAC) with granular permissions. It provides a flexible permission system that supports user roles, resource ownership, and fine-grained access control.
+
+### Purpose
+
+- Implement role-based access control (RBAC)
+- Manage user permissions and roles
+- Validate resource ownership
+- Support hierarchical role permissions
+- Enable fine-grained access control
+
+### API Reference
+
+#### `hasPermission(user: User, permission: Permission): boolean`
+
+Checks if a user has a specific permission.
+
+**Example:**
+```typescript
+import { AuthorizationService, Permission } from './services/authorizationService';
+
+const authService = new AuthorizationService();
+
+if (authService.hasPermission(user, Permission.MANAGE_USERS)) {
+  // User can manage other users
+}
+```
+
+#### `hasRole(user: User, role: UserRole): boolean`
+
+Checks if a user has a specific role.
+
+**Example:**
+```typescript
+import { UserRole } from './services/authorizationService';
+
+if (authService.hasRole(user, UserRole.ADMIN)) {
+  // User is an admin
+}
+```
+
+#### `canAccessResource(user: User, resourceOwnerId: number): boolean`
+
+Checks if a user can access a specific resource.
+
+**Example:**
+```typescript
+const canAccess = authService.canAccessResource(user, searchResult.userId);
+
+if (!canAccess) {
+  throw new AppError('Forbidden', 403);
+}
+```
+
+### Data Types
+
+```typescript
+export enum UserRole {
+  USER = 'user',
+  ADMIN = 'admin',
+  SUPER_ADMIN = 'super_admin'
+}
+
+export enum Permission {
+  // User data permissions
+  READ_OWN_DATA = 'read_own_data',
+  WRITE_OWN_DATA = 'write_own_data',
+  DELETE_OWN_DATA = 'delete_own_data',
+  
+  // Other users' data permissions
+  READ_USER_DATA = 'read_user_data',
+  WRITE_USER_DATA = 'write_user_data',
+  DELETE_USER_DATA = 'delete_user_data',
+  
+  // Administrative permissions
+  MANAGE_USERS = 'manage_users',
+  VIEW_ANALYTICS = 'view_analytics',
+  MANAGE_SYSTEM = 'manage_system',
+  
+  // Security permissions
+  VIEW_SECURITY_LOGS = 'view_security_logs',
+  MANAGE_SECURITY = 'manage_security',
+  
+  // Team permissions
+  CREATE_TEAM = 'create_team',
+  MANAGE_TEAM = 'manage_team',
+  INVITE_MEMBERS = 'invite_members',
+  
+  // Idea permissions
+  CREATE_IDEA = 'create_idea',
+  SHARE_IDEA = 'share_idea',
+  COMMENT_IDEA = 'comment_idea'
+}
+```
+
+### Role Hierarchy
+
+```
+SUPER_ADMIN (all permissions)
+    ↓
+ADMIN (user management + security)
+    ↓
+USER (own data + basic features)
+```
+
+### Integration Points
+
+- **Authorization Middleware** (`server/middleware/authorization.ts`) - Permission checks
+- **Resource Ownership Middleware** (`server/middleware/resourceOwnership.ts`) - Resource access validation
+- **All Protected Routes** - Permission enforcement
+
+### Best Practices
+
+1. **Always check permissions** before sensitive operations
+2. **Use resource ownership** for user-specific data
+3. **Log authorization failures** for security monitoring
+4. **Fail securely** - deny by default
+
+---
+
+## AI Cache Service
+
+**File:** `server/services/ai-cache.ts`  
+**Status:** ✅ Active  
+**Version:** 1.0  
+**Last Updated:** October 2025
+
+### Overview
+
+The AI Cache service provides intelligent caching for AI API responses to reduce costs, improve performance, and provide offline fallback capabilities.
+
+### Purpose
+
+- Cache AI API responses to reduce costs
+- Improve response times for repeated queries
+- Provide offline fallback capabilities
+- Reduce API rate limit issues
+- Support development without API keys
+
+### API Reference
+
+#### `get(key: string): T | null`
+
+Retrieves cached data for a key.
+
+**Example:**
+```typescript
+import { aiCache } from './services/ai-cache';
+
+const cached = aiCache.get(query);
+if (cached) {
+  return cached; // Return cached results
+}
+```
+
+#### `set(key: string, value: T, ttl?: number): void`
+
+Stores data in cache with optional TTL.
+
+**Example:**
+```typescript
+const results = await fetchFromAPI(query);
+aiCache.set(query, results, 3600); // Cache for 1 hour
+```
+
+### Configuration
+
+**Default TTL:** 1 hour (3600 seconds)
+
+### Performance
+
+- **Cache Hit:** <10ms
+- **Memory Efficient:** LRU eviction policy
+- **Thread Safe:** Concurrent access supported
+
+---
+
 ## Service Status Overview
 
 | Service | Status | File | Purpose |
 |---------|--------|------|---------|
-| Perplexity | ✅ Active | `server/services/perplexity.ts` | Market gap discovery |
+| **Core AI Services** |
+| Gemini | ✅ Active | `server/services/gemini.ts` | Primary AI gap analysis engine |
+| Perplexity | ✅ Active | `server/services/perplexity.ts` | Market gap discovery with web search |
+| XAI | ✅ Active | `server/services/xai.ts` | Business plan and market research generation |
+| AI Cache | ✅ Active | `server/services/ai-cache.ts` | Caching layer for AI responses |
+| **Business Logic Services** |
+| Action Plan Generator | ✅ Active | `server/services/actionPlanGenerator.ts` | Strategic action plan generation |
+| Idea Validation | ✅ Active | `server/services/ideaValidation.ts` | Idea scoring and risk assessment |
+| AI Idea Validation | ✅ Active | `server/services/aiIdeaValidation.ts` | AI-powered validation insights |
+| Financial Modeling | ✅ Active | `server/services/financialModeling.ts` | Financial projections and analysis |
+| Collaboration | ✅ Active | `server/services/collaboration.ts` | Team collaboration features |
+| AI Assistant | ✅ Active | `server/services/aiAssistant.ts` | Interactive AI chat assistant |
+| **Security Services** |
+| Session Manager | ✅ Active | `server/services/sessionManager.ts` | Session lifecycle and device tracking |
+| Security Logger | ✅ Active | `server/services/securityLogger.ts` | Security event logging and auditing |
+| Authorization Service | ✅ Active | `server/services/authorizationService.ts` | Role-based access control |
+| Password Security | ✅ Active | `server/services/passwordSecurity.ts` | Password validation and hashing |
+| Password History | ✅ Active | `server/services/passwordHistory.ts` | Password reuse prevention |
+| Account Lockout | ✅ Active | `server/services/accountLockout.ts` | Brute force protection |
+| Security Event Handler | ✅ Active | `server/services/securityEventHandler.ts` | Security event processing |
+| CAPTCHA Service | ✅ Active | `server/services/captchaService.ts` | Bot protection and verification |
+| **Utility Services** |
 | PDF Generator | ✅ Active | `server/services/pdf-generator.ts` | Report export (HTML/PDF) |
+| Token Cleanup | ✅ Active | `server/services/tokenCleanup.ts` | Expired token cleanup |
+| Scheduled Tasks | ✅ Active | `server/services/scheduledTasks.ts` | Background task scheduling |
+| Demo User | ✅ Active | `server/services/demoUser.ts` | Demo account management |
+| **Future Services** |
 | Email | ⚠️ Not Yet Integrated | `server/services/email.ts` | Email notifications (future) |
 
 **Legend:**

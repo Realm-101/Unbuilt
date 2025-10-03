@@ -319,6 +319,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **[Security Guide](docs/SECURITY.md)** - Comprehensive security architecture and features
 - **[Deployment Guide](deployment/README.md)** - Production deployment with security hardening
 - **[API Documentation](docs/API.md)** - Complete API reference with security details
+- **[Services Documentation](docs/SERVICES.md)** - Complete service architecture and usage guide
 - **[Documentation Index](docs/README.md)** - Complete documentation overview
 
 ### 🛠️ Configuration & Setup

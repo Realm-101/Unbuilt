@@ -4,6 +4,19 @@ import { AppError } from './errorHandler';
 
 /**
  * Middleware to add user role and permissions to request
+ * 
+ * Enriches the request object with user role and permissions based on the authenticated user.
+ * This middleware should be used after authentication middleware to provide authorization context.
+ * 
+ * @param req - Express request object (must have req.user populated)
+ * @param res - Express response object
+ * @param next - Express next function
+ * 
+ * @example
+ * ```typescript
+ * app.use(jwtAuth);
+ * app.use(addUserAuthorization);
+ * ```
  */
 export const addUserAuthorization = (req: Request, res: Response, next: NextFunction): void => {
   try {
@@ -20,7 +33,22 @@ export const addUserAuthorization = (req: Request, res: Response, next: NextFunc
 };
 
 /**
- * Middleware to require specific permission
+ * Middleware factory to require specific permission
+ * 
+ * Creates middleware that checks if the authenticated user has the specified permission.
+ * Returns 403 Forbidden if the user lacks the required permission.
+ * 
+ * @param permission - The permission required to access the route
+ * @returns Express middleware function
+ * 
+ * @example
+ * ```typescript
+ * app.delete('/api/users/:id', 
+ *   jwtAuth, 
+ *   requirePermission('users:delete'), 
+ *   deleteUserHandler
+ * );
+ * ```
  */
 export const requirePermission = (permission: Permission) => {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -39,7 +67,22 @@ export const requirePermission = (permission: Permission) => {
 };
 
 /**
- * Middleware to require any of the specified permissions
+ * Middleware factory to require any of the specified permissions
+ * 
+ * Creates middleware that checks if the authenticated user has at least one of the specified permissions.
+ * Useful for routes that can be accessed by users with different permission sets.
+ * 
+ * @param permissions - Array of permissions, user needs at least one
+ * @returns Express middleware function
+ * 
+ * @example
+ * ```typescript
+ * app.get('/api/reports', 
+ *   jwtAuth, 
+ *   requireAnyPermission(['reports:read', 'reports:admin']), 
+ *   getReportsHandler
+ * );
+ * ```
  */
 export const requireAnyPermission = (permissions: Permission[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -59,6 +102,18 @@ export const requireAnyPermission = (permissions: Permission[]) => {
 
 /**
  * Middleware to require admin role or higher
+ * 
+ * Checks if the authenticated user has admin or super admin role.
+ * Returns 403 Forbidden if the user is not an admin.
+ * 
+ * @param req - Express request object (must have req.user populated)
+ * @param res - Express response object
+ * @param next - Express next function
+ * 
+ * @example
+ * ```typescript
+ * app.get('/api/admin/users', jwtAuth, requireAdmin, getAllUsersHandler);
+ * ```
  */
 export const requireAdmin = (req: Request, res: Response, next: NextFunction): void => {
   try {
@@ -76,6 +131,18 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction): v
 
 /**
  * Middleware to require super admin role
+ * 
+ * Checks if the authenticated user has the super admin role (highest privilege level).
+ * Returns 403 Forbidden if the user is not a super admin.
+ * 
+ * @param req - Express request object (must have req.user populated)
+ * @param res - Express response object
+ * @param next - Express next function
+ * 
+ * @example
+ * ```typescript
+ * app.post('/api/admin/system-config', jwtAuth, requireSuperAdmin, updateSystemConfigHandler);
+ * ```
  */
 export const requireSuperAdmin = (req: Request, res: Response, next: NextFunction): void => {
   try {
@@ -92,8 +159,32 @@ export const requireSuperAdmin = (req: Request, res: Response, next: NextFunctio
 };
 
 /**
- * Middleware to validate resource ownership
- * Checks if user can access a resource based on user ID parameter
+ * Middleware factory to validate resource ownership
+ * 
+ * Creates middleware that checks if the authenticated user owns a resource by comparing
+ * the user ID from the request (params, body, or query) with the authenticated user's ID.
+ * Admins can access any resource regardless of ownership.
+ * 
+ * @param userIdParam - Name of the parameter containing the user ID (default: 'userId')
+ * @param operation - Type of operation being performed ('read', 'write', or 'delete')
+ * @returns Express middleware function
+ * 
+ * @example
+ * ```typescript
+ * // Validate user can read their own profile
+ * app.get('/api/users/:userId/profile', 
+ *   jwtAuth, 
+ *   validateResourceOwnership('userId', 'read'), 
+ *   getProfileHandler
+ * );
+ * 
+ * // Validate user can update their own data
+ * app.put('/api/users/:userId', 
+ *   jwtAuth, 
+ *   validateResourceOwnership('userId', 'write'), 
+ *   updateUserHandler
+ * );
+ * ```
  */
 export const validateResourceOwnership = (
   userIdParam: string = 'userId',
@@ -138,8 +229,24 @@ export const validateResourceOwnership = (
 };
 
 /**
- * Middleware to validate ownership of a resource by checking its userId field
- * This is for resources that have a userId field indicating ownership
+ * Middleware factory to validate ownership of a resource by checking its userId field
+ * 
+ * Creates middleware that validates ownership of a resource that has already been loaded
+ * and attached to req.resource. The resource must have a userId field.
+ * This middleware should be used after a resource-loading middleware.
+ * 
+ * @param operation - Type of operation being performed ('read', 'write', or 'delete')
+ * @returns Express middleware function
+ * 
+ * @example
+ * ```typescript
+ * app.delete('/api/searches/:id', 
+ *   jwtAuth, 
+ *   loadSearchMiddleware,  // Loads search and attaches to req.resource
+ *   validateOwnResource('delete'), 
+ *   deleteSearchHandler
+ * );
+ * ```
  */
 export const validateOwnResource = (operation: 'read' | 'write' | 'delete' = 'read') => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -177,6 +284,18 @@ export const validateOwnResource = (operation: 'read' | 'write' | 'delete' = 're
 
 /**
  * Middleware to check if user can access their own data or is admin
+ * 
+ * Allows access if the user is accessing their own data (matching user ID) or if they have admin privileges.
+ * Commonly used for user profile and settings endpoints.
+ * 
+ * @param req - Express request object (must have req.user and userId in params)
+ * @param res - Express response object
+ * @param next - Express next function
+ * 
+ * @example
+ * ```typescript
+ * app.get('/api/users/:userId/settings', jwtAuth, requireSelfOrAdmin, getSettingsHandler);
+ * ```
  */
 export const requireSelfOrAdmin = (req: Request, res: Response, next: NextFunction): void => {
   try {
@@ -206,7 +325,23 @@ export const requireSelfOrAdmin = (req: Request, res: Response, next: NextFuncti
 };
 
 /**
- * Middleware to log authorization events for security monitoring
+ * Middleware factory to log authorization events for security monitoring
+ * 
+ * Creates middleware that logs authorization attempts for auditing and security monitoring purposes.
+ * Useful for tracking access to sensitive resources.
+ * 
+ * @param action - Description of the action being performed
+ * @returns Express middleware function
+ * 
+ * @example
+ * ```typescript
+ * app.delete('/api/users/:id', 
+ *   jwtAuth, 
+ *   logAuthorizationEvent('delete_user'), 
+ *   requireAdmin, 
+ *   deleteUserHandler
+ * );
+ * ```
  */
 export const logAuthorizationEvent = (action: string) => {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -234,6 +369,21 @@ export const logAuthorizationEvent = (action: string) => {
 
 /**
  * Middleware factory for role-based access control
+ * 
+ * Creates middleware that requires a specific role or higher in the role hierarchy.
+ * Role hierarchy: USER < ADMIN < SUPER_ADMIN
+ * 
+ * @param requiredRole - The minimum role required to access the route
+ * @returns Express middleware function
+ * 
+ * @example
+ * ```typescript
+ * app.get('/api/admin/dashboard', 
+ *   jwtAuth, 
+ *   requireRole(UserRole.ADMIN), 
+ *   getDashboardHandler
+ * );
+ * ```
  */
 export const requireRole = (requiredRole: UserRole) => {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -267,7 +417,28 @@ export const requireRole = (requiredRole: UserRole) => {
 };
 
 /**
- * Middleware to check team membership and permissions
+ * Middleware factory to check team membership and permissions
+ * 
+ * Creates middleware that validates if the user has access to a team with the specified permission level.
+ * Super admins bypass team membership checks.
+ * 
+ * @param permission - Required permission level ('read', 'write', or 'admin')
+ * @returns Express middleware function
+ * 
+ * @example
+ * ```typescript
+ * app.get('/api/teams/:teamId/projects', 
+ *   jwtAuth, 
+ *   requireTeamAccess('read'), 
+ *   getTeamProjectsHandler
+ * );
+ * 
+ * app.post('/api/teams/:teamId/members', 
+ *   jwtAuth, 
+ *   requireTeamAccess('admin'), 
+ *   addTeamMemberHandler
+ * );
+ * ```
  */
 export const requireTeamAccess = (permission: 'read' | 'write' | 'admin' = 'read') => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
