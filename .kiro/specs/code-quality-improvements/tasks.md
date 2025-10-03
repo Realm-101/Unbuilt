@@ -93,7 +93,12 @@ This implementation plan breaks down the code quality improvements into discrete
   - If unused: Mark for removal
   - _Requirements: 2.1, 2.5_
 
-- [ ] 7. Audit Email service usage
+- [x] 7. Audit Email service usage
+
+
+
+
+
   - Search codebase for imports of `email.ts`
   - Check if SendGrid integration is active
   - Check if email functions are called anywhere
@@ -102,7 +107,12 @@ This implementation plan breaks down the code quality improvements into discrete
   - If unused: Mark for removal
   - _Requirements: 2.2, 2.5_
 
-- [ ] 8. Audit PDF Generator service usage
+- [x] 8. Audit PDF Generator service usage
+
+
+
+
+
   - Search codebase for imports of `pdf-generator.ts`
   - Check if PDF export functionality uses this service
   - Check export routes for PDF generation calls
@@ -111,7 +121,10 @@ This implementation plan breaks down the code quality improvements into discrete
   - If unused: Mark for removal
   - _Requirements: 2.3, 2.5_
 
-- [ ] 9. Remove unused services and dependencies
+- [-] 9. Remove unused services and dependencies
+
+
+
   - Delete files marked as unused in audit
   - Remove imports of deleted services
   - Remove related dependencies from package.json

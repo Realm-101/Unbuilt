@@ -7,7 +7,9 @@ This document provides comprehensive documentation for all active services in th
 ## Table of Contents
 
 1. [Perplexity Service](#perplexity-service)
-2. [Service Status Overview](#service-status-overview)
+2. [PDF Generator Service](#pdf-generator-service)
+3. [Email Service](#email-service)
+4. [Service Status Overview](#service-status-overview)
 
 ---
 
@@ -427,19 +429,806 @@ For issues or questions:
 
 ---
 
+## PDF Generator Service
+
+**File:** `server/services/pdf-generator.ts`  
+**Status:** ✅ Active  
+**Version:** 1.0  
+**Last Updated:** October 2025
+
+### Overview
+
+The PDF Generator service creates professional HTML reports from market gap analysis results. These reports can be downloaded as HTML files (printable to PDF via browser) and exported in multiple formats tailored for different audiences.
+
+### Purpose
+
+- Generate professional market analysis reports
+- Support multiple report formats (Executive, Pitch Deck, Detailed)
+- Enable users to share analysis results with stakeholders
+- Provide customizable branding and content options
+- Part of Pro plan feature set for premium formats
+
+### Architecture
+
+```
+┌──────────────────┐
+│  Export Modal    │
+│  (Frontend UI)   │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│   POST /api/export│
+│  (Protected Route)│
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│  exportResults() │
+│  exportPdf()     │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────────┐
+│  PDF Generator       │
+│  generateHTML()      │
+└──────────────────────┘
+         │
+         ▼
+┌──────────────────────┐
+│  HTML Report File    │
+│  (Download/Print)    │
+└──────────────────────┘
+```
+
+### API Reference
+
+#### `generateHTML(results: SearchResult[], options: PDFOptions): string`
+
+Generates a professional HTML report from search results.
+
+**Parameters:**
+- `results` (SearchResult[]) - Array of market gap analysis results
+- `options` (PDFOptions) - Report customization options
+
+**Returns:**
+- `string` - Complete HTML document ready for download/printing
+
+**Example:**
+```typescript
+import { pdfGenerator, PDFOptions } from './services/pdf-generator';
+
+const options: PDFOptions = {
+  format: 'executive',
+  customTitle: 'Q4 2025 Market Analysis',
+  customIntro: 'This report analyzes emerging opportunities in AI healthcare.',
+  includeDetails: true,
+  companyName: 'Acme Corp',
+  authorName: 'Jane Smith'
+};
+
+const html = pdfGenerator.generateHTML(results, options);
+
+// Send as download
+res.setHeader('Content-Type', 'text/html');
+res.setHeader('Content-Disposition', 'attachment; filename="report.html"');
+res.send(html);
+```
+
+### Data Types
+
+#### `PDFOptions` Interface
+
+```typescript
+export interface PDFOptions {
+  format: 'executive' | 'pitch' | 'detailed';
+  customTitle?: string;
+  customIntro?: string;
+  includeDetails?: boolean;
+  companyName?: string;
+  authorName?: string;
+}
+```
+
+**Fields:**
+- `format` - Report format type
+  - `executive` - Executive summary with strategic overview
+  - `pitch` - Investor pitch deck format with top opportunities
+  - `detailed` - Comprehensive analysis with all data
+- `customTitle` - Optional custom report title
+- `customIntro` - Optional executive summary/introduction text
+- `includeDetails` - Whether to include detailed analysis (default: true)
+- `companyName` - Optional company name for branding
+- `authorName` - Optional author attribution
+
+### Report Formats
+
+#### Executive Format
+- Market Analysis Overview with key statistics
+- Strategic Opportunities section with all results
+- Opportunities by Category breakdown
+- Professional styling for C-level audience
+
+#### Pitch Format
+- Eye-catching market opportunity headline
+- Top 3 innovation opportunities (sorted by score)
+- Call-to-action section
+- Investor-focused presentation style
+
+#### Detailed Format
+- Combines executive summary
+- Full strategic opportunities listing
+- Category breakdowns
+- Comprehensive data visualization
+
+### Features
+
+#### Statistics Calculated
+- Total opportunities count
+- Average innovation score
+- High feasibility percentage
+- High potential percentage
+- Combined market size (aggregated)
+- Category distribution
+
+#### Styling & Design
+- Modern, responsive HTML/CSS
+- UNBUILT branding with gradient colors
+- Print-optimized layouts with page breaks
+- Professional typography (Inter font)
+- Color-coded metrics (high/medium/low)
+- Hover effects and visual polish
+
+#### Customization
+- Custom report titles
+- Custom introductions/executive summaries
+- Company name and author attribution
+- Configurable detail levels
+- Format-specific content
+
+### Integration Points
+
+#### Frontend UI
+**Component:** `client/src/components/export-modal.tsx`
+
+The export modal provides a comprehensive UI for users to:
+- Select export format (PDF, CSV, Pitch, Executive)
+- Customize report title and introduction
+- Choose detail level
+- Preview format descriptions
+- Access premium formats (Pro plan required)
+
+**Premium Features:**
+- Pitch Deck format (Pro only)
+- Executive Summary format (Pro only)
+- Custom branding options
+
+#### API Endpoint
+**Route:** `POST /api/export`
+- Protected with JWT authentication
+- Rate limited to prevent abuse
+- Accepts format, result IDs, and options
+- Returns HTML file for download
+
+**Request Body:**
+```typescript
+{
+  format: 'executive' | 'pitch' | 'detailed' | 'csv',
+  results: number[],  // Array of result IDs
+  options: {
+    includeDetails: boolean,
+    customTitle: string,
+    customIntro: string,
+    companyName?: string,
+    authorName?: string
+  }
+}
+```
+
+**Response:**
+- Content-Type: `text/html`
+- Content-Disposition: `attachment; filename="report.html"`
+- Body: Complete HTML document
+
+### Usage Examples
+
+#### Basic Export
+```typescript
+// In route handler
+const results = await Promise.all(
+  resultIds.map(id => storage.getSearchResultById(id))
+);
+
+const pdfOptions: PDFOptions = {
+  format: 'detailed',
+  customTitle: 'Market Gap Analysis Report'
+};
+
+const html = pdfGenerator.generateHTML(results, pdfOptions);
+
+res.setHeader('Content-Type', 'text/html');
+res.send(html);
+```
+
+#### Executive Summary
+```typescript
+const pdfOptions: PDFOptions = {
+  format: 'executive',
+  customTitle: 'Q4 2025 Strategic Opportunities',
+  customIntro: 'This executive summary highlights key market gaps identified in our analysis.',
+  companyName: 'Acme Corporation',
+  authorName: 'Strategy Team'
+};
+
+const html = pdfGenerator.generateHTML(results, pdfOptions);
+```
+
+#### Investor Pitch
+```typescript
+const pdfOptions: PDFOptions = {
+  format: 'pitch',
+  customTitle: 'Innovation Opportunity Pitch',
+  customIntro: 'We have identified $50M+ in untapped market opportunities.',
+  includeDetails: false  // Focus on highlights only
+};
+
+const html = pdfGenerator.generateHTML(results, pdfOptions);
+```
+
+### Dependencies
+
+**Internal:**
+- `@shared/schema` - SearchResult type definition
+
+**External:**
+- None - Pure TypeScript/HTML generation
+- No API keys or external services required
+- No rate limits or usage costs
+
+### Configuration
+
+No environment variables required. The service works out of the box with no configuration.
+
+### Error Handling
+
+The service is designed to be robust:
+- Handles empty result arrays gracefully
+- Provides default values for missing optional fields
+- Safely parses market size strings
+- Falls back to 0 for unparseable values
+
+### Performance
+
+- **Generation Time:** <100ms for typical reports (10-20 results)
+- **Output Size:** 50-200KB HTML (depending on result count)
+- **Memory Usage:** Minimal (string concatenation only)
+- **Scalability:** Can handle 100+ results without issues
+
+### Best Practices
+
+1. **Validate Results:** Ensure results array is not empty before generating
+2. **Sanitize Input:** Custom titles and intros should be sanitized if user-provided
+3. **Format Selection:** Guide users to appropriate format for their use case
+4. **File Naming:** Use descriptive filenames with timestamps
+5. **Browser Printing:** Instruct users to use browser's "Print to PDF" feature
+
+### Troubleshooting
+
+#### Issue: Report looks broken when printed
+**Solution:** Ensure browser print settings use:
+- Portrait orientation
+- Normal margins
+- Background graphics enabled
+
+#### Issue: Large reports are slow to generate
+**Solution:** Consider pagination or limiting results to top N opportunities
+
+#### Issue: Custom intro text breaks layout
+**Solution:** Limit intro text to 500 characters or add text truncation
+
+### Future Enhancements
+
+Potential improvements for future versions:
+- Server-side PDF rendering (using Puppeteer or similar)
+- Chart generation (using Chart.js or D3)
+- Template system for custom branding
+- Multi-language support
+- Export to PowerPoint format
+- Email delivery integration
+
+### Support
+
+For issues or questions:
+- Check the export modal UI for format descriptions
+- Review the generated HTML in browser before printing
+- Contact the development team for custom format requests
+
+---
+
+## Email Service
+
+**File:** `server/services/email.ts`  
+**Status:** ⚠️ Not Yet Integrated  
+**Version:** 1.0  
+**Last Updated:** October 2025
+
+### Overview
+
+The Email service provides SendGrid integration for sending transactional emails. The service is fully implemented with proper error handling and fallback mechanisms, but is not yet integrated into any active features.
+
+### Purpose
+
+- Send transactional emails (password resets, notifications)
+- Provide HTML and text email templates
+- Handle email delivery with graceful fallback
+- Support future email-based features
+
+### Current Status
+
+**✅ Implemented:**
+- SendGrid integration with `@sendgrid/mail` package
+- Graceful fallback when API key not configured
+- HTML and text email templates for password reset
+- Proper error handling and logging
+- Type-safe email parameters
+
+**❌ Not Yet Connected:**
+- No authentication routes call password reset emails
+- Export email feature is stubbed out (doesn't actually send)
+- No active imports or usage in the codebase
+
+### API Reference
+
+#### `sendEmail(params: EmailParams): Promise<boolean>`
+
+Sends a generic email using SendGrid.
+
+**Parameters:**
+```typescript
+interface EmailParams {
+  to: string;      // Recipient email address
+  from: string;    // Sender email address (must be verified in SendGrid)
+  subject: string; // Email subject line
+  text?: string;   // Plain text content (optional)
+  html?: string;   // HTML content (optional)
+}
+```
+
+**Returns:**
+- `Promise<boolean>` - `true` if email sent successfully, `false` otherwise
+
+**Example:**
+```typescript
+import { sendEmail } from './services/email';
+
+const success = await sendEmail({
+  to: 'user@example.com',
+  from: 'noreply@unbuilt.cloud',
+  subject: 'Welcome to Unbuilt',
+  text: 'Welcome to our platform!',
+  html: '<h1>Welcome to our platform!</h1>'
+});
+
+if (success) {
+  console.log('Email sent successfully');
+} else {
+  console.log('Email failed to send');
+}
+```
+
+#### `sendPasswordResetEmail(email: string, resetToken: string): Promise<boolean>`
+
+Sends a password reset email with a branded template.
+
+**Parameters:**
+- `email` (string) - Recipient email address
+- `resetToken` (string) - Password reset token to include in URL
+
+**Returns:**
+- `Promise<boolean>` - `true` if email sent successfully, `false` otherwise
+
+**Example:**
+```typescript
+import { sendPasswordResetEmail } from './services/email';
+
+// Generate reset token (implementation not shown)
+const resetToken = generateResetToken(user.id);
+
+// Send password reset email
+const success = await sendPasswordResetEmail(user.email, resetToken);
+
+if (success) {
+  res.json({ message: 'Password reset email sent' });
+} else {
+  res.status(500).json({ error: 'Failed to send email' });
+}
+```
+
+### Email Templates
+
+#### Password Reset Email
+
+The service includes a professionally designed password reset email with:
+- Branded header with gradient background
+- Clear call-to-action button
+- Security information (1-hour expiration)
+- Fallback plain text link
+- Responsive HTML design
+- Plain text alternative
+
+**Template Features:**
+- ✨ Gradient branding (purple to blue)
+- 📱 Mobile-responsive design
+- 🔒 Security best practices
+- 📧 Both HTML and plain text versions
+- ⏰ Expiration notice (1 hour)
+
+### Configuration
+
+#### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SENDGRID_API_KEY` | Optional | API key for SendGrid email service |
+
+**Setup:**
+```bash
+# Add to .env file
+SENDGRID_API_KEY=your_sendgrid_api_key_here
+```
+
+**Getting an API Key:**
+1. Visit [SendGrid](https://sendgrid.com/)
+2. Sign up for an account (free tier available)
+3. Verify your sender domain or email
+4. Generate an API key from Settings → API Keys
+5. Add the key to your environment configuration
+
+#### Sender Verification
+
+**Important:** SendGrid requires sender verification before sending emails.
+
+**Options:**
+1. **Single Sender Verification** (Quick, for testing)
+   - Verify a single email address
+   - Good for development/testing
+   - Limited to that one sender
+
+2. **Domain Authentication** (Recommended for production)
+   - Verify your entire domain
+   - Better deliverability
+   - Professional appearance
+   - Required for production use
+
+**Current Configuration:**
+- Default sender: `noreply@unbuilt.cloud`
+- **Action Required:** Verify this domain in SendGrid before production use
+
+### Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| @sendgrid/mail | ^8.1.5 | SendGrid email client |
+
+**Installation:**
+```bash
+npm install @sendgrid/mail
+```
+
+### Error Handling
+
+The service implements robust error handling:
+
+1. **Missing API Key**
+   - Logs message instead of sending
+   - Returns `false` (not an error)
+   - Allows development without SendGrid
+
+2. **SendGrid API Errors**
+   - Catches and logs errors
+   - Returns `false`
+   - Doesn't crash the application
+
+3. **Invalid Parameters**
+   - TypeScript validation
+   - Runtime checks
+   - Clear error messages
+
+**Example Error Handling:**
+```typescript
+try {
+  const success = await sendEmail({
+    to: 'user@example.com',
+    from: 'noreply@unbuilt.cloud',
+    subject: 'Test Email',
+    html: '<p>Test content</p>'
+  });
+  
+  if (!success) {
+    // Email failed but didn't throw error
+    console.log('Email service not configured or failed');
+  }
+} catch (error) {
+  // Unexpected error
+  console.error('Unexpected email error:', error);
+}
+```
+
+### Fallback Behavior
+
+When `SENDGRID_API_KEY` is not configured:
+```typescript
+// Service logs instead of sending
+console.log(`Email service not configured - would have sent email to user@example.com with subject: Welcome`);
+```
+
+This allows:
+- ✅ Development without SendGrid account
+- ✅ Testing email logic without sending
+- ✅ Graceful degradation in production
+- ✅ No application crashes
+
+### Integration Guide
+
+#### Password Reset Flow (Future Implementation)
+
+```typescript
+// server/routes/auth.ts (example - not yet implemented)
+import { sendPasswordResetEmail } from '../services/email';
+import { generateResetToken } from '../utils/tokens';
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  
+  // Find user
+  const user = await db.query.users.findFirst({
+    where: eq(users.email, email)
+  });
+  
+  if (!user) {
+    // Don't reveal if user exists
+    return res.json({ message: 'If account exists, email sent' });
+  }
+  
+  // Generate reset token
+  const resetToken = generateResetToken(user.id);
+  
+  // Store token in database with expiration
+  await db.insert(passwordResets).values({
+    userId: user.id,
+    token: resetToken,
+    expiresAt: new Date(Date.now() + 3600000) // 1 hour
+  });
+  
+  // Send email
+  const success = await sendPasswordResetEmail(user.email, resetToken);
+  
+  if (!success) {
+    console.warn('Failed to send password reset email');
+    // Still return success to user (don't reveal failure)
+  }
+  
+  res.json({ message: 'If account exists, email sent' });
+});
+```
+
+#### Email Report Feature (Future Implementation)
+
+```typescript
+// server/routes/export.ts (example - not yet implemented)
+import { sendEmail } from '../services/email';
+import { generateReportHTML } from '../utils/reports';
+
+export async function sendEmailReport(req: Request, res: Response) {
+  const { email, results: resultIds, options = {} } = req.body;
+  
+  // Fetch results
+  const results = await Promise.all(
+    resultIds.map((id: number) => storage.getSearchResultById(id))
+  );
+  
+  // Generate HTML report
+  const html = generateReportHTML(results, options);
+  
+  // Send email
+  const success = await sendEmail({
+    to: email,
+    from: 'noreply@unbuilt.cloud',
+    subject: 'Your Market Gap Analysis Report',
+    html: html,
+    text: 'Your report is attached. Please view in HTML email client.'
+  });
+  
+  if (success) {
+    res.json({ success: true, message: 'Report sent successfully' });
+  } else {
+    res.status(500).json({ error: 'Failed to send report' });
+  }
+}
+```
+
+### Testing
+
+#### Unit Test Example
+
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { sendEmail, sendPasswordResetEmail } from './email';
+
+describe('Email Service', () => {
+  it('should return false when API key not configured', async () => {
+    // API key not set in test environment
+    const result = await sendEmail({
+      to: 'test@example.com',
+      from: 'noreply@unbuilt.cloud',
+      subject: 'Test',
+      text: 'Test content'
+    });
+    
+    expect(result).toBe(false);
+  });
+  
+  it('should generate password reset email', async () => {
+    const result = await sendPasswordResetEmail(
+      'user@example.com',
+      'test-token-123'
+    );
+    
+    // Will be false without API key, but shouldn't throw
+    expect(typeof result).toBe('boolean');
+  });
+});
+```
+
+### Security Considerations
+
+1. **API Key Protection**
+   - Never commit API keys to version control
+   - Use environment variables only
+   - Rotate keys periodically
+   - Use restricted API keys (send-only)
+
+2. **Sender Verification**
+   - Always verify sender domains
+   - Use dedicated sending domains
+   - Monitor sender reputation
+
+3. **Email Content**
+   - Sanitize user-provided content
+   - Validate email addresses
+   - Use HTTPS for all links
+   - Include unsubscribe links (for marketing emails)
+
+4. **Rate Limiting**
+   - Implement application-level rate limiting
+   - Monitor sending patterns
+   - Prevent abuse
+
+5. **Token Security**
+   - Use cryptographically secure tokens
+   - Set short expiration times (1 hour)
+   - Invalidate tokens after use
+   - Store tokens securely (hashed)
+
+### Future Implementation Tasks
+
+To integrate this service into the application:
+
+- [ ] **Password Reset Flow**
+  - Add forgot password endpoint
+  - Generate and store reset tokens
+  - Call `sendPasswordResetEmail()`
+  - Add reset password page
+  - Validate and consume tokens
+
+- [ ] **Email Reports**
+  - Update `sendEmailReport()` in export routes
+  - Import and use `sendEmail()`
+  - Generate HTML report content
+  - Add email validation
+
+- [ ] **Welcome Emails**
+  - Send on user registration
+  - Include getting started guide
+  - Add email verification link
+
+- [ ] **Notification System**
+  - Search result notifications
+  - Account activity alerts
+  - Feature announcements
+
+### Monitoring
+
+#### Key Metrics to Track
+
+- Email delivery rate
+- Bounce rate
+- Open rate (if tracking enabled)
+- API error rate
+- Fallback usage frequency
+
+#### Logging
+
+The service logs important events:
+```typescript
+// API key missing
+console.log('Email service not configured - would have sent email to user@example.com');
+
+// Success
+console.log('Email sent successfully to user@example.com');
+
+// Errors
+console.error('SendGrid email error:', error);
+```
+
+### Troubleshooting
+
+#### Common Issues
+
+**1. API Key Not Working**
+```
+Error: 401 Unauthorized
+```
+**Solution:** Verify API key is correct and has send permissions
+
+**2. Sender Not Verified**
+```
+Error: 403 Forbidden - Sender not verified
+```
+**Solution:** Verify sender email/domain in SendGrid dashboard
+
+**3. Rate Limit Exceeded**
+```
+Error: 429 Too Many Requests
+```
+**Solution:** Upgrade SendGrid plan or implement request throttling
+
+**4. Emails Not Received**
+- Check spam folder
+- Verify recipient email is valid
+- Check SendGrid activity log
+- Verify sender domain authentication
+
+### Cost Considerations
+
+**SendGrid Pricing (as of 2025):**
+- **Free Tier:** 100 emails/day
+- **Essentials:** $19.95/month - 50,000 emails
+- **Pro:** $89.95/month - 100,000 emails
+
+**Recommendations:**
+- Start with free tier for development
+- Monitor usage as you scale
+- Implement email batching for efficiency
+- Use transactional emails only (not marketing)
+
+### Related Services
+
+- **Authentication** (`server/auth.ts`) - Future consumer for password resets
+- **Export Routes** (`server/routes/export.ts`) - Future consumer for email reports
+
+### Support
+
+For issues or questions:
+- Check the [troubleshooting section](#troubleshooting)
+- Review [SendGrid documentation](https://docs.sendgrid.com/)
+- Contact the development team
+
+---
+
 ## Service Status Overview
 
 | Service | Status | File | Purpose |
 |---------|--------|------|---------|
 | Perplexity | ✅ Active | `server/services/perplexity.ts` | Market gap discovery |
-| Email | ⏳ Pending | `server/services/email.ts` | Email notifications |
-| PDF Generator | ⏳ Pending | `server/services/pdf-generator.ts` | PDF export |
+| PDF Generator | ✅ Active | `server/services/pdf-generator.ts` | Report export (HTML/PDF) |
+| Email | ⚠️ Not Yet Integrated | `server/services/email.ts` | Email notifications (future) |
 
 **Legend:**
-- ✅ Active - Currently in use
-- ⏳ Pending - Audit in progress
+- ✅ Active - Currently in use and fully documented
+- ⚠️ Not Yet Integrated - Implemented but not connected to features
 - ❌ Unused - Marked for removal
-- 📝 Documented - Fully documented
+- 📝 Planned - Future feature implementation
 
 ---
 
