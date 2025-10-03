@@ -99,7 +99,18 @@ router.get('/', async (req, res) => {
         sql`created_at >= ${startDate.toISOString()} AND created_at <= ${endDate.toISOString()}`
       );
 
-    // Calculate growth rates
+    // Calculate growth rates by comparing current period to previous period
+    // 
+    // Growth rate calculation strategy:
+    // - Current period: Last N days (e.g., last 30 days)
+    // - Previous period: N days before that (e.g., days 31-60)
+    // - Formula: ((current - previous) / previous) * 100
+    // 
+    // Example for 30-day range:
+    // - Current: Days 0-30 (today back to 30 days ago)
+    // - Previous: Days 31-60 (31 days ago back to 60 days ago)
+    // 
+    // This gives us a percentage change that shows if metrics are improving or declining
     const previousPeriodStart = startOfDay(subDays(new Date(), days * 2));
     const previousPeriodEnd = endOfDay(subDays(new Date(), days));
     
@@ -113,7 +124,9 @@ router.get('/', async (req, res) => {
       );
 
     const currentTotal = searchStats[0]?.total || 0;
-    const previousTotal = previousSearchStats[0]?.total || 1;
+    const previousTotal = previousSearchStats[0]?.total || 1; // Use 1 to avoid division by zero
+    
+    // Calculate percentage change: positive = growth, negative = decline
     const growthRate = ((currentTotal - previousTotal) / previousTotal) * 100;
 
     res.json({

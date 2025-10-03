@@ -112,23 +112,41 @@ export class SessionManager {
 
   /**
    * Invalidate a specific session
+   * 
+   * Revokes both the refresh token (session) and associated access tokens.
+   * 
+   * The challenge: Access tokens and refresh tokens are issued together, but we only
+   * store the refresh token ID as the "session ID". To fully invalidate a session,
+   * we need to also revoke the access token that was issued at the same time.
+   * 
+   * Solution: Use a time window approach - revoke all access tokens for this user
+   * that were issued within ±1 minute of the refresh token. This handles:
+   * - Clock skew between servers
+   * - Slight delays in token generation
+   * - Multiple tokens issued in quick succession
+   * 
+   * Edge case: If a user logs in twice within 1 minute, this might revoke both
+   * access tokens. This is acceptable as it errs on the side of security.
    */
   async invalidateSession(sessionId: string, revokedBy?: string): Promise<void> {
+    // First, revoke the refresh token (the session itself)
     await jwtService.revokeToken(sessionId, revokedBy);
     
-    // Also revoke associated access tokens
+    // Then find and revoke associated access tokens
     const [refreshToken] = await db
       .select()
       .from(jwtTokens)
       .where(eq(jwtTokens.id, sessionId));
 
     if (refreshToken) {
-      // Find and revoke all access tokens for this user issued around the same time
-      const timeWindow = 60000; // 1 minute window
+      // Define a time window around when the refresh token was issued
+      const timeWindow = 60000; // 1 minute window (±30 seconds)
       const issuedTime = new Date(refreshToken.issuedAt);
       const windowStart = new Date(issuedTime.getTime() - timeWindow);
       const windowEnd = new Date(issuedTime.getTime() + timeWindow);
 
+      // Revoke all access tokens for this user issued within the time window
+      // This catches the access token that was issued alongside this refresh token
       await db
         .update(jwtTokens)
         .set({
@@ -217,16 +235,32 @@ export class SessionManager {
 
   /**
    * Enforce concurrent session limits
+   * 
+   * Prevents users from having too many active sessions simultaneously, which:
+   * - Reduces risk of account sharing
+   * - Limits damage from stolen credentials
+   * - Prevents resource exhaustion
+   * 
+   * When the limit is exceeded, we revoke the oldest sessions first (LRU strategy).
+   * This ensures the user's current/active sessions remain valid while cleaning up
+   * forgotten or abandoned sessions.
    */
   private async enforceConcurrentSessionLimits(userId: number, maxSessions: number): Promise<void> {
     const activeSessions = await this.getUserSessions(userId);
     
+    // Only enforce if user has reached or exceeded the limit
     if (activeSessions.length >= maxSessions) {
-      // Sort by last activity (oldest first) and revoke excess sessions
+      // Calculate how many sessions need to be revoked
+      // We add 1 because we're about to create a new session
+      const sessionsToRevokeCount = activeSessions.length - maxSessions + 1;
+      
+      // Sort by last activity (oldest first) - LRU (Least Recently Used) eviction
+      // This preserves the user's most recent/active sessions
       const sessionsToRevoke = activeSessions
         .sort((a, b) => a.lastActivity.getTime() - b.lastActivity.getTime())
-        .slice(0, activeSessions.length - maxSessions + 1);
+        .slice(0, sessionsToRevokeCount);
 
+      // Revoke each old session
       for (const session of sessionsToRevoke) {
         await this.invalidateSession(session.id, 'concurrent_limit_exceeded');
       }
@@ -324,6 +358,15 @@ export class SessionManager {
 
   /**
    * Parse device information from User-Agent string
+   * 
+   * Extracts platform, browser, and device type from the User-Agent header.
+   * This information is used for:
+   * - Session tracking and management
+   * - Security monitoring (detecting unusual device patterns)
+   * - Analytics and user experience optimization
+   * 
+   * Note: User-Agent parsing is heuristic-based and not 100% accurate.
+   * Modern browsers may send simplified or standardized User-Agent strings.
    */
   static parseDeviceInfo(userAgent?: string): DeviceInfo {
     if (!userAgent) {
@@ -332,7 +375,8 @@ export class SessionManager {
 
     const deviceInfo: DeviceInfo = { userAgent };
 
-    // Detect platform/OS
+    // Detect platform/OS using regex patterns
+    // Order matters: check more specific patterns first
     if (/Windows/i.test(userAgent)) {
       deviceInfo.platform = 'Windows';
       deviceInfo.os = 'Windows';
@@ -351,6 +395,8 @@ export class SessionManager {
     }
 
     // Detect browser
+    // Note: Chrome check must exclude Edge since Edge contains "Chrome" in UA
+    // Safari check must exclude Chrome since Chrome contains "Safari" in UA
     if (/Chrome/i.test(userAgent) && !/Edge/i.test(userAgent)) {
       deviceInfo.browser = 'Chrome';
     } else if (/Firefox/i.test(userAgent)) {
@@ -361,7 +407,8 @@ export class SessionManager {
       deviceInfo.browser = 'Edge';
     }
 
-    // Detect device type
+    // Detect device type based on keywords in User-Agent
+    // Mobile and tablet detection helps with responsive design and security policies
     if (/Mobile/i.test(userAgent) || /Android/i.test(userAgent) || /iPhone/i.test(userAgent)) {
       deviceInfo.deviceType = 'mobile';
     } else if (/Tablet/i.test(userAgent) || /iPad/i.test(userAgent)) {

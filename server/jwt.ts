@@ -129,61 +129,109 @@ export class JWTService {
     };
   }
 
+  /**
+   * Validate a JWT token and check if it's been revoked
+   * 
+   * This implements a multi-layer validation strategy:
+   * 
+   * 1. Cryptographic validation: Verify the token signature using the secret
+   * 2. Type validation: Ensure the token type matches what we expect (access vs refresh)
+   * 3. Revocation check: Query database to see if token has been explicitly revoked
+   * 4. Expiration check: Double-check expiration even though JWT library does this
+   * 
+   * Why check the database?
+   * - JWT tokens are stateless and can't be "deleted" once issued
+   * - We need a way to revoke tokens before they expire (logout, password change, etc.)
+   * - Database acts as a "blacklist" of revoked tokens
+   * 
+   * Performance consideration:
+   * - This adds a database query to every authenticated request
+   * - In production, consider using Redis cache for revocation checks
+   * - Trade-off: Security vs performance (we prioritize security)
+   */
   async validateToken(token: string, tokenType: 'access' | 'refresh' = 'access'): Promise<JWTPayload | null> {
     try {
+      // Step 1: Cryptographic validation - verify signature and decode payload
       const secret = tokenType === 'access' ? this.accessTokenSecret : this.refreshTokenSecret;
       const decoded = jwt.verify(token, secret) as JWTPayload;
 
-      // Verify token type matches
+      // Step 2: Type validation - prevent using refresh token as access token and vice versa
       if (decoded.type !== tokenType) {
         return null;
       }
 
-      // Check if token is blacklisted
+      // Step 3: Revocation check - query database to see if token was explicitly revoked
+      // This is necessary because JWTs are stateless and can't be "deleted"
       const [tokenRecord] = await db
         .select()
         .from(jwtTokens)
         .where(
           and(
-            eq(jwtTokens.id, decoded.jti),
+            eq(jwtTokens.id, decoded.jti), // jti = JWT ID, unique identifier for this token
             eq(jwtTokens.isRevoked, false)
           )
         );
 
       if (!tokenRecord) {
-        // Token not found or revoked
+        // Token not found in database or has been revoked
         return null;
       }
 
-      // Check if token has expired (additional check)
+      // Step 4: Expiration check (redundant but adds defense in depth)
+      // JWT library already checks this, but we verify again to be safe
       if (decoded.exp < Math.floor(Date.now() / 1000)) {
+        // Token has expired, mark it as revoked in database for cleanup
         await this.revokeToken(decoded.jti);
         return null;
       }
 
+      // All checks passed, token is valid
       return decoded;
     } catch (error) {
       // Token is invalid, expired, or malformed
+      // This catches: signature mismatch, malformed JWT, expired token, etc.
       return null;
     }
   }
 
+  /**
+   * Refresh an access token using a refresh token
+   * 
+   * Token refresh flow:
+   * 1. Validate the refresh token (check signature, expiration, revocation)
+   * 2. Revoke the old refresh token (one-time use principle)
+   * 3. Generate a new token pair (both access and refresh tokens)
+   * 
+   * Why revoke the old refresh token?
+   * - Implements "refresh token rotation" security pattern
+   * - Prevents replay attacks where an attacker reuses a stolen refresh token
+   * - If an attacker uses a stolen refresh token, the legitimate user's next
+   *   refresh attempt will fail, alerting them to the compromise
+   * 
+   * Why generate a new refresh token too?
+   * - Keeps the refresh token lifetime bounded
+   * - Allows us to update user info in the token (role changes, etc.)
+   * - Maintains consistent token expiration patterns
+   */
   async refreshToken(refreshToken: string): Promise<TokenPair | null> {
+    // Validate the refresh token
     const payload = await this.validateToken(refreshToken, 'refresh');
     if (!payload) {
       return null;
     }
 
-    // Revoke the old refresh token
+    // Revoke the old refresh token (one-time use principle)
+    // This prevents the same refresh token from being used multiple times
     await this.revokeToken(payload.jti);
 
-    // Generate new token pair
+    // Extract user info from the token payload
     const user = {
       id: parseInt(payload.sub),
       email: payload.email,
       plan: payload.role
     };
 
+    // Generate a new token pair (both access and refresh)
     return this.generateTokens(user);
   }
 

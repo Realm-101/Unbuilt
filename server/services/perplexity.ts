@@ -148,13 +148,31 @@ Return ONLY a JSON array with the gaps, no additional text. Format:
   }
 }
 
+/**
+ * Generate fallback market gaps when Perplexity API is unavailable
+ * 
+ * This function provides intelligent fallback data when the Perplexity API fails or
+ * is not configured. It uses simple keyword matching to provide contextually relevant
+ * market gaps based on the user's query.
+ * 
+ * Strategy:
+ * 1. Parse the query for domain-specific keywords (health, education, etc.)
+ * 2. Return domain-specific gaps if keywords match
+ * 3. Add general gaps to ensure we always return useful data
+ * 4. Maintain consistent data structure with API responses
+ * 
+ * This ensures the application remains functional even without the external API,
+ * providing a degraded but usable experience.
+ */
 function getFallbackGaps(query: string): MarketGap[] {
-  // Enhanced fallback data based on query
+  // Convert query to lowercase for case-insensitive matching
   const queryLower = query.toLowerCase();
   
-  // Dynamic category selection based on query
+  // Start with empty array, will be populated based on query keywords
   let gaps: MarketGap[] = [];
   
+  // Domain-specific gap: Healthcare/Medical
+  // Triggered by keywords like "health", "medical", "healthcare", etc.
   if (queryLower.includes('health') || queryLower.includes('medical')) {
     gaps.push({
       title: "AI Health Companion for Chronic Conditions",
@@ -170,6 +188,8 @@ function getFallbackGaps(query: string): MarketGap[] {
     });
   }
   
+  // Domain-specific gap: Education/Learning
+  // Triggered by keywords like "education", "learning", "training", etc.
   if (queryLower.includes('education') || queryLower.includes('learning')) {
     gaps.push({
       title: "Personalized Skill Gap Analyzer",
@@ -185,7 +205,8 @@ function getFallbackGaps(query: string): MarketGap[] {
     });
   }
   
-  // Add general gaps if specific ones weren't matched
+  // If no domain-specific gaps matched, provide general baseline gaps
+  // This ensures we always return something useful
   if (gaps.length === 0) {
     gaps = [
       {
@@ -215,7 +236,8 @@ function getFallbackGaps(query: string): MarketGap[] {
     ];
   }
   
-  // Always add a few more general opportunities
+  // Always append additional general opportunities to provide variety
+  // This gives users 4-6 total gaps regardless of query specificity
   gaps.push(
     {
       title: "Carbon Footprint Trading for Individuals",

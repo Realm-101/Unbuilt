@@ -252,12 +252,33 @@ function shouldLogRequestBody(req: Request): boolean {
 
 /**
  * Sanitize request body to remove sensitive information
+ * 
+ * When logging API requests for security monitoring, we need to be careful not to
+ * log sensitive data that could be exploited if logs are compromised.
+ * 
+ * This function:
+ * 1. Creates a shallow copy of the request body
+ * 2. Replaces sensitive field values with '[REDACTED]'
+ * 3. Preserves the structure so we can see what fields were sent
+ * 
+ * Why shallow copy?
+ * - Prevents modifying the original request object
+ * - Efficient for most use cases
+ * - Deep copy would be overkill for typical request bodies
+ * 
+ * Security consideration:
+ * - Even with sanitization, be careful with log storage and access
+ * - Logs should be encrypted at rest and in transit
+ * - Access to logs should be restricted to authorized personnel
  */
 function sanitizeRequestBody(body: any): any {
+  // Handle non-object bodies (primitives, null, undefined)
   if (!body || typeof body !== 'object') {
     return body;
   }
 
+  // List of field names that commonly contain sensitive data
+  // This is a defense-in-depth measure - we should also avoid logging auth endpoints entirely
   const sensitiveFields = [
     'password',
     'currentPassword',
@@ -270,8 +291,10 @@ function sanitizeRequestBody(body: any): any {
     'salt'
   ];
 
+  // Create shallow copy to avoid modifying original request
   const sanitized = { ...body };
   
+  // Replace sensitive field values with redaction marker
   for (const field of sensitiveFields) {
     if (sanitized[field]) {
       sanitized[field] = '[REDACTED]';
@@ -321,8 +344,25 @@ export function securityErrorHandler(
 
 /**
  * Check if an error is security-related
+ * 
+ * Determines whether an error should be logged as a security event.
+ * This helps security teams focus on actual security issues rather than
+ * general application errors.
+ * 
+ * Classification strategy:
+ * 1. Error type/name: Check if error class indicates security issue
+ * 2. Error code: Check application-specific security error codes
+ * 3. HTTP status: 401 (Unauthorized) and 403 (Forbidden) are security-related
+ * 
+ * Why this matters:
+ * - Security logs should be actionable and not cluttered with noise
+ * - Helps identify attack patterns (multiple auth failures, etc.)
+ * - Enables automated alerting on security events
+ * - Supports compliance requirements (audit trails)
  */
 function isSecurityError(error: any): boolean {
+  // Error types that indicate security issues
+  // These are typically thrown by authentication/authorization middleware
   const securityErrorTypes = [
     'UnauthorizedError',
     'ForbiddenError',
@@ -331,6 +371,8 @@ function isSecurityError(error: any): boolean {
     'RateLimitError'
   ];
 
+  // Application-specific error codes for security events
+  // These are custom codes we define in our error handling
   const securityErrorCodes = [
     'INVALID_TOKEN',
     'EXPIRED_TOKEN',
@@ -341,8 +383,9 @@ function isSecurityError(error: any): boolean {
     'SUSPICIOUS_ACTIVITY'
   ];
 
-  return securityErrorTypes.includes(error.name) || 
-         securityErrorCodes.includes(error.code) ||
-         error.statusCode === 401 ||
-         error.statusCode === 403;
+  // Check all three classification methods
+  return securityErrorTypes.includes(error.name) ||  // Check error type
+         securityErrorCodes.includes(error.code) ||  // Check error code
+         error.statusCode === 401 ||                 // HTTP Unauthorized
+         error.statusCode === 403;                   // HTTP Forbidden
 }

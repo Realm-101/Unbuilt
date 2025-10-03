@@ -43,24 +43,39 @@ const suspiciousIPs = new Set<string>();
 
 /**
  * Get client IP address with proxy support
+ * 
+ * Extracts the real client IP address from various headers set by proxies and CDNs.
+ * The order of precedence is important for security:
+ * 
+ * 1. X-Forwarded-For: Standard proxy header (take first IP in chain)
+ * 2. X-Real-IP: Alternative proxy header (single IP)
+ * 3. CF-Connecting-IP: Cloudflare-specific header (most trustworthy if using CF)
+ * 4. Direct connection: Fall back to socket address
+ * 
+ * Note: In production, validate that proxy headers are only accepted from trusted sources
+ * to prevent IP spoofing attacks.
  */
 function getClientIP(req: Request): string {
+  // X-Forwarded-For contains comma-separated list of IPs (client, proxy1, proxy2, ...)
+  // We take the first IP which is the original client
   const forwarded = req.headers['x-forwarded-for'];
-  const realIP = req.headers['x-real-ip'];
-  const cfConnectingIP = req.headers['cf-connecting-ip'];
-  
   if (typeof forwarded === 'string') {
     return forwarded.split(',')[0].trim();
   }
   
+  // X-Real-IP is set by some proxies to indicate the original client IP
+  const realIP = req.headers['x-real-ip'];
   if (typeof realIP === 'string') {
     return realIP;
   }
   
+  // CF-Connecting-IP is set by Cloudflare and is highly reliable
+  const cfConnectingIP = req.headers['cf-connecting-ip'];
   if (typeof cfConnectingIP === 'string') {
     return cfConnectingIP;
   }
   
+  // Fall back to direct connection IP if no proxy headers present
   return req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown';
 }
 
@@ -82,37 +97,70 @@ function generateKey(req: Request, prefix: string = 'rate_limit'): string {
 
 /**
  * Calculate progressive delay based on consecutive failures
+ * 
+ * Implements exponential backoff to slow down potential attackers while minimizing
+ * impact on legitimate users who may have made a few mistakes.
+ * 
+ * The delay tiers are designed to:
+ * - Allow 3 quick retries for typos (no delay)
+ * - Add minimal delay for 4-5 failures (1s) 
+ * - Escalate to moderate delays for 6-10 failures (5s)
+ * - Apply significant delays for 11-15 failures (15s)
+ * - Block for 1 minute at 16-20 failures
+ * - Block for 5 minutes beyond 20 failures (likely automated attack)
  */
 function calculateProgressiveDelay(consecutiveFailures: number): number {
+  // First 3 failures: no delay (allow for typos)
   if (consecutiveFailures <= 3) return 0;
+  
+  // 4-5 failures: minimal delay to slow down but not frustrate users
   if (consecutiveFailures <= 5) return 1000; // 1 second
+  
+  // 6-10 failures: moderate delay, likely not a legitimate user
   if (consecutiveFailures <= 10) return 5000; // 5 seconds
+  
+  // 11-15 failures: significant delay, suspicious activity
   if (consecutiveFailures <= 15) return 15000; // 15 seconds
+  
+  // 16-20 failures: long delay, very likely an attack
   if (consecutiveFailures <= 20) return 60000; // 1 minute
-  return 300000; // 5 minutes for severe abuse
+  
+  // 20+ failures: maximum delay for severe abuse/automated attacks
+  return 300000; // 5 minutes
 }
 
 /**
  * Check if IP should be flagged as suspicious
+ * 
+ * Uses multiple heuristics to detect potential attacks or abuse:
+ * 1. Volume-based detection: Too many requests in a time window
+ * 2. Failure-based detection: Repeated authentication failures
+ * 3. Velocity-based detection: Rapid-fire requests indicating automation
+ * 
+ * These thresholds are tuned to catch automated attacks while minimizing
+ * false positives from legitimate high-volume users.
  */
 function checkSuspiciousActivity(record: RateLimitRecord, ip: string): boolean {
   const now = Date.now();
   const timeWindow = 60 * 60 * 1000; // 1 hour
   
-  // Flag as suspicious if:
-  // 1. More than 50 requests in the last hour
-  // 2. More than 10 consecutive failures
-  // 3. Rapid-fire requests (more than 20 in 5 minutes)
-  
+  // Heuristic 1: Volume-based detection
+  // More than 50 requests in the last hour suggests automated behavior
+  // Normal users rarely exceed 30-40 requests/hour even with active usage
   if (record.count > 50 && (now - record.firstAttempt) < timeWindow) {
     return true;
   }
   
+  // Heuristic 2: Failure-based detection
+  // More than 10 consecutive failures indicates brute force attempt
+  // Legitimate users typically succeed within 3-5 attempts
   if (record.consecutiveFailures > 10) {
     return true;
   }
   
-  // Check for rapid-fire requests
+  // Heuristic 3: Velocity-based detection (rapid-fire)
+  // More than 20 requests in 5 minutes suggests bot/script activity
+  // Human users have natural delays between actions (typing, reading, etc.)
   const rapidFireWindow = 5 * 60 * 1000; // 5 minutes
   if (record.count > 20 && (now - record.firstAttempt) < rapidFireWindow) {
     return true;

@@ -280,6 +280,23 @@ export class SessionSecurityMiddleware {
     return req.secure || req.get('X-Forwarded-Proto') === 'https';
   }
 
+  /**
+   * Detect potential session hijacking attempts
+   * 
+   * Session hijacking occurs when an attacker steals a user's session token and
+   * uses it from a different location/device. We detect this by monitoring:
+   * 
+   * 1. IP Address Changes: If the same session is used from different IPs, it may
+   *    indicate the session token was stolen. However, legitimate IP changes can
+   *    occur (mobile networks, VPNs, etc.), so we log but don't block.
+   * 
+   * 2. User-Agent Changes: If the browser/device changes mid-session, it's highly
+   *    suspicious since users don't typically switch devices without logging in again.
+   * 
+   * Note: We log these events for security monitoring but don't automatically
+   * terminate sessions to avoid false positives. Security teams can review logs
+   * and take action if needed.
+   */
   private async detectSessionHijacking(req: Request, session: any): Promise<void> {
     try {
       const currentIP = req.ip || req.socket.remoteAddress;
@@ -288,7 +305,9 @@ export class SessionSecurityMiddleware {
       const storedIP = session.security.ipAddress;
       const storedUserAgent = session.security.userAgent;
 
-      // Check for IP address changes (allow for reasonable network changes)
+      // Check for IP address changes
+      // Legitimate reasons: Mobile network handoff, VPN connection, proxy changes
+      // Suspicious reasons: Session token stolen and used from different location
       if (storedIP && currentIP && storedIP !== currentIP) {
         await securityLogger.logSecurityEvent(
           'SUSPICIOUS_LOGIN',
@@ -308,6 +327,8 @@ export class SessionSecurityMiddleware {
       }
 
       // Check for User-Agent changes
+      // This is more suspicious than IP changes since users rarely switch
+      // browsers/devices mid-session without logging in again
       if (storedUserAgent && currentUserAgent && storedUserAgent !== currentUserAgent) {
         await securityLogger.logSecurityEvent(
           'SUSPICIOUS_LOGIN',
@@ -327,30 +348,54 @@ export class SessionSecurityMiddleware {
       }
     } catch (error) {
       console.error('Error detecting session hijacking:', error);
-      // Don't throw - log and continue
+      // Don't throw - log and continue to avoid disrupting user experience
     }
   }
 
+  /**
+   * Regenerate session ID periodically for security
+   * 
+   * Session fixation attacks occur when an attacker sets a user's session ID to
+   * a known value, then waits for the user to authenticate. To mitigate this:
+   * 
+   * 1. We regenerate the session ID every 30 minutes
+   * 2. This limits the window of opportunity for session fixation attacks
+   * 3. Even if an attacker knows an old session ID, it becomes invalid after regeneration
+   * 
+   * The 30-minute interval balances security with performance:
+   * - Short enough to limit attack windows
+   * - Long enough to avoid excessive database operations
+   * - Aligns with typical user session activity patterns
+   * 
+   * Note: Session regeneration preserves session data but changes the session ID,
+   * so the user remains logged in but with a new, unpredictable session identifier.
+   */
   private regenerateSessionIfNeeded(req: Request, session: any): void {
     try {
       const now = new Date();
+      
+      // Determine when the session was last regenerated
+      // Fall back to creation time if never regenerated
       const lastRegeneration = session.security.lastRegeneration 
         ? new Date(session.security.lastRegeneration) 
         : new Date(session.security.createdAt);
 
       // Regenerate session every 30 minutes
-      const regenerationInterval = 30 * 60 * 1000; // 30 minutes
+      const regenerationInterval = 30 * 60 * 1000; // 30 minutes in milliseconds
       
+      // Check if enough time has passed since last regeneration
       if (now.getTime() - lastRegeneration.getTime() > regenerationInterval) {
+        // Regenerate the session ID (preserves session data, changes ID)
         (req as any).session.regenerate((err: any) => {
           if (err) {
             console.error('Error regenerating session:', err);
             return;
           }
           
+          // Update the last regeneration timestamp
           session.security.lastRegeneration = now.toISOString();
           
-          // Log session regeneration (fire and forget)
+          // Log session regeneration for security audit trail (fire and forget)
           securityLogger.logSecurityEvent(
             'SESSION_CREATED',
             'session_regenerated',
@@ -371,7 +416,7 @@ export class SessionSecurityMiddleware {
       }
     } catch (error) {
       console.error('Error in regenerateSessionIfNeeded:', error);
-      // Don't throw - log and continue
+      // Don't throw - log and continue to avoid disrupting user experience
     }
   }
 }
