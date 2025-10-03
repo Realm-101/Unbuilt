@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import type { User } from "@shared/schema";
+import type { UserProfile } from "@/types/user";
 import { 
   User as UserIcon, Search, Bookmark, History, TrendingUp, LogOut, Settings, 
   Crown, HelpCircle, Info, Menu, X, Lightbulb, Activity, 
@@ -29,6 +29,7 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const [location, setLocation] = useLocation();
   const { user } = useAuth();
+  const typedUser = user as UserProfile | null;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -71,7 +72,7 @@ export default function Layout({ children }: LayoutProps) {
     { href: "/saved", icon: Bookmark, label: "Saved" },
   ];
 
-  const isProUser = user?.plan === 'pro' || user?.plan === 'enterprise';
+  const isProUser = typedUser?.plan === 'pro' || typedUser?.plan === 'enterprise';
 
   return (
     <div className="min-h-screen bg-background transition-colors">
@@ -179,7 +180,7 @@ export default function Layout({ children }: LayoutProps) {
                           <UserIcon className="w-4 h-4 text-white" />
                         </div>
                         <span className="hidden sm:inline text-sm font-medium">
-                          {user?.firstName || user?.email?.split('@')[0] || 'Account'}
+                          {typedUser?.firstName || typedUser?.email?.split('@')[0] || 'Account'}
                         </span>
                         {isProUser && <Badge variant="secondary" className="hidden sm:flex">PRO</Badge>}
                         <ChevronDown className="w-4 h-4" />
@@ -189,10 +190,10 @@ export default function Layout({ children }: LayoutProps) {
                       <DropdownMenuLabel>
                         <div className="flex flex-col space-y-1">
                           <p className="text-sm font-medium leading-none">
-                            {(user as any)?.firstName || 'User'}
+                            {typedUser?.firstName || 'User'}
                           </p>
                           <p className="text-xs leading-none text-muted-foreground">
-                            {(user as any)?.email}
+                            {typedUser?.email}
                           </p>
                         </div>
                       </DropdownMenuLabel>

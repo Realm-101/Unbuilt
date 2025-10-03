@@ -2,30 +2,23 @@ import type { Request, Response, NextFunction } from 'express';
 import { jwtService, type JWTPayload } from '../jwt';
 import { authService } from '../auth';
 import { AppError, ErrorType } from './errorHandler';
+import type { User } from '@shared/schema';
 
 // Extend Express Request type to include user
 declare global {
   namespace Express {
     interface Request {
-      user?: {
-        id: number;
-        email: string;
-        role: string;
-        jti: string;
-      };
+      user?: User;
       token?: string;
+      jti?: string; // JWT token ID for revocation
     }
   }
 }
 
 export interface AuthenticatedRequest extends Request {
-  user: {
-    id: number;
-    email: string;
-    role: string;
-    jti: string;
-  };
+  user: User;
   token: string;
+  jti: string;
 }
 
 /**
@@ -52,14 +45,10 @@ export const jwtAuth = async (req: Request, res: Response, next: NextFunction): 
       return next(AppError.createAuthenticationError('User account not found or inactive', 'AUTH_USER_INACTIVE'));
     }
 
-    // Attach user info to request
-    req.user = {
-      id: parseInt(payload.sub),
-      email: payload.email,
-      role: payload.role,
-      jti: payload.jti
-    };
+    // Attach full user object and token info to request
+    req.user = user;
     req.token = token;
+    req.jti = payload.jti;
 
     next();
   } catch (error) {
@@ -82,13 +71,9 @@ export const optionalJwtAuth = async (req: Request, res: Response, next: NextFun
       if (payload) {
         const user = await authService.getUserById(parseInt(payload.sub));
         if (user && user.isActive) {
-          req.user = {
-            id: parseInt(payload.sub),
-            email: payload.email,
-            role: payload.role,
-            jti: payload.jti
-          };
+          req.user = user;
           req.token = token;
+          req.jti = payload.jti;
         }
       }
     }
@@ -113,7 +98,7 @@ export const requireRole = (roles: string | string[]) => {
       return next(AppError.createAuthenticationError('User not authenticated', 'AUTH_NOT_AUTHENTICATED'));
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!allowedRoles.includes(req.user.plan)) {
       return next(AppError.createAuthorizationError('Insufficient permissions', 'AUTHZ_INSUFFICIENT_PERMISSIONS'));
     }
 
@@ -176,7 +161,7 @@ export const requireAdminOrOwnership = (userIdParam: string = 'userId') => {
     }
 
     // Allow if user is admin
-    if (req.user.role === 'admin' || req.user.role === 'enterprise') {
+    if (req.user.plan === 'admin' || req.user.plan === 'enterprise') {
       next();
       return;
     }

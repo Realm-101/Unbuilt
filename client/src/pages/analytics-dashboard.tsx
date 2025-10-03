@@ -18,6 +18,7 @@ import {
 import { motion } from 'framer-motion';
 import { format, subDays } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
+import { TreemapCellProps } from '@/types/analytics';
 
 interface MetricCard {
   title: string;
@@ -393,44 +394,47 @@ export default function AnalyticsDashboard() {
                       aspectRatio={4 / 3}
                       stroke="#fff"
                       fill="#8b5cf6"
-                      content={({ x, y, width, height, name, value, growth }) => (
-                        <g>
-                          <rect
-                            x={x}
-                            y={y}
-                            width={width}
-                            height={height}
-                            style={{
-                              fill: growth > 40 ? '#10b981' : growth > 30 ? '#3b82f6' : '#8b5cf6',
-                              stroke: '#fff',
-                              strokeWidth: 2,
-                            }}
-                          />
-                          {width > 80 && height > 40 && (
-                            <>
-                              <text
-                                x={x + width / 2}
-                                y={y + height / 2 - 10}
-                                textAnchor="middle"
-                                fill="#fff"
-                                fontSize={12}
-                                fontWeight="bold"
-                              >
-                                {name}
-                              </text>
-                              <text
-                                x={x + width / 2}
-                                y={y + height / 2 + 10}
-                                textAnchor="middle"
-                                fill="#fff"
-                                fontSize={10}
-                              >
-                                {value} | +{growth}%
-                              </text>
-                            </>
-                          )}
-                        </g>
-                      )}
+                      content={(props: TreemapCellProps) => {
+                        const { x, y, width, height, name, value, growth } = props;
+                        return (
+                          <g>
+                            <rect
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={height}
+                              style={{
+                                fill: growth > 40 ? '#10b981' : growth > 30 ? '#3b82f6' : '#8b5cf6',
+                                stroke: '#fff',
+                                strokeWidth: 2,
+                              }}
+                            />
+                            {width > 80 && height > 40 && (
+                              <>
+                                <text
+                                  x={x + width / 2}
+                                  y={y + height / 2 - 10}
+                                  textAnchor="middle"
+                                  fill="#fff"
+                                  fontSize={12}
+                                  fontWeight="bold"
+                                >
+                                  {name}
+                                </text>
+                                <text
+                                  x={x + width / 2}
+                                  y={y + height / 2 + 10}
+                                  textAnchor="middle"
+                                  fill="#fff"
+                                  fontSize={10}
+                                >
+                                  {value} | +{growth}%
+                                </text>
+                              </>
+                            )}
+                          </g>
+                        );
+                      }}
                     />
                   </ResponsiveContainer>
                   <div className="mt-4 flex items-center justify-center gap-4">

@@ -124,6 +124,10 @@ export class AppError extends Error {
     return new AppError(message, ErrorType.AUTHORIZATION, 403, code);
   }
 
+  static createForbiddenError(message = 'Forbidden', code = 'FORBIDDEN'): AppError {
+    return new AppError(message, ErrorType.AUTHORIZATION, 403, code);
+  }
+
   static createValidationError(message = 'Invalid input data', code = 'VAL_INVALID', details?: Record<string, any>): AppError {
     return new AppError(message, ErrorType.VALIDATION, 400, code, true, details);
   }
@@ -296,7 +300,8 @@ class SecureErrorHandler {
       );
       
       const errorResponse = this.createErrorResponse(validationError, requestId);
-      return res.status(400).json(errorResponse);
+      res.status(400).json(errorResponse);
+      return;
     }
 
     // Create sanitized error response
@@ -304,6 +309,7 @@ class SecureErrorHandler {
     const statusCode = errorResponse.statusCode || 500;
 
     res.status(statusCode).json(errorResponse);
+    return;
   }
 
   /**

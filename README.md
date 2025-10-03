@@ -63,6 +63,8 @@ Unbuilt is a full-stack web application that helps entrepreneurs and innovators 
 - **Password Security** - Bcrypt hashing with history tracking and account lockout
 - **Session Security** - Secure session management with hijacking detection
 - **HTTPS Enforcement** - Production HTTPS with security headers and CSRF protection
+- **Deployment Security** - Automated security validation and deployment scripts
+- **Security Headers** - CSP, HSTS, X-Frame-Options, and comprehensive XSS/CSRF protection
 
 #### 🎨 User Experience
 - **Professional UI** - Enhanced navigation with prominent branding and comprehensive help system
@@ -118,14 +120,27 @@ Unbuilt features a unique "Neon Flame" theme with a mysterious "black hole" aest
 For production deployment with full security features:
 
 ```bash
-# Quick deployment
+# Quick deployment (Windows)
+deployment\deploy.bat
+
+# Quick deployment (Unix/Linux)
 ./deployment/deploy
 
-# Or step-by-step
-npm run security:checklist
-npm run deployment:validate
-npm run deployment:build
-npm run deployment:production
+# Or step-by-step validation
+npm run security:checklist      # Comprehensive security validation
+npm run deployment:validate     # Deployment readiness check
+npm run deployment:build        # Build with security validation
+npm run deployment:production   # Start production server
+```
+
+**Docker Deployment:**
+```bash
+# Copy and configure environment
+cp deployment/production.env.example .env
+# Edit .env with your configuration
+
+# Deploy with Docker Compose
+docker-compose -f deployment/docker-compose.production.yml up -d
 ```
 
 See [Deployment Guide](deployment/README.md) for comprehensive production setup.
@@ -298,15 +313,24 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📚 Documentation
 
-- **[Security Guide](docs/SECURITY.md)** - Comprehensive security documentation
-- **[Deployment Guide](deployment/README.md)** - Production deployment instructions
-- **[API Documentation](docs/API.md)** - Complete API reference
-- **[Environment Setup](docs/ENVIRONMENT_VALIDATION.md)** - Environment configuration guide
-- **[Rate Limiting](docs/RATE_LIMITING.md)** - Rate limiting configuration
-- **[Session Management](docs/SESSION_MANAGEMENT.md)** - Session security documentation
-- **[Password Security](docs/PASSWORD_SECURITY.md)** - Password policy and security
-- **[Authorization](docs/AUTHORIZATION.md)** - Role-based access control
-- **[Security Monitoring](docs/SECURITY_MONITORING.md)** - Monitoring and alerting
+### 🔒 Security & Deployment
+- **[Security Guide](docs/SECURITY.md)** - Comprehensive security architecture and features
+- **[Deployment Guide](deployment/README.md)** - Production deployment with security hardening
+- **[API Documentation](docs/API.md)** - Complete API reference with security details
+- **[Documentation Index](docs/README.md)** - Complete documentation overview
+
+### 🛠️ Configuration & Setup
+- **[Environment Setup](docs/ENVIRONMENT_VALIDATION.md)** - Secure environment configuration
+- **[Rate Limiting](docs/RATE_LIMITING.md)** - Rate limiting and DDoS protection
+- **[Session Management](docs/SESSION_MANAGEMENT.md)** - Session security and management
+- **[Password Security](docs/PASSWORD_SECURITY.md)** - Password policies and security
+- **[Authorization](docs/AUTHORIZATION.md)** - Role-based access control (RBAC)
+- **[Security Monitoring](docs/SECURITY_MONITORING.md)** - Real-time monitoring and alerting
+
+### 📋 Project Information
+- **[Changelog](CHANGELOG.md)** - Version history and security improvements
+- **[Security Fixes](SECURITY_FIXES.md)** - Security implementation summary
+- **[Performance Guide](PERFORMANCE_OPTIMIZATIONS.md)** - Performance optimization tips
 
 ## 🛠️ Development Tools
 
@@ -314,8 +338,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ```bash
 npm run security:checklist      # Run comprehensive security validation
 npm run security:scan          # Scan for credentials and vulnerabilities
+npm run security:scan-strict   # Strict credential scanning (fail on high severity)
 npm run deployment:validate    # Validate deployment readiness
 npm run migrate:security       # Run security database migrations
+npm run validate:security      # Validate database security schema
+npm run security:maintenance   # Run security maintenance tasks
 ```
 
 ### Testing

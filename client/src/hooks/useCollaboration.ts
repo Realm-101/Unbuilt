@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { create } from 'zustand';
 import { useAuth } from './useAuth';
+import { ChatMessage } from '@/types/collaboration';
 
 interface Participant {
   userId: number;
@@ -16,12 +17,7 @@ interface CollaborationState {
   participants: Map<string, Participant>;
   sharedState: any;
   isConnected: boolean;
-  messages: Array<{
-    userId: number;
-    userName: string;
-    message: string;
-    timestamp: string;
-  }>;
+  messages: ChatMessage[];
   typingUsers: Set<number>;
 }
 
@@ -161,7 +157,7 @@ const useCollaborationStore = create<CollaborationState & CollaborationActions>(
   setParticipants: (participants) => set({ participants }),
   
   addMessage: (message) => set((state) => ({
-    messages: [...state.messages, message].slice(-100), // Keep last 100 messages
+    messages: [...state.messages, { ...message, type: message.type || 'message' }].slice(-100), // Keep last 100 messages
   })),
 
   setTypingUser: (userId, isTyping) => set((state) => {

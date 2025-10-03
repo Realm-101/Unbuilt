@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { securityConfig } from '../config/securityConfig';
 import { securityLogger } from '../services/securityLogger';
+import { any } from 'zod';
 
 export interface HTTPSEnforcementOptions {
   trustProxy?: boolean;
@@ -25,7 +26,7 @@ export class HTTPSEnforcementMiddleware {
   }
 
   middleware() {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction) => {
       // Skip HTTPS enforcement in development
       if (this.config.environment === 'development') {
         return next();
@@ -40,7 +41,7 @@ export class HTTPSEnforcementMiddleware {
         const isSecure = this.isSecureConnection(req);
 
         if (!isSecure && this.config.security.https.enforce) {
-          this.logHTTPSRedirect(req);
+          await this.logHTTPSRedirect(req);
           return this.redirectToHTTPS(req, res);
         }
 
@@ -51,18 +52,23 @@ export class HTTPSEnforcementMiddleware {
 
         next();
       } catch (error) {
-        securityLogger.logSecurityEvent({
-          type: 'HTTPS_ENFORCEMENT_ERROR',
-          userId: (req as any).user?.id,
-          ip: req.ip || req.connection.remoteAddress || 'unknown',
-          userAgent: req.get('User-Agent') || 'unknown',
-          details: {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            path: req.path,
-            method: req.method,
-            protocol: req.protocol,
-            secure: req.secure
-          }
+        await securityLogger.logSecurityEvent(
+          'SYSTEM_ERROR',
+          'https_enforcement_error',
+          false,
+          {
+            userId: (req as any).user?.id,
+            ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+            userAgent: req.get('User-Agent') || 'unknown',
+          },
+          error instanceof Error ? error.message : 'Unknown error'
+        );
+        console.error('HTTPS enforcement error:', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          path: req.path,
+          method: req.method,
+          protocol: req.protocol,
+          secure: req.secure
         });
 
         // Continue processing even if HTTPS enforcement fails
@@ -109,20 +115,24 @@ export class HTTPSEnforcementMiddleware {
     res.setHeader('Strict-Transport-Security', directives.join('; '));
   }
 
-  private logHTTPSRedirect(req: Request): void {
-    securityLogger.logSecurityEvent({
-      type: 'HTTPS_REDIRECT',
-      userId: (req as any).user?.id,
-      ip: req.ip || req.connection.remoteAddress || 'unknown',
-      userAgent: req.get('User-Agent') || 'unknown',
-      details: {
-        path: req.path,
-        method: req.method,
-        protocol: req.protocol,
-        host: req.get('Host'),
-        originalUrl: req.originalUrl
+  private async logHTTPSRedirect(req: Request): Promise<void> {
+    await securityLogger.logSecurityEvent(
+      'SYSTEM_EVENT',
+      'https_redirect',
+      true,
+      {
+        userId: (req as any).user?.id,
+        ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+        userAgent: req.get('User-Agent') || 'unknown',
+        metadata: {
+          path: req.path,
+          method: req.method,
+          protocol: req.protocol,
+          host: req.get('Host'),
+          originalUrl: req.originalUrl
+        }
       }
-    });
+    );
   }
 }
 
@@ -183,17 +193,17 @@ export class SessionSecurityMiddleware {
   private config = securityConfig.getConfig();
 
   middleware() {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction) => {
       // Add security properties to session
       if ((req as any).session) {
-        this.enhanceSessionSecurity(req, res);
+        await this.enhanceSessionSecurity(req, res);
       }
 
       next();
     };
   }
 
-  private enhanceSessionSecurity(req: Request, res: Response): void {
+  private async enhanceSessionSecurity(req: Request, res: Response): Promise<void> {
     const session = (req as any).session;
 
     // Generate CSRF token if not present
@@ -214,7 +224,7 @@ export class SessionSecurityMiddleware {
       session.security.lastActivity = new Date().toISOString();
       
       // Detect session hijacking attempts
-      this.detectSessionHijacking(req, session);
+      await this.detectSessionHijacking(req, session);
     }
 
     // Regenerate session ID periodically
@@ -229,7 +239,7 @@ export class SessionSecurityMiddleware {
     return req.secure || req.get('X-Forwarded-Proto') === 'https';
   }
 
-  private detectSessionHijacking(req: Request, session: any): void {
+  private async detectSessionHijacking(req: Request, session: any): Promise<void> {
     const currentIP = req.ip || req.connection.remoteAddress;
     const currentUserAgent = req.get('User-Agent');
     
@@ -238,30 +248,38 @@ export class SessionSecurityMiddleware {
 
     // Check for IP address changes (allow for reasonable network changes)
     if (storedIP && currentIP && storedIP !== currentIP) {
-      securityLogger.logSecurityEvent({
-        type: 'SESSION_IP_CHANGE',
-        userId: session.userId,
-        ip: currentIP,
-        userAgent: currentUserAgent || 'unknown',
-        details: {
-          previousIP: storedIP,
-          currentIP: currentIP,
-          sessionId: session.id
+      await securityLogger.logSecurityEvent(
+        'SUSPICIOUS_LOGIN',
+        'session_ip_change',
+        true,
+        {
+          userId: session.userId,
+          ipAddress: currentIP,
+          userAgent: currentUserAgent || 'unknown',
+          metadata: {
+            previousIP: storedIP,
+            currentIP: currentIP,
+            sessionId: session.id
+          }
         }
-      });
+      );
     }
 
     // Check for User-Agent changes
     if (storedUserAgent && currentUserAgent && storedUserAgent !== currentUserAgent) {
-      securityLogger.logSecurityEvent({
-        type: 'SESSION_USER_AGENT_CHANGE',
-        userId: session.userId,
-        ip: currentIP || 'unknown',
-        userAgent: currentUserAgent || 'unknown',
-        details: {
-          previousUserAgent: storedUserAgent,
-          currentUserAgent: currentUserAgent,
-          sessionId: session.id
+      await securityLogger.logSecurityEvent(
+        'SUSPICIOUS_LOGIN',
+        'session_user_agent_change',
+        true,
+        {
+          userId: session.userId,
+          ipAddress: currentIP || 'unknown',
+          userAgent: currentUserAgent || 'unknown',
+          metadata: {
+            previousUserAgent: storedUserAgent,
+            currentUserAgent: currentUserAgent,
+            sessionId: session.id
+          }
         }
       });
     }
@@ -281,16 +299,21 @@ export class SessionSecurityMiddleware {
         if (!err) {
           session.security.lastRegeneration = now.toISOString();
           
-          securityLogger.logSecurityEvent({
-            type: 'SESSION_REGENERATED',
-            userId: session.userId,
-            ip: req.ip || req.connection.remoteAddress || 'unknown',
-            userAgent: req.get('User-Agent') || 'unknown',
-            details: {
-              reason: 'periodic_regeneration',
-              sessionId: session.id
+          // Log session regeneration (fire and forget)
+          securityLogger.logSecurityEvent(
+            'SYSTEM_EVENT',
+            'session_regenerated',
+            true,
+            {
+              userId: session.userId,
+              ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+              userAgent: req.get('User-Agent') || 'unknown',
+              metadata: {
+                reason: 'periodic_regeneration',
+                sessionId: session.id
+              }
             }
-          });
+          ).catch(console.error);
         }
       });
     }
