@@ -16,9 +16,66 @@ Authorization: Bearer <access_token>
 
 ### Token Management
 
-**Access Tokens:** Short-lived (15 minutes) for API access  
-**Refresh Tokens:** Long-lived (7 days) stored in HttpOnly cookies  
-**Token Rotation:** Automatic refresh token rotation on renewal
+**Access Tokens:** 
+- Short-lived (15 minutes) for API access
+- Included in Authorization header
+- Contains user ID, email, plan, and permissions
+- Automatically refreshed using refresh token
+
+**Refresh Tokens:**
+- Long-lived (7 days) stored in HttpOnly cookies
+- Used to obtain new access tokens
+- Automatically rotated on renewal for security
+- Invalidated on logout
+
+**Token Rotation:** 
+- Automatic refresh token rotation on renewal
+- Old refresh tokens are invalidated
+- Prevents token replay attacks
+
+### Authentication Flow
+
+1. **Login:** POST `/api/auth/login` with credentials
+2. **Receive Tokens:** Get access token (response) and refresh token (cookie)
+3. **API Requests:** Include access token in Authorization header
+4. **Token Refresh:** When access token expires, POST `/api/auth/refresh`
+5. **Logout:** POST `/api/auth/logout` to invalidate tokens
+
+### Session Management
+
+- Multiple concurrent sessions supported
+- Session tracking with device and location info
+- Ability to view and terminate individual sessions
+- Security monitoring for suspicious activity
+- Automatic session invalidation on password change
+
+### Authorization Levels
+
+**Public Endpoints:**
+- No authentication required
+- Health checks, status pages
+
+**User Endpoints:**
+- Requires valid access token
+- Access to own resources only
+- Standard user permissions
+
+**Admin Endpoints:**
+- Requires admin role
+- Access to user management
+- Security monitoring capabilities
+
+**Super Admin Endpoints:**
+- Requires super admin role
+- Full system access
+- User password resets
+- Critical system operations
+
+**Enterprise Endpoints:**
+- Requires enterprise plan
+- Advanced analytics
+- Security monitoring
+- API access
 
 ## 📊 Rate Limiting
 
@@ -210,9 +267,10 @@ Secure logout with token invalidation.
 ```
 
 #### POST /auth/change-password
-Change password with history validation.
+Change password with history validation and security checks.
 
-**Headers:** `Authorization: Bearer <access_token>`
+**Headers:** `Authorization: Bearer <access_token>`  
+**Rate Limit:** 3 attempts per hour per user
 
 **Request Body:**
 ```json
@@ -226,12 +284,498 @@ Change password with history validation.
 **Validation:**
 - Current password must be correct
 - New password cannot match last 12 passwords
-- Password complexity requirements enforced
+- Password complexity requirements enforced:
+  - Minimum 8 characters
+  - At least one uppercase letter
+  - At least one lowercase letter
+  - At least one number
+  - At least one special character
+- Passwords must match
 
 **Response (200 OK):**
 ```json
 {
+  "success": true,
   "message": "Password changed successfully"
+}
+```
+
+**Side Effects:**
+- All other sessions are invalidated
+- Security event logged
+- User notified via email (if configured)
+
+#### GET /auth/password-status
+Get password security status for current user.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response (200 OK):**
+```json
+{
+  "lastChanged": "2023-12-01T00:00:00.000Z",
+  "daysSinceChange": 30,
+  "strength": "strong",
+  "requiresChange": false,
+  "historyCount": 5
+}
+```
+
+#### POST /auth/validate-password-strength
+Validate password strength without changing it.
+
+**Request Body:**
+```json
+{
+  "password": "TestPassword123!"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "valid": true,
+  "strength": "strong",
+  "score": 85,
+  "feedback": [
+    "Good length",
+    "Contains mixed case",
+    "Contains numbers and symbols"
+  ],
+  "requirements": {
+    "minLength": true,
+    "uppercase": true,
+    "lowercase": true,
+    "number": true,
+    "special": true
+  }
+}
+```
+
+### Idea Validation & Management
+
+#### POST /ideas
+Create and validate a new idea with AI insights.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Rate Limit:** AI rate limit applies  
+**Authorization:** Requires CREATE_IDEA permission
+
+**Request Body:**
+```json
+{
+  "title": "AI-powered fitness tracker for seniors",
+  "description": "A wearable device with simplified interface...",
+  "targetMarket": "Seniors aged 65+",
+  "businessModel": "Subscription-based SaaS",
+  "category": "health-tech",
+  "initialInvestment": 50000,
+  "monthlyRevenue": 10000,
+  "monthlyExpenses": 3000,
+  "sourceSearchResultId": 123
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "idea": {
+    "id": 456,
+    "title": "AI-powered fitness tracker for seniors",
+    "userId": 123,
+    "originalityScore": 85,
+    "credibilityScore": 78,
+    "marketGapScore": 92,
+    "competitionScore": 70,
+    "overallScore": 81,
+    "breakEvenMonths": 18,
+    "projectedRoi": 245,
+    "status": "validated",
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  },
+  "scoring": {
+    "originalityScore": 85,
+    "credibilityScore": 78,
+    "marketGapScore": 92,
+    "competitionScore": 70,
+    "overallScore": 81,
+    "breakdown": {
+      "innovation": "High",
+      "feasibility": "Medium",
+      "marketFit": "Excellent"
+    }
+  },
+  "riskAssessment": {
+    "technicalRisk": "Medium",
+    "marketRisk": "Low",
+    "competitiveRisk": "High",
+    "overallRisk": "Medium"
+  },
+  "financialModel": {
+    "summary": {
+      "breakEvenMonth": 18,
+      "fiveYearROI": 245,
+      "totalInvestment": 50000
+    },
+    "projections": [
+      {
+        "month": 1,
+        "revenue": 10000,
+        "expenses": 3000,
+        "profit": 7000,
+        "cumulative": 7000
+      }
+    ]
+  },
+  "aiInsights": {
+    "marketAnalysis": "Strong demand in aging population...",
+    "competitorAnalysis": "Limited direct competitors...",
+    "recommendations": [
+      "Focus on ease of use",
+      "Partner with healthcare providers"
+    ]
+  },
+  "combinedValidation": {
+    "score": 81,
+    "confidence": "high",
+    "recommendation": "Proceed with development"
+  }
+}
+```
+
+#### GET /ideas
+Get user's ideas with pagination.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Query Parameters:**
+- `userId` (required): User ID (must match authenticated user)
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Results per page (default: 10)
+
+**Response (200 OK):**
+```json
+{
+  "ideas": [
+    {
+      "id": 456,
+      "title": "AI-powered fitness tracker for seniors",
+      "overallScore": 81,
+      "status": "validated",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+#### GET /ideas/:id
+Get specific idea with detailed analysis.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the idea or have read permission
+
+**Response (200 OK):**
+```json
+{
+  "idea": {
+    "id": 456,
+    "title": "AI-powered fitness tracker for seniors",
+    "description": "A wearable device...",
+    "overallScore": 81,
+    "originalityScore": 85,
+    "credibilityScore": 78,
+    "marketGapScore": 92,
+    "competitionScore": 70,
+    "breakEvenMonths": 18,
+    "projectedRoi": 245,
+    "status": "validated"
+  },
+  "financialModel": {
+    "summary": {
+      "breakEvenMonth": 18,
+      "fiveYearROI": 245
+    },
+    "projections": []
+  },
+  "breakEvenAnalysis": {
+    "breakEvenPoint": 18,
+    "monthlyBurnRate": 3000,
+    "runwayMonths": 16
+  },
+  "scenarioAnalysis": {
+    "bestCase": { "roi": 350, "breakEven": 12 },
+    "baseCase": { "roi": 245, "breakEven": 18 },
+    "worstCase": { "roi": 120, "breakEven": 30 }
+  }
+}
+```
+
+#### PUT /ideas/:id
+Update idea and recalculate scores.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the idea or have write permission
+
+**Request Body:**
+```json
+{
+  "title": "Updated title",
+  "description": "Updated description",
+  "monthlyRevenue": 15000
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "idea": {
+    "id": 456,
+    "title": "Updated title",
+    "overallScore": 83
+  },
+  "scoring": {
+    "overallScore": 83
+  },
+  "financialModel": {
+    "summary": {
+      "breakEvenMonth": 15
+    }
+  }
+}
+```
+
+#### GET /ideas/:id/action-plan
+Get action plan for specific idea.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Rate Limit:** AI rate limit applies
+
+**Response (200 OK):**
+```json
+{
+  "actionPlan": {
+    "phases": [
+      {
+        "phase": 1,
+        "title": "Market Research & Validation",
+        "duration": "2-3 months",
+        "tasks": [
+          "Conduct senior focus groups",
+          "Analyze competitor offerings"
+        ],
+        "budget": "$15,000 - $25,000"
+      }
+    ]
+  },
+  "summary": {
+    "totalPhases": 5,
+    "estimatedDuration": "12-18 months",
+    "totalBudget": "$50,000 - $100,000"
+  },
+  "idea": {
+    "id": 456,
+    "title": "AI-powered fitness tracker for seniors"
+  }
+}
+```
+
+### Collaboration
+
+#### POST /teams
+Create a new team.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** Requires CREATE_TEAM permission
+
+**Request Body:**
+```json
+{
+  "name": "Innovation Team",
+  "description": "Team for exploring new product ideas"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": 789,
+  "name": "Innovation Team",
+  "description": "Team for exploring new product ideas",
+  "ownerId": "123",
+  "createdAt": "2024-01-01T00:00:00.000Z"
+}
+```
+
+#### GET /teams
+Get user's teams.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response (200 OK):**
+```json
+{
+  "teams": [
+    {
+      "id": 789,
+      "name": "Innovation Team",
+      "memberCount": 5,
+      "role": "owner"
+    }
+  ]
+}
+```
+
+#### POST /ideas/:id/share
+Share an idea with team or users.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** Requires SHARE_IDEA permission and idea read access
+
+**Request Body:**
+```json
+{
+  "teamId": 789,
+  "sharedWith": ["user@example.com"],
+  "permissions": ["read", "comment"],
+  "expiresAt": "2024-12-31T23:59:59.000Z"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": 1,
+  "ideaId": 456,
+  "teamId": 789,
+  "permissions": ["read", "comment"],
+  "expiresAt": "2024-12-31T23:59:59.000Z",
+  "createdAt": "2024-01-01T00:00:00.000Z"
+}
+```
+
+#### GET /shared-ideas
+Get ideas shared with user.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response (200 OK):**
+```json
+{
+  "sharedIdeas": [
+    {
+      "id": 456,
+      "title": "AI-powered fitness tracker",
+      "sharedBy": "owner@example.com",
+      "permissions": ["read", "comment"],
+      "sharedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+#### POST /ideas/:id/comments
+Add a comment to an idea.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** Requires COMMENT_IDEA permission
+
+**Request Body:**
+```json
+{
+  "content": "Great idea! Have you considered...",
+  "parentId": null
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": 1,
+  "ideaId": 456,
+  "userId": "123",
+  "userEmail": "user@example.com",
+  "content": "Great idea! Have you considered...",
+  "parentId": null,
+  "reactions": {},
+  "createdAt": "2024-01-01T00:00:00.000Z"
+}
+```
+
+#### GET /ideas/:id/comments
+Get comments for an idea.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Query Parameters:**
+- `includeReplies` (optional): Include nested replies (default: true)
+
+**Response (200 OK):**
+```json
+{
+  "comments": [
+    {
+      "id": 1,
+      "content": "Great idea!",
+      "userEmail": "user@example.com",
+      "reactions": { "👍": 5, "❤️": 2 },
+      "replies": [
+        {
+          "id": 2,
+          "content": "I agree!",
+          "parentId": 1
+        }
+      ],
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+#### POST /comments/:id/reactions
+Toggle reaction on a comment.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request Body:**
+```json
+{
+  "reaction": "👍"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": 1,
+  "reactions": { "👍": 6, "❤️": 2 }
+}
+```
+
+#### GET /activity-feed
+Get activity feed for user and teams.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Query Parameters:**
+- `teamId` (optional): Filter by team
+- `ideaId` (optional): Filter by idea
+- `limit` (optional): Number of activities (default: 50)
+
+**Response (200 OK):**
+```json
+{
+  "activities": [
+    {
+      "id": 1,
+      "type": "comment",
+      "userId": "123",
+      "userEmail": "user@example.com",
+      "ideaId": 456,
+      "ideaTitle": "AI-powered fitness tracker",
+      "content": "Added a comment",
+      "timestamp": "2024-01-01T00:00:00.000Z"
+    }
+  ]
 }
 ```
 
@@ -1482,6 +2026,32 @@ curl -X POST https://unbuilt.one/api/search \
 
 ---
 
-**Last Updated:** October 2024  
-**API Version:** 2.0  
-**Documentation Version:** 2.0
+## 📋 Changelog
+
+### Version 2.1 (October 2025)
+- Added comprehensive error code documentation with categorization
+- Documented analytics endpoints (`/analytics`, `/analytics/realtime`)
+- Documented AI assistant endpoints (`/ai-assistant/chat`, `/ai-assistant/history`)
+- Added admin user management endpoints (`/admin/users/*`)
+- Added security monitoring endpoints (`/security-monitoring/*`)
+- Added CAPTCHA management endpoints (`/captcha/*`)
+- Added session management endpoints (`/sessions/*`)
+- Added security management endpoints (`/security/*`)
+- Enhanced authentication documentation with authorization levels
+- Added password security endpoints documentation
+- Improved request/response examples with realistic data
+- Added authentication requirements for all endpoints
+- Documented side effects and security implications
+
+### Version 2.0 (October 2024)
+- Initial comprehensive API documentation
+- JWT authentication system
+- Rate limiting implementation
+- Security features documentation
+- Core search and validation endpoints
+
+---
+
+**Last Updated:** October 3, 2025  
+**API Version:** 2.1  
+**Documentation Version:** 2.1
