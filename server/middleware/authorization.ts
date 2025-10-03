@@ -6,11 +6,17 @@ import { AppError } from './errorHandler';
  * Middleware to add user role and permissions to request
  */
 export const addUserAuthorization = (req: Request, res: Response, next: NextFunction): void => {
-  if (req.user) {
-    req.userRole = AuthorizationService.getUserRole(req.user);
-    req.userPermissions = AuthorizationService.getUserPermissions(req.user);
+  try {
+    if (req.user) {
+      req.userRole = AuthorizationService.getUserRole(req.user);
+      req.userPermissions = AuthorizationService.getUserPermissions(req.user);
+    }
+    next();
+  } catch (error) {
+    console.error('Error adding user authorization:', error);
+    // Continue without authorization info rather than blocking the request
+    next();
   }
-  next();
 };
 
 /**
@@ -18,14 +24,15 @@ export const addUserAuthorization = (req: Request, res: Response, next: NextFunc
  */
 export const requirePermission = (permission: Permission) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
-    }
-
     try {
+      if (!req.user) {
+        return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
+      }
+
       AuthorizationService.requirePermission(req.user, permission);
       next();
     } catch (error) {
+      console.error('Error checking permission:', error);
       next(error);
     }
   };
@@ -36,14 +43,15 @@ export const requirePermission = (permission: Permission) => {
  */
 export const requireAnyPermission = (permissions: Permission[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
-    }
-
     try {
+      if (!req.user) {
+        return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
+      }
+
       AuthorizationService.requireAnyPermission(req.user, permissions);
       next();
     } catch (error) {
+      console.error('Error checking any permission:', error);
       next(error);
     }
   };
@@ -53,14 +61,15 @@ export const requireAnyPermission = (permissions: Permission[]) => {
  * Middleware to require admin role or higher
  */
 export const requireAdmin = (req: Request, res: Response, next: NextFunction): void => {
-  if (!req.user) {
-    return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
-  }
-
   try {
+    if (!req.user) {
+      return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
+    }
+
     AuthorizationService.requireAdmin(req.user);
     next();
   } catch (error) {
+    console.error('Error checking admin permission:', error);
     next(error);
   }
 };
@@ -69,14 +78,15 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction): v
  * Middleware to require super admin role
  */
 export const requireSuperAdmin = (req: Request, res: Response, next: NextFunction): void => {
-  if (!req.user) {
-    return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
-  }
-
   try {
+    if (!req.user) {
+      return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
+    }
+
     AuthorizationService.requireSuperAdmin(req.user);
     next();
   } catch (error) {
+    console.error('Error checking super admin permission:', error);
     next(error);
   }
 };
@@ -90,37 +100,38 @@ export const validateResourceOwnership = (
   operation: 'read' | 'write' | 'delete' = 'read'
 ) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
-    }
-
-    // Get target user ID from request parameters, body, or query
-    let targetUserId: number;
-    
-    if (req.params[userIdParam]) {
-      targetUserId = parseInt(req.params[userIdParam]);
-    } else if (req.body[userIdParam]) {
-      targetUserId = parseInt(req.body[userIdParam]);
-    } else if (req.query[userIdParam]) {
-      targetUserId = parseInt(req.query[userIdParam] as string);
-    } else {
-      return next(AppError.createValidationError(
-        `User ID parameter '${userIdParam}' not found`,
-        'MISSING_USER_ID'
-      ));
-    }
-
-    if (isNaN(targetUserId)) {
-      return next(AppError.createValidationError(
-        'Invalid user ID format',
-        'INVALID_USER_ID'
-      ));
-    }
-
     try {
+      if (!req.user) {
+        return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
+      }
+
+      // Get target user ID from request parameters, body, or query
+      let targetUserId: number;
+      
+      if (req.params[userIdParam]) {
+        targetUserId = parseInt(req.params[userIdParam]);
+      } else if (req.body[userIdParam]) {
+        targetUserId = parseInt(req.body[userIdParam]);
+      } else if (req.query[userIdParam]) {
+        targetUserId = parseInt(req.query[userIdParam] as string);
+      } else {
+        return next(AppError.createValidationError(
+          `User ID parameter '${userIdParam}' not found`,
+          'MISSING_USER_ID'
+        ));
+      }
+
+      if (isNaN(targetUserId)) {
+        return next(AppError.createValidationError(
+          'Invalid user ID format',
+          'INVALID_USER_ID'
+        ));
+      }
+
       AuthorizationService.validateResourceOwnership(req.user, targetUserId, operation);
       next();
     } catch (error) {
+      console.error('Error validating resource ownership:', error);
       next(error);
     }
   };
@@ -132,32 +143,33 @@ export const validateResourceOwnership = (
  */
 export const validateOwnResource = (operation: 'read' | 'write' | 'delete' = 'read') => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    if (!req.user) {
-      return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
-    }
-
-    // This middleware should be used after the resource is fetched
-    // The resource should be attached to req.resource by a previous middleware
-    const resource = (req as any).resource;
-    
-    if (!resource) {
-      return next(AppError.createValidationError(
-        'Resource not found or not loaded',
-        'RESOURCE_NOT_LOADED'
-      ));
-    }
-
-    if (!resource.userId) {
-      return next(AppError.createValidationError(
-        'Resource does not have ownership information',
-        'NO_OWNERSHIP_INFO'
-      ));
-    }
-
     try {
+      if (!req.user) {
+        return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
+      }
+
+      // This middleware should be used after the resource is fetched
+      // The resource should be attached to req.resource by a previous middleware
+      const resource = (req as any).resource;
+      
+      if (!resource) {
+        return next(AppError.createValidationError(
+          'Resource not found or not loaded',
+          'RESOURCE_NOT_LOADED'
+        ));
+      }
+
+      if (!resource.userId) {
+        return next(AppError.createValidationError(
+          'Resource does not have ownership information',
+          'NO_OWNERSHIP_INFO'
+        ));
+      }
+
       AuthorizationService.validateResourceOwnership(req.user, resource.userId, operation);
       next();
     } catch (error) {
+      console.error('Error validating own resource:', error);
       next(error);
     }
   };
@@ -167,25 +179,30 @@ export const validateOwnResource = (operation: 'read' | 'write' | 'delete' = 're
  * Middleware to check if user can access their own data or is admin
  */
 export const requireSelfOrAdmin = (req: Request, res: Response, next: NextFunction): void => {
-  if (!req.user) {
-    return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
-  }
+  try {
+    if (!req.user) {
+      return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
+    }
 
-  const targetUserId = parseInt(req.params.userId || req.params.id || '0');
-  
-  if (isNaN(targetUserId)) {
-    return next(AppError.createValidationError('Invalid user ID', 'INVALID_USER_ID'));
-  }
+    const targetUserId = parseInt(req.params.userId || req.params.id || '0');
+    
+    if (isNaN(targetUserId)) {
+      return next(AppError.createValidationError('Invalid user ID', 'INVALID_USER_ID'));
+    }
 
-  // Allow if accessing own data or if user is admin
-  if (req.user.id === targetUserId || AuthorizationService.isAdmin(req.user)) {
-    return next();
-  }
+    // Allow if accessing own data or if user is admin
+    if (req.user.id === targetUserId || AuthorizationService.isAdmin(req.user)) {
+      return next();
+    }
 
-  next(AppError.createForbiddenError(
-    'Access denied: can only access own resources or admin privileges required',
-    'SELF_OR_ADMIN_REQUIRED'
-  ));
+    next(AppError.createForbiddenError(
+      'Access denied: can only access own resources or admin privileges required',
+      'SELF_OR_ADMIN_REQUIRED'
+    ));
+  } catch (error) {
+    console.error('Error checking self or admin access:', error);
+    next(error);
+  }
 };
 
 /**
@@ -193,19 +210,25 @@ export const requireSelfOrAdmin = (req: Request, res: Response, next: NextFuncti
  */
 export const logAuthorizationEvent = (action: string) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (req.user) {
-      console.log(`🔐 Authorization: User ${req.user.id} (${req.userRole || 'unknown'}) attempting ${action}`);
-      
-      // Could integrate with security event handler here
-      // securityEventHandler.logAuthorizationEvent({
-      //   userId: req.user.id,
-      //   action,
-      //   resource: req.originalUrl,
-      //   timestamp: new Date(),
-      //   success: true // Will be updated by error handler if needed
-      // });
+    try {
+      if (req.user) {
+        console.log(`🔐 Authorization: User ${req.user.id} (${req.userRole || 'unknown'}) attempting ${action}`);
+        
+        // Could integrate with security event handler here
+        // securityEventHandler.logAuthorizationEvent({
+        //   userId: req.user.id,
+        //   action,
+        //   resource: req.originalUrl,
+        //   timestamp: new Date(),
+        //   success: true // Will be updated by error handler if needed
+        // });
+      }
+      next();
+    } catch (error) {
+      console.error('Error logging authorization event:', error);
+      // Continue processing even if logging fails
+      next();
     }
-    next();
   };
 };
 
@@ -214,27 +237,32 @@ export const logAuthorizationEvent = (action: string) => {
  */
 export const requireRole = (requiredRole: UserRole) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
+    try {
+      if (!req.user) {
+        return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
+      }
+
+      const userRole = AuthorizationService.getUserRole(req.user);
+      
+      // Check role hierarchy
+      const roleHierarchy = {
+        [UserRole.USER]: 0,
+        [UserRole.ADMIN]: 1,
+        [UserRole.SUPER_ADMIN]: 2
+      };
+
+      if (roleHierarchy[userRole] < roleHierarchy[requiredRole]) {
+        return next(AppError.createForbiddenError(
+          `Access denied: ${requiredRole} role or higher required`,
+          'INSUFFICIENT_ROLE'
+        ));
+      }
+
+      next();
+    } catch (error) {
+      console.error('Error checking role requirement:', error);
+      next(error);
     }
-
-    const userRole = AuthorizationService.getUserRole(req.user);
-    
-    // Check role hierarchy
-    const roleHierarchy = {
-      [UserRole.USER]: 0,
-      [UserRole.ADMIN]: 1,
-      [UserRole.SUPER_ADMIN]: 2
-    };
-
-    if (roleHierarchy[userRole] < roleHierarchy[requiredRole]) {
-      return next(AppError.createForbiddenError(
-        `Access denied: ${requiredRole} role or higher required`,
-        'INSUFFICIENT_ROLE'
-      ));
-    }
-
-    next();
   };
 };
 
@@ -243,26 +271,26 @@ export const requireRole = (requiredRole: UserRole) => {
  */
 export const requireTeamAccess = (permission: 'read' | 'write' | 'admin' = 'read') => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    if (!req.user) {
-      return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
-    }
-
-    const teamId = parseInt(req.params.teamId || req.body.teamId || '0');
-    
-    if (isNaN(teamId)) {
-      return next(AppError.createValidationError('Invalid team ID', 'INVALID_TEAM_ID'));
-    }
-
-    // Super admins can access any team
-    if (AuthorizationService.isSuperAdmin(req.user)) {
-      return next();
-    }
-
-    // TODO: Implement team membership checking
-    // This would require querying the teamMembers table
-    // For now, we'll implement basic logic
-
     try {
+      if (!req.user) {
+        return next(AppError.createAuthenticationError('Authentication required', 'AUTH_REQUIRED'));
+      }
+
+      const teamId = parseInt(req.params.teamId || req.body.teamId || '0');
+      
+      if (isNaN(teamId)) {
+        return next(AppError.createValidationError('Invalid team ID', 'INVALID_TEAM_ID'));
+      }
+
+      // Super admins can access any team
+      if (AuthorizationService.isSuperAdmin(req.user)) {
+        return next();
+      }
+
+      // TODO: Implement team membership checking
+      // This would require querying the teamMembers table
+      // For now, we'll implement basic logic
+
       // This is a placeholder - in a real implementation, you'd check the database
       // const teamMember = await getTeamMember(teamId, req.user.id);
       // if (!teamMember) {
@@ -277,6 +305,7 @@ export const requireTeamAccess = (permission: 'read' | 'write' | 'admin' = 'read
 
       next();
     } catch (error) {
+      console.error('Error checking team access:', error);
       next(error);
     }
   };

@@ -248,7 +248,7 @@ export class SecurityEventHandler {
       details: {
         adminUserId,
         sessionId,
-        reason: reason || 'Admin-initiated session termination',
+        reason: reason ?? 'Admin-initiated session termination',
         timestamp: new Date().toISOString()
       },
       timestamp: new Date()
@@ -266,7 +266,7 @@ export class SecurityEventHandler {
         metadata: {
           adminUserId,
           sessionId,
-          reason: reason || 'Admin-initiated session termination',
+          reason: reason ?? 'Admin-initiated session termination',
           targetUserId
         }
       }
@@ -388,7 +388,7 @@ export class SecurityEventHandler {
     if (context) {
       await securityLogger.logAuthenticationEvent(
         'AUTH_SUCCESS',
-        context.userEmail || 'unknown',
+        context.userEmail ?? 'unknown',
         {
           userId,
           ipAddress: context.ipAddress,

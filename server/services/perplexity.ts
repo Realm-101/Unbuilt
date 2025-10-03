@@ -123,16 +123,16 @@ Return ONLY a JSON array with the gaps, no additional text. Format:
       
       // Validate and clean the data
       return gaps.map((gap: any) => ({
-        title: gap.title || 'Untitled Opportunity',
-        description: gap.description || 'No description available',
-        category: gap.category || 'Tech That\'s Missing',
-        feasibility: gap.feasibility || 'medium',
-        marketPotential: gap.marketPotential || 'medium',
-        innovationScore: Math.min(10, Math.max(1, gap.innovationScore || 5)),
-        marketSize: gap.marketSize || 'TBD',
-        gapReason: gap.gapReason || 'Market analysis pending',
+        title: gap.title ?? 'Untitled Opportunity',
+        description: gap.description ?? 'No description available',
+        category: gap.category ?? 'Tech That\'s Missing',
+        feasibility: gap.feasibility ?? 'medium',
+        marketPotential: gap.marketPotential ?? 'medium',
+        innovationScore: Math.min(10, Math.max(1, gap.innovationScore ?? 5)),
+        marketSize: gap.marketSize ?? 'TBD',
+        gapReason: gap.gapReason ?? 'Market analysis pending',
         targetAudience: gap.targetAudience,
-        keyTrends: gap.keyTrends || []
+        keyTrends: gap.keyTrends ?? []
       }));
     } catch (parseError) {
       console.error('Error parsing Perplexity response:', parseError);

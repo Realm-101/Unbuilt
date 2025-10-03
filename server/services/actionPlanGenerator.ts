@@ -100,8 +100,8 @@ Description: ${idea.description}
 Target Market: ${idea.targetMarket}
 Business Model: ${idea.businessModel}
 Category: ${idea.category}
-Validation Score: ${validationScore || 'Not provided'}
-Market Size: ${marketSize || 'Not provided'}
+Validation Score: ${validationScore ?? 'Not provided'}
+Market Size: ${marketSize ?? 'Not provided'}
 Initial Investment: ${idea.initialInvestment ? `$${idea.initialInvestment}` : 'Not specified'}
 
 Create a detailed, actionable roadmap with:
@@ -218,8 +218,8 @@ function getFallbackActionPlan(idea: Partial<Idea>): ActionPlan {
   });
 
   return {
-    ideaId: idea.id || 0,
-    title: `Action Plan: ${idea.title || 'New Venture'}`,
+    ideaId: idea.id ?? 0,
+    title: `Action Plan: ${idea.title ?? 'New Venture'}`,
     overview: `Comprehensive roadmap to launch and scale ${idea.title}, targeting ${idea.targetMarket} with a ${idea.businessModel} model.`,
     totalDuration: '24 months',
     totalBudget: '$100,000 - $500,000',

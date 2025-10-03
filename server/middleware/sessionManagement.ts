@@ -15,7 +15,7 @@ export const trackSession = async (req: Request, res: Response, next: NextFuncti
 
     const sessionId = (req.user as any).jti;
     const deviceInfo = SessionManager.parseDeviceInfo(req.headers['user-agent']);
-    const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+    const ipAddress = req.ip ?? req.connection.remoteAddress ?? 'unknown';
 
     // Get session details
     const sessionInfo = await sessionManager.getSessionById(sessionId);
@@ -81,7 +81,7 @@ export const monitorSessionSecurity = async (req: Request, res: Response, next: 
       return next();
     }
 
-    const currentIp = req.ip || req.connection.remoteAddress || 'unknown';
+    const currentIp = req.ip ?? req.connection.remoteAddress ?? 'unknown';
     const sessionIp = req.sessionInfo.ipAddress;
 
     // Check for IP address changes (potential session hijacking)

@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { securityConfig } from '../config/securityConfig';
 import { securityLogger } from '../services/securityLogger';
-import { any } from 'zod';
 
 export interface HTTPSEnforcementOptions {
   trustProxy?: boolean;
@@ -52,17 +51,22 @@ export class HTTPSEnforcementMiddleware {
 
         next();
       } catch (error) {
-        await securityLogger.logSecurityEvent(
-          'SECURITY_VIOLATION',
-          'https_enforcement_error',
-          false,
-          {
-            userId: (req as any).user?.id,
-            ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
-            userAgent: req.get('User-Agent') || 'unknown',
-          },
-          error instanceof Error ? error.message : 'Unknown error'
-        );
+        try {
+          await securityLogger.logSecurityEvent(
+            'SECURITY_VIOLATION',
+            'https_enforcement_error',
+            false,
+            {
+              userId: (req as any).user?.id,
+              ipAddress: req.ip || req.socket?.remoteAddress || 'unknown',
+              userAgent: req.get?.('User-Agent') || 'unknown',
+            },
+            error instanceof Error ? error.message : 'Unknown error'
+          );
+        } catch (logError) {
+          // Ignore logging errors
+        }
+        
         console.error('HTTPS enforcement error:', {
           error: error instanceof Error ? error.message : 'Unknown error',
           path: req.path,
@@ -142,15 +146,27 @@ export class SecureCookieMiddleware {
 
   middleware() {
     return (req: Request, res: Response, next: NextFunction) => {
-      // Override res.cookie to apply security settings
-      const originalCookie = res.cookie.bind(res);
+      try {
+        // Override res.cookie to apply security settings
+        const originalCookie = res.cookie.bind(res);
 
-      res.cookie = (name: string, value: any, options: any = {}) => {
-        const secureOptions = this.getSecureCookieOptions(options);
-        return originalCookie(name, value, secureOptions);
-      };
+        res.cookie = (name: string, value: any, options: any = {}) => {
+          try {
+            const secureOptions = this.getSecureCookieOptions(options);
+            return originalCookie(name, value, secureOptions);
+          } catch (error) {
+            console.error('Error applying secure cookie options:', error);
+            // Fallback to original cookie if secure options fail
+            return originalCookie(name, value, options);
+          }
+        };
 
-      next();
+        next();
+      } catch (error) {
+        console.error('Error setting up secure cookie middleware:', error);
+        // Continue processing even if cookie middleware setup fails
+        next();
+      }
     };
   }
 
@@ -194,41 +210,66 @@ export class SessionSecurityMiddleware {
 
   middleware() {
     return async (req: Request, res: Response, next: NextFunction) => {
-      // Add security properties to session
-      if ((req as any).session) {
-        await this.enhanceSessionSecurity(req, res);
-      }
+      try {
+        // Add security properties to session
+        if ((req as any).session) {
+          await this.enhanceSessionSecurity(req, res);
+        }
 
-      next();
+        next();
+      } catch (error) {
+        console.error('Error enhancing session security:', error);
+        await securityLogger.logSecurityEvent(
+          'SECURITY_VIOLATION',
+          'session_security_error',
+          false,
+          {
+            userId: (req as any).user?.id,
+            ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
+            userAgent: req.get('User-Agent') || 'unknown',
+          },
+          error instanceof Error ? error.message : 'Unknown error'
+        ).catch(logError => {
+          console.error('Failed to log session security error:', logError);
+        });
+        
+        // Continue processing even if session security enhancement fails
+        next();
+      }
     };
   }
 
   private async enhanceSessionSecurity(req: Request, res: Response): Promise<void> {
-    const session = (req as any).session;
+    try {
+      const session = (req as any).session;
 
-    // Generate CSRF token if not present
-    if (!session.csrfToken) {
-      session.csrfToken = this.generateCSRFToken();
+      // Generate CSRF token if not present
+      if (!session.csrfToken) {
+        session.csrfToken = this.generateCSRFToken();
+      }
+
+      // Track session security metadata
+      if (!session.security) {
+        session.security = {
+          createdAt: new Date().toISOString(),
+          lastActivity: new Date().toISOString(),
+          ipAddress: req.ip || req.socket.remoteAddress,
+          userAgent: req.get('User-Agent'),
+          isSecure: this.isSecureConnection(req)
+        };
+      } else {
+        session.security.lastActivity = new Date().toISOString();
+        
+        // Detect session hijacking attempts
+        await this.detectSessionHijacking(req, session);
+      }
+
+      // Regenerate session ID periodically
+      this.regenerateSessionIfNeeded(req, session);
+    } catch (error) {
+      console.error('Error in enhanceSessionSecurity:', error);
+      throw error; // Re-throw to be caught by middleware
     }
-
-    // Track session security metadata
-    if (!session.security) {
-      session.security = {
-        createdAt: new Date().toISOString(),
-        lastActivity: new Date().toISOString(),
-        ipAddress: req.ip || req.connection.remoteAddress,
-        userAgent: req.get('User-Agent'),
-        isSecure: this.isSecureConnection(req)
-      };
-    } else {
-      session.security.lastActivity = new Date().toISOString();
-      
-      // Detect session hijacking attempts
-      await this.detectSessionHijacking(req, session);
-    }
-
-    // Regenerate session ID periodically
-    this.regenerateSessionIfNeeded(req, session);
   }
 
   private generateCSRFToken(): string {
@@ -240,63 +281,73 @@ export class SessionSecurityMiddleware {
   }
 
   private async detectSessionHijacking(req: Request, session: any): Promise<void> {
-    const currentIP = req.ip || req.connection.remoteAddress;
-    const currentUserAgent = req.get('User-Agent');
-    
-    const storedIP = session.security.ipAddress;
-    const storedUserAgent = session.security.userAgent;
+    try {
+      const currentIP = req.ip || req.socket.remoteAddress;
+      const currentUserAgent = req.get('User-Agent');
+      
+      const storedIP = session.security.ipAddress;
+      const storedUserAgent = session.security.userAgent;
 
-    // Check for IP address changes (allow for reasonable network changes)
-    if (storedIP && currentIP && storedIP !== currentIP) {
-      await securityLogger.logSecurityEvent(
-        'SUSPICIOUS_LOGIN',
-        'session_ip_change',
-        true,
-        {
-          userId: session.userId,
-          ipAddress: currentIP,
-          userAgent: currentUserAgent || 'unknown',
-          metadata: {
-            previousIP: storedIP,
-            currentIP: currentIP,
-            sessionId: session.id
+      // Check for IP address changes (allow for reasonable network changes)
+      if (storedIP && currentIP && storedIP !== currentIP) {
+        await securityLogger.logSecurityEvent(
+          'SUSPICIOUS_LOGIN',
+          'session_ip_change',
+          true,
+          {
+            userId: session.userId,
+            ipAddress: currentIP,
+            userAgent: currentUserAgent || 'unknown',
+            metadata: {
+              previousIP: storedIP,
+              currentIP: currentIP,
+              sessionId: session.id
+            }
           }
-        }
-      );
-    }
+        );
+      }
 
-    // Check for User-Agent changes
-    if (storedUserAgent && currentUserAgent && storedUserAgent !== currentUserAgent) {
-      await securityLogger.logSecurityEvent(
-        'SUSPICIOUS_LOGIN',
-        'session_user_agent_change',
-        true,
-        {
-          userId: session.userId,
-          ipAddress: currentIP || 'unknown',
-          userAgent: currentUserAgent || 'unknown',
-          metadata: {
-            previousUserAgent: storedUserAgent,
-            currentUserAgent: currentUserAgent,
-            sessionId: session.id
+      // Check for User-Agent changes
+      if (storedUserAgent && currentUserAgent && storedUserAgent !== currentUserAgent) {
+        await securityLogger.logSecurityEvent(
+          'SUSPICIOUS_LOGIN',
+          'session_user_agent_change',
+          true,
+          {
+            userId: session.userId,
+            ipAddress: currentIP || 'unknown',
+            userAgent: currentUserAgent || 'unknown',
+            metadata: {
+              previousUserAgent: storedUserAgent,
+              currentUserAgent: currentUserAgent,
+              sessionId: session.id
+            }
           }
-        }
-      );
+        );
+      }
+    } catch (error) {
+      console.error('Error detecting session hijacking:', error);
+      // Don't throw - log and continue
     }
   }
 
   private regenerateSessionIfNeeded(req: Request, session: any): void {
-    const now = new Date();
-    const lastRegeneration = session.security.lastRegeneration 
-      ? new Date(session.security.lastRegeneration) 
-      : new Date(session.security.createdAt);
+    try {
+      const now = new Date();
+      const lastRegeneration = session.security.lastRegeneration 
+        ? new Date(session.security.lastRegeneration) 
+        : new Date(session.security.createdAt);
 
-    // Regenerate session every 30 minutes
-    const regenerationInterval = 30 * 60 * 1000; // 30 minutes
-    
-    if (now.getTime() - lastRegeneration.getTime() > regenerationInterval) {
-      (req as any).session.regenerate((err: any) => {
-        if (!err) {
+      // Regenerate session every 30 minutes
+      const regenerationInterval = 30 * 60 * 1000; // 30 minutes
+      
+      if (now.getTime() - lastRegeneration.getTime() > regenerationInterval) {
+        (req as any).session.regenerate((err: any) => {
+          if (err) {
+            console.error('Error regenerating session:', err);
+            return;
+          }
+          
           session.security.lastRegeneration = now.toISOString();
           
           // Log session regeneration (fire and forget)
@@ -306,16 +357,21 @@ export class SessionSecurityMiddleware {
             true,
             {
               userId: session.userId,
-              ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+              ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
               userAgent: req.get('User-Agent') || 'unknown',
               metadata: {
                 reason: 'periodic_regeneration',
                 sessionId: session.id
               }
             }
-          ).catch(console.error);
-        }
-      });
+          ).catch(logError => {
+            console.error('Failed to log session regeneration:', logError);
+          });
+        });
+      }
+    } catch (error) {
+      console.error('Error in regenerateSessionIfNeeded:', error);
+      // Don't throw - log and continue
     }
   }
 }

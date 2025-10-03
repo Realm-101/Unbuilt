@@ -223,7 +223,7 @@ export class SecurityLogger {
       const alert: InsertSecurityAlert = {
         timestamp: new Date().toISOString(),
         alertType,
-        severity: context.severity || 'medium',
+        severity: context.severity ?? 'medium',
         userId: context.userId,
         ipAddress: context.ipAddress,
         description,
@@ -437,7 +437,7 @@ export class SecurityLogger {
       suspiciousActivities: suspiciousResult.count,
       activeAlerts: activeAlertsResult.count,
       topFailedIPs: topFailedIPs.map(row => ({
-        ipAddress: row.ipAddress || 'unknown',
+        ipAddress: row.ipAddress ?? 'unknown',
         count: row.count
       })),
       eventsByType: eventsByType.map(row => ({

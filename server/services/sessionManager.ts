@@ -102,7 +102,7 @@ export class SessionManager {
       id: session.id,
       userId: session.userId,
       deviceInfo: session.deviceInfo ? JSON.parse(session.deviceInfo) : {},
-      ipAddress: session.ipAddress || 'unknown',
+      ipAddress: session.ipAddress ?? 'unknown',
       issuedAt: new Date(session.issuedAt),
       expiresAt: new Date(session.expiresAt),
       lastActivity: new Date(session.issuedAt), // TODO: Track last activity separately
@@ -134,7 +134,7 @@ export class SessionManager {
         .set({
           isRevoked: true,
           revokedAt: new Date().toISOString(),
-          revokedBy: revokedBy || 'session_invalidation'
+          revokedBy: revokedBy ?? 'session_invalidation'
         })
         .where(
           and(
@@ -399,7 +399,7 @@ export class SessionManager {
       id: session.id,
       userId: session.userId,
       deviceInfo: session.deviceInfo ? JSON.parse(session.deviceInfo) : {},
-      ipAddress: session.ipAddress || 'unknown',
+      ipAddress: session.ipAddress ?? 'unknown',
       issuedAt: new Date(session.issuedAt),
       expiresAt: new Date(session.expiresAt),
       lastActivity: new Date(session.issuedAt), // TODO: Track separately

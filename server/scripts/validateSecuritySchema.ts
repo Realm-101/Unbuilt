@@ -348,7 +348,7 @@ function printResults(summary: ValidationSummary): void {
     
     for (const result of categoryResults) {
       const status = result.exists ? '✅' : '❌';
-      const message = result.message || '';
+      const message = result.message ?? '';
       console.log(`  ${status} ${result.item} - ${message}`);
     }
   }

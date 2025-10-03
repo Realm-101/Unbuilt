@@ -768,7 +768,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         status: subscription.status,
-        plan: user.plan || 'free',
+        plan: user.plan ?? 'free',
         currentPeriodEnd: (subscription as any).current_period_end,
       });
     } catch (error) {

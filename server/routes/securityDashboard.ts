@@ -193,7 +193,7 @@ router.get('/',
                         <div>
                             <span class="status-indicator status-error"></span>
                             <span class="event-type">${event.eventType}</span>
-                            <div style="margin-top: 4px; color: #666; font-size: 0.9em;">${event.action} - ${event.ipAddress || 'Unknown IP'}</div>
+                            <div style="margin-top: 4px; color: #666; font-size: 0.9em;">${event.action} - ${event.ipAddress ?? 'Unknown IP'}</div>
                         </div>
                         <div class="event-time">${new Date(event.timestamp).toLocaleString()}</div>
                     </div>

@@ -16,8 +16,8 @@ router.post('/chat', jwtAuth, async (req, res) => {
     // Process the chat message
     const response = await processChat({
       message,
-      context: context || [],
-      sessionId: sessionId || 'new'
+      context: context ?? [],
+      sessionId: sessionId ?? 'new'
     });
     
     res.json(response);

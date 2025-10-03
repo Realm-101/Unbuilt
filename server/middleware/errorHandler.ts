@@ -274,8 +274,8 @@ class SecureErrorHandler {
       this.logSecurityEvent({
         type: securityEventType,
         userId: (req as any).user?.id?.toString(),
-        ip: req.ip || req.connection.remoteAddress || 'unknown',
-        userAgent: req.headers['user-agent'] || 'unknown',
+        ip: req.ip ?? req.connection.remoteAddress ?? 'unknown',
+        userAgent: req.headers['user-agent'] ?? 'unknown',
         endpoint: req.path,
         method: req.method,
         details: {

@@ -176,8 +176,8 @@ router.get('/stats', jwtAuth, asyncHandler(async (req: Request, res: Response) =
 
   // Device type distribution
   const deviceTypes = userSessions.reduce((acc, session) => {
-    const deviceType = session.deviceInfo.deviceType || 'unknown';
-    acc[deviceType] = (acc[deviceType] || 0) + 1;
+    const deviceType = session.deviceInfo.deviceType ?? 'unknown';
+    acc[deviceType] = (acc[deviceType] ?? 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 

@@ -124,7 +124,7 @@ export class CredentialDetector {
       });
 
       result.violations.forEach(violation => {
-        logger.warn(`Potential credential detected in ${violation.filename || 'content'}:${violation.line}`, {
+        logger.warn(`Potential credential detected in ${violation.filename ?? 'content'}:${violation.line}`, {
           severity: violation.severity,
           pattern: violation.pattern
         });

@@ -134,7 +134,7 @@ export class DatabaseStorage implements IStorage {
     const [newIdea] = await db.insert(ideas).values({
       ...ideaData,
       userId: parseInt(ideaData.userId),
-      status: ideaData.status || 'draft'
+      status: ideaData.status ?? 'draft'
     }).returning();
     return newIdea;
   }

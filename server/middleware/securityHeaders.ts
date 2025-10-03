@@ -35,40 +35,46 @@ export class SecurityHeadersMiddleware {
         this.setSecurityHeaders(res);
         this.setCustomHeaders(res);
         
-        // Log security header application
+        // Log security header application (fire and forget)
         securityLogger.logSecurityEvent(
           'API_ACCESS',
           'security_headers_applied',
           true,
           {
             userId: (req as any).user?.id,
-            ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
-            userAgent: req.get('User-Agent') || 'unknown',
+            ipAddress: req.ip ?? req.connection.remoteAddress ?? 'unknown',
+            userAgent: req.get('User-Agent') ?? 'unknown',
             metadata: {
               path: req.path,
               method: req.method,
               headers: this.getAppliedHeaders()
             }
           }
-        );
+        ).catch(error => {
+          console.error('Failed to log security headers event:', error);
+        });
 
         next();
       } catch (error) {
+        console.error('Error applying security headers:', error);
+        
         securityLogger.logSecurityEvent(
           'SECURITY_VIOLATION',
           'security_headers_error',
           false,
           {
             userId: (req as any).user?.id,
-            ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
-            userAgent: req.get('User-Agent') || 'unknown',
+            ipAddress: req.ip ?? req.connection.remoteAddress ?? 'unknown',
+            userAgent: req.get('User-Agent') ?? 'unknown',
             metadata: {
               path: req.path,
               method: req.method
             }
           },
           error instanceof Error ? error.message : 'Unknown error'
-        );
+        ).catch(logError => {
+          console.error('Failed to log security headers error:', logError);
+        });
         
         // Continue even if header setting fails
         next();
@@ -169,8 +175,8 @@ export class CSRFProtectionMiddleware {
             false,
             {
               userId: (req as any).user?.id,
-              ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
-              userAgent: req.get('User-Agent') || 'unknown',
+              ipAddress: req.ip ?? req.connection.remoteAddress ?? 'unknown',
+              userAgent: req.get('User-Agent') ?? 'unknown',
               metadata: {
                 path: req.path,
                 method: req.method,
@@ -179,7 +185,9 @@ export class CSRFProtectionMiddleware {
                 tokensMatch: token === sessionToken
               }
             }
-          );
+          ).catch(error => {
+            console.error('Failed to log CSRF violation:', error);
+          });
 
           return res.status(403).json({
             error: 'CSRF token validation failed',
@@ -190,21 +198,25 @@ export class CSRFProtectionMiddleware {
 
         next();
       } catch (error) {
+        console.error('CSRF protection error:', error);
+        
         securityLogger.logSecurityEvent(
           'SECURITY_VIOLATION',
           'csrf_protection_error',
           false,
           {
             userId: (req as any).user?.id,
-            ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
-            userAgent: req.get('User-Agent') || 'unknown',
+            ipAddress: req.ip ?? req.connection.remoteAddress ?? 'unknown',
+            userAgent: req.get('User-Agent') ?? 'unknown',
             metadata: {
               path: req.path,
               method: req.method
             }
           },
           error instanceof Error ? error.message : 'Unknown error'
-        );
+        ).catch(logError => {
+          console.error('Failed to log CSRF error:', logError);
+        });
 
         return res.status(500).json({
           error: 'CSRF protection error',
