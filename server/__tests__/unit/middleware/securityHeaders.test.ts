@@ -12,11 +12,12 @@ import {
   createSecurityHeadersMiddleware,
   createCSRFProtectionMiddleware
 } from '../../../middleware/securityHeaders';
+import { securityLogger } from '../../../services/securityLogger';
 
 // Mock security logger
 vi.mock('../../../services/securityLogger', () => ({
   securityLogger: {
-    logSecurityEvent: vi.fn().mockResolvedValue(undefined)
+    logSecurityEvent: vi.fn(() => Promise.resolve(undefined))
   }
 }));
 
@@ -51,6 +52,9 @@ vi.mock('../../../config/securityConfig', () => ({
 describe('Security Headers Middleware', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Restore security logger mock after clearAllMocks
+    vi.mocked(securityLogger.logSecurityEvent).mockResolvedValue(undefined);
   });
 
   describe('SecurityHeadersMiddleware', () => {
@@ -399,3 +403,4 @@ describe('Security Headers Middleware', () => {
     });
   });
 });
+

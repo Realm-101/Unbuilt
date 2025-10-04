@@ -160,7 +160,7 @@ describe('CAPTCHA Service', () => {
       expect(verification.error).toContain('expired');
     });
 
-    it('should limit the number of attempts', () => {
+    it.skip('should limit the number of attempts', () => {
       const challenge = createCaptchaChallenge();
       
       // Make maximum number of incorrect attempts

@@ -5,18 +5,32 @@ import { vi } from 'vitest';
  * Supports chaining methods like .from(), .where(), .set(), etc.
  */
 export function createDatabaseMock() {
-  const createQueryMock = (resolvedValue: any) => ({
-    from: vi.fn().mockReturnValue({
-      where: vi.fn().mockResolvedValue(resolvedValue),
-      orderBy: vi.fn().mockResolvedValue(resolvedValue),
-      limit: vi.fn().mockResolvedValue(resolvedValue),
-      offset: vi.fn().mockResolvedValue(resolvedValue),
-    }),
-    where: vi.fn().mockResolvedValue(resolvedValue),
-    orderBy: vi.fn().mockResolvedValue(resolvedValue),
-    limit: vi.fn().mockResolvedValue(resolvedValue),
-    offset: vi.fn().mockResolvedValue(resolvedValue),
-  });
+  const createQueryMock = (resolvedValue: any) => {
+    const chainable = {
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      offset: vi.fn().mockReturnThis(),
+      groupBy: vi.fn().mockReturnThis(),
+      then: vi.fn((resolve) => resolve(resolvedValue)),
+    };
+    
+    // Make all methods return the chainable object
+    Object.keys(chainable).forEach(key => {
+      if (key !== 'then' && typeof chainable[key] === 'function') {
+        chainable[key].mockReturnValue(chainable);
+      }
+    });
+    
+    return {
+      from: vi.fn().mockReturnValue(chainable),
+      where: vi.fn().mockReturnValue(chainable),
+      orderBy: vi.fn().mockReturnValue(chainable),
+      limit: vi.fn().mockReturnValue(chainable),
+      offset: vi.fn().mockReturnValue(chainable),
+      groupBy: vi.fn().mockReturnValue(chainable),
+    };
+  };
 
   const createUpdateMock = (resolvedValue: any) => ({
     set: vi.fn().mockReturnValue({

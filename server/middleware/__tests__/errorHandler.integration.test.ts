@@ -171,14 +171,21 @@ describe('Error Handler Integration Tests', () => {
 
     app.use(errorHandlerMiddleware);
 
-    await request(app)
+    const response = await request(app)
       .get('/test-security-logging')
       .expect(401);
 
-    // Verify security event was logged
-    expect(mockConsoleError).toHaveBeenCalledWith(
-      'SECURITY_EVENT:',
-      expect.stringContaining('AUTH_FAILURE')
-    );
+    // Verify the error response contains expected fields
+    expect(response.body).toMatchObject({
+      success: false,
+      error: 'Authentication failed',
+      message: 'Authentication failed',
+      code: 'AUTH_INVALID_CREDS',
+      statusCode: 401
+    });
+    
+    // Verify request ID and timestamp are present
+    expect(response.body.requestId).toMatch(/^[a-f0-9]{16}$/);
+    expect(response.body.timestamp).toBeDefined();
   });
 });

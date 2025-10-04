@@ -28,6 +28,7 @@ Welcome to the Unbuilt documentation. This directory contains comprehensive guid
 
 ### 📊 Project Reports
 - **[Completion Reports](completion-reports/README.md)** - Detailed task completion reports
+- **[Progress Reports Archive](progress-reports/README.md)** - Historical development progress (60+ reports)
 - **[TypeScript Improvements](completion-reports/TYPESCRIPT_FIXES_FINAL_REPORT.md)** - Type safety enhancements (92% coverage)
 
 ### 🛠️ Scripts & Tools

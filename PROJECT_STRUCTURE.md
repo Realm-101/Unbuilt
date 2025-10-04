@@ -15,19 +15,13 @@ unbuilt/
 ├── 📄 README.md                  # Main project documentation
 ├── 📄 CONTRIBUTING.md            # Contribution guidelines and standards
 ├── 📄 CHANGELOG.md               # Version history and security improvements
-├── 📄 SECURITY_FIXES.md          # Security implementation summary
-├── 📄 PERFORMANCE_OPTIMIZATIONS.md # Performance tuning guide
 ├── 📄 CODE_QUALITY.md            # Code quality improvements summary
-├── 📄 TYPE_COVERAGE_REPORT.md    # TypeScript type coverage report
-├── 📄 NULL_SAFETY_IMPROVEMENTS.md # Null safety improvements
-├── 📄 ERROR_HANDLING_IMPROVEMENTS.md # Error handling improvements
-├── 📄 COVERAGE_ANALYSIS.md       # Test coverage analysis
-├── 📄 TEST_COVERAGE_FIXES_SUMMARY.md # Test coverage fixes
-├── 📄 TASK_22_COMPLETION_SUMMARY.md # Search tests completion
-├── 📄 TASK_23_COMPLETION_SUMMARY.md # Authorization tests completion
-├── 📄 TASK_25_COMPLETION_SUMMARY.md # Coverage target completion
-├── 📄 TASK_27_JSDOC_COMPLETION.md # JSDoc documentation completion
-├── 📄 TASK_28_TYPE_ORGANIZATION_SUMMARY.md # Type organization completion
+├── 📄 PROJECT_STRUCTURE.md       # This file - project organization
+├── 📄 PROJECT_STATUS.md          # Current project status
+├── 📄 QUICK_START.md             # Quick setup guide
+├── 📄 QUICK_TEST_REFERENCE.md    # Testing quick reference
+├── 📄 DATABASE_SETUP.md          # Database configuration guide
+├── 📄 REPOSITORY_CLEANUP_SUMMARY.md # Repository organization summary
 ├── 📄 package.json               # Dependencies and scripts
 └── 📄 .env.example               # Environment configuration template
 ``` 
@@ -209,14 +203,27 @@ docs/
 ├── 📄 FEATURES.md                # Feature documentation
 ├── 📄 SETUP.md                   # Setup instructions
 ├── 📄 CREDENTIAL_SECURITY.md     # Credential security guide
-└── 📁 completion-reports/        # Task completion reports
-    ├── 📄 README.md              # Completion reports index
-    ├── 📄 TASK_9_COMPLETION_REPORT.md
-    ├── 📄 TASK_12_COMPLETION_REPORT.md
-    ├── 📄 TASK_13_COMPLETION_REPORT.md
-    ├── 📄 TASK_13_FIXES_APPLIED.md
-    ├── 📄 PHASE_1_COMPLETION_REPORT.md
-    └── 📄 PHASE_2_COMPLETION_REPORT.md
+├── 📄 GITHUB_SETUP.md            # GitHub integration setup
+├── 📄 OAUTH_SETUP.md             # OAuth configuration guide
+├── 📄 PLATFORM_STRATEGY.md       # Platform development strategy
+├── 📄 PRODUCTION_ROADMAP.md      # Production deployment roadmap
+├── 📄 WINDOWS_SETUP.md           # Windows-specific setup guide
+├── 📁 completion-reports/        # Task completion reports
+│   ├── 📄 README.md              # Completion reports index
+│   ├── 📄 TASK_9_COMPLETION_REPORT.md
+│   ├── 📄 TASK_12_COMPLETION_REPORT.md
+│   ├── 📄 TASK_13_COMPLETION_REPORT.md
+│   ├── 📄 TASK_13_FIXES_APPLIED.md
+│   ├── 📄 PHASE_1_COMPLETION_REPORT.md
+│   └── 📄 PHASE_2_COMPLETION_REPORT.md
+└── 📁 progress-reports/          # Historical progress reports archive
+    ├── 📄 README.md              # Progress reports index
+    ├── 📄 PHASE_*.md             # Phase completion reports (1-6)
+    ├── 📄 TASK_*.md              # Task completion summaries (22-36)
+    ├── 📄 TEST_*.md              # Testing and coverage reports
+    ├── 📄 SECURITY_*.md          # Security implementation reports
+    ├── 📄 DOCUMENTATION_*.md     # Documentation updates
+    └── 📄 *_SUMMARY.md           # Various completion summaries (65+ files)
 ```
 
 ## 🚀 Deployment Configuration (`deployment/`)

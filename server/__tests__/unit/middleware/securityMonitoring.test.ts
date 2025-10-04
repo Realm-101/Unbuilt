@@ -37,6 +37,13 @@ import { securityLogger } from '../../../services/securityLogger';
 describe('Security Monitoring Middleware', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Restore security logger mocks after clearAllMocks
+    vi.mocked(securityLogger.logSecurityEvent).mockResolvedValue(undefined);
+    vi.mocked(securityLogger.logApiAccess).mockResolvedValue(undefined);
+    vi.mocked(securityLogger.logAuthenticationEvent).mockResolvedValue(undefined);
+    vi.mocked(securityLogger.logDataAccess).mockResolvedValue(undefined);
+    vi.mocked(securityLogger.logSuspiciousActivity).mockResolvedValue(undefined);
   });
 
   describe('addSecurityContext', () => {
@@ -197,7 +204,7 @@ describe('Security Monitoring Middleware', () => {
     it('should sanitize sensitive request bodies', async () => {
       const req = mockRequest({
         method: 'POST',
-        path: '/api/users',
+        path: '/api/auth/login',
         body: { username: 'test', password: 'secret123' },
         securityContext: {}
       });
@@ -207,7 +214,7 @@ describe('Security Monitoring Middleware', () => {
       logApiAccess(req as any, res as any, next);
       await (res.end as any)();
 
-      // Should not log body for sensitive endpoints
+      // Should not log body for sensitive endpoints (like auth endpoints)
       const call = (securityLogger.logApiAccess as any).mock.calls[0];
       expect(call[3].metadata.body).toBeUndefined();
     });
@@ -619,3 +626,4 @@ describe('Security Monitoring Middleware', () => {
     });
   });
 });
+

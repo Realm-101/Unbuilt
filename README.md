@@ -334,16 +334,25 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **[Changelog](CHANGELOG.md)** - Version history and security improvements
 - **[Code Quality Report](CODE_QUALITY.md)** - Code quality metrics and standards
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
-- **[Security Fixes](SECURITY_FIXES.md)** - Security implementation summary
-- **[Performance Guide](PERFORMANCE_OPTIMIZATIONS.md)** - Performance optimization tips
 - **[Completion Reports](docs/completion-reports/README.md)** - Detailed task completion reports
+- **[Progress Reports Archive](docs/progress-reports/README.md)** - Historical development progress (65+ reports)
+
+### 🧪 Testing Documentation
+- **[Test Documentation](server/__tests__/README.md)** - Quick start guide for testing
+- **[Testing Guide](server/__tests__/TESTING_GUIDE.md)** - Comprehensive testing patterns
+- **[Test Infrastructure](server/__tests__/INFRASTRUCTURE_SETUP.md)** - Mock factory and utilities
+- **[Test Completion Report](docs/progress-reports/TEST_DEBT_PROJECT_COMPLETE.md)** - Test debt remediation summary
+- **[Quick Test Reference](QUICK_TEST_REFERENCE.md)** - Handy reference card for developers
 
 ### 🎯 Code Quality
 - **TypeScript Coverage:** 92% type-safe (4 known Drizzle ORM limitations)
 - **Build Status:** ✅ Passing
 - **Security Score:** A+ (comprehensive security implementation)
-- **Test Coverage:** Integration tests for critical paths
+- **Test Coverage:** 743 tests passing | 93.49% security | 88.18% auth | 0% flaky
+- **Test Execution:** ~73 seconds for full suite
 - **Documentation:** Comprehensive guides and API reference
+
+See [Test Completion Report](docs/progress-reports/TEST_DEBT_PROJECT_COMPLETE.md) for detailed test metrics.
 
 ## 🛠️ Development Tools
 
@@ -360,10 +369,16 @@ npm run security:maintenance   # Run security maintenance tasks
 
 ### Testing
 ```bash
-npm test                       # Run all tests
+npm test                       # Run all tests (watch mode)
+npm test -- --run             # Run all tests once
+npm test -- --run --coverage  # Run tests with coverage report
 npm run test:security         # Run security-specific tests
 npm run test:integration      # Run integration tests
 ```
+
+**Test Suite Status:** ✅ 743 tests passing | 93.49% security coverage | 0% flaky tests
+
+See [Test Documentation](server/__tests__/README.md) for comprehensive testing guide.
 
 ### Development
 ```bash

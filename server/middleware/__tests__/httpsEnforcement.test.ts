@@ -14,7 +14,7 @@ import { securityConfig } from '../../config/securityConfig';
 // Mock dependencies
 vi.mock('../../services/securityLogger', () => ({
   securityLogger: {
-    logSecurityEvent: vi.fn().mockResolvedValue(undefined)
+    logSecurityEvent: vi.fn(() => Promise.resolve(undefined))
   }
 }));
 
@@ -80,6 +80,23 @@ describe('HTTPSEnforcementMiddleware', () => {
 
     // Reset mocks
     vi.clearAllMocks();
+    
+    // Restore mock implementations after clearAllMocks
+    vi.mocked(securityLogger.logSecurityEvent).mockResolvedValue(undefined);
+    vi.mocked(securityConfig.getConfig).mockReturnValue({
+      environment: 'production',
+      security: {
+        https: {
+          enforce: true
+        },
+        cookies: {
+          secure: true,
+          httpOnly: true,
+          sameSite: 'strict',
+          maxAge: 86400000
+        }
+      }
+    } as any);
   });
 
   describe('HTTPS Redirect Functionality', () => {
@@ -374,6 +391,23 @@ describe('SecureCookieMiddleware', () => {
     mockNext = vi.fn();
 
     vi.clearAllMocks();
+    
+    // Restore mock implementations after clearAllMocks
+    vi.mocked(securityLogger.logSecurityEvent).mockResolvedValue(undefined);
+    vi.mocked(securityConfig.getConfig).mockReturnValue({
+      environment: 'production',
+      security: {
+        https: {
+          enforce: true
+        },
+        cookies: {
+          secure: true,
+          httpOnly: true,
+          sameSite: 'strict',
+          maxAge: 86400000
+        }
+      }
+    } as any);
   });
 
   describe('Cookie Security', () => {
@@ -531,6 +565,23 @@ describe('SessionSecurityMiddleware', () => {
     mockNext = vi.fn();
 
     vi.clearAllMocks();
+    
+    // Restore mock implementations after clearAllMocks
+    vi.mocked(securityLogger.logSecurityEvent).mockResolvedValue(undefined);
+    vi.mocked(securityConfig.getConfig).mockReturnValue({
+      environment: 'production',
+      security: {
+        https: {
+          enforce: true
+        },
+        cookies: {
+          secure: true,
+          httpOnly: true,
+          sameSite: 'strict',
+          maxAge: 86400000
+        }
+      }
+    } as any);
   });
 
   describe('CSRF Token Generation', () => {
@@ -971,3 +1022,4 @@ describe('SessionSecurityMiddleware', () => {
     });
   });
 });
+

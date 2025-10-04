@@ -2,36 +2,33 @@
  * Express Mocks
  * 
  * Mock implementations of Express request, response, and next objects
+ * 
+ * Note: These functions are maintained for backward compatibility.
+ * New tests should use mockFactory from './factory' for better consistency.
  */
 
 import { vi, expect } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
+import { mockFactory } from './factory';
 
 /**
  * Create a mock Express Request object
+ * 
+ * Note: Consider using mockFactory.createMockRequest() for new tests
  */
 export function mockRequest(overrides: Partial<Request> = {}): Partial<Request> & { session?: any } {
+  const baseRequest = mockFactory.createMockRequest(overrides);
+  
   return {
-    body: {},
-    params: {},
-    query: {},
-    headers: {},
+    ...baseRequest,
     cookies: {},
     signedCookies: {},
-    user: undefined,
     session: {} as any,
-    ip: '127.0.0.1',
-    method: 'GET',
     path: '/',
-    url: '/',
     originalUrl: '/',
     protocol: 'http',
     secure: false,
     xhr: false,
-    get: vi.fn((header: string) => {
-      const headers = (overrides.headers || {}) as Record<string, string | string[]>;
-      return headers[header.toLowerCase()];
-    }) as any,
     header: vi.fn(),
     accepts: vi.fn(),
     acceptsCharsets: vi.fn(),
@@ -44,19 +41,15 @@ export function mockRequest(overrides: Partial<Request> = {}): Partial<Request> 
 
 /**
  * Create a mock Express Response object
+ * 
+ * Note: Consider using mockFactory.createMockResponse() for new tests
  */
 export function mockResponse(): Partial<Response> {
+  const baseResponse = mockFactory.createMockResponse();
+  
   const res: Partial<Response> = {
-    status: vi.fn().mockReturnThis(),
-    json: vi.fn().mockReturnThis(),
-    send: vi.fn().mockReturnThis(),
-    sendStatus: vi.fn().mockReturnThis(),
-    redirect: vi.fn().mockReturnThis(),
+    ...baseResponse,
     render: vi.fn().mockReturnThis(),
-    cookie: vi.fn().mockReturnThis(),
-    clearCookie: vi.fn().mockReturnThis(),
-    setHeader: vi.fn().mockReturnThis(),
-    set: vi.fn().mockReturnThis(),
     header: vi.fn().mockReturnThis(),
     type: vi.fn().mockReturnThis(),
     contentType: vi.fn().mockReturnThis(),
@@ -67,7 +60,6 @@ export function mockResponse(): Partial<Response> {
     on: vi.fn().mockReturnThis(),
     removeHeader: vi.fn().mockReturnThis(),
     get: vi.fn(),
-    locals: {},
     headersSent: false,
     statusCode: 200,
   };
@@ -77,9 +69,11 @@ export function mockResponse(): Partial<Response> {
 
 /**
  * Create a mock Express NextFunction
+ * 
+ * Note: Consider using mockFactory.createMockNext() for new tests
  */
 export function mockNext(): NextFunction {
-  return vi.fn() as NextFunction;
+  return mockFactory.createMockNext();
 }
 
 /**
