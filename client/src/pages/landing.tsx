@@ -22,16 +22,16 @@ export default function Landing() {
     <div className="min-h-screen dark flame-bg">
       {/* Header */}
       <header className="flame-glass neon-flame-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between">
           <Logo size="lg" />
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={() => setLocation("/about")} className="text-gray-300 hover:text-white">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Button variant="ghost" onClick={() => setLocation("/about")} className="text-gray-300 hover:text-white hidden sm:inline-flex">
               About
             </Button>
-            <Button variant="ghost" onClick={handleSignIn} className="text-gray-300 hover:text-white">
+            <Button variant="ghost" onClick={handleSignIn} className="text-gray-300 hover:text-white text-sm sm:text-base">
               Sign In
             </Button>
-            <Button onClick={handleGetStarted} className="btn-flame">
+            <Button onClick={handleGetStarted} className="btn-flame text-sm sm:text-base">
               Get Started
             </Button>
           </div>
@@ -39,24 +39,24 @@ export default function Landing() {
       </header>
 
       {/* Hero Section */}
-      <section className="py-24 px-4">
+      <section className="py-12 sm:py-16 md:py-24 px-4">
         <div className="container mx-auto text-center">
-          <Badge className="mb-6 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 border-purple-500/30">
+          <Badge className="mb-4 sm:mb-6 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 border-purple-500/30 text-xs sm:text-sm">
             🚀 Discover What's Missing in the Market
           </Badge>
-          <h1 className="text-5xl font-bold text-white mb-6 drop-shadow-lg">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 sm:mb-6 drop-shadow-lg px-2">
             Discover What's Still <span className="flame-text drop-shadow-lg">Unbuilt</span>
           </h1>
-          <p className="text-xl text-gray-200 mb-8 max-w-3xl mx-auto drop-shadow-md">
+          <p className="text-base sm:text-lg md:text-xl text-gray-200 mb-6 sm:mb-8 max-w-3xl mx-auto drop-shadow-md px-4">
             The only AI-powered platform that reveals untapped market opportunities, 
             helping entrepreneurs and innovators discover what doesn't exist yet but should.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="px-8 py-6 text-lg btn-flame" onClick={handleGetStarted}>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
+            <Button size="lg" className="px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg btn-flame touch-manipulation min-h-[44px]" onClick={handleGetStarted}>
               Start Finding Gaps
-              <ArrowRight className="ml-2 w-5 h-5" />
+              <ArrowRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
-            <Button size="lg" variant="outline" className="px-8 py-6 text-lg border-purple-500/30 text-purple-300 hover:bg-purple-500/10" onClick={handleSignIn}>
+            <Button size="lg" variant="outline" className="px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg border-purple-500/30 text-purple-300 hover:bg-purple-500/10 touch-manipulation min-h-[44px]" onClick={handleSignIn}>
               View Demo
             </Button>
           </div>
@@ -64,18 +64,18 @@ export default function Landing() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4 bg-black/20 backdrop-blur-sm">
+      <section className="py-12 sm:py-16 md:py-20 px-4 bg-black/20 backdrop-blur-sm">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-white mb-4">
+          <div className="text-center mb-8 sm:mb-12 md:mb-16">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3 sm:mb-4 px-2">
               Why Choose Unbuilt?
             </h2>
-            <p className="text-lg text-gray-300">
+            <p className="text-base sm:text-lg text-gray-300 px-4">
               Turn market gaps into million-dollar opportunities
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
             <Card className="premium-card hover-glow">
               <CardHeader>
                 <TrendingUp className="w-12 h-12 text-purple-400 mb-4" />
@@ -110,18 +110,18 @@ export default function Landing() {
       </section>
 
       {/* Pricing Section */}
-      <section className="py-20 px-4 bg-gradient-to-br from-purple-900/10 to-blue-900/10">
+      <section className="py-12 sm:py-16 md:py-20 px-4 bg-gradient-to-br from-purple-900/10 to-blue-900/10">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-white mb-4">
+          <div className="text-center mb-8 sm:mb-12 md:mb-16">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3 sm:mb-4 px-2">
               Simple, Transparent Pricing
             </h2>
-            <p className="text-lg text-gray-300">
+            <p className="text-base sm:text-lg text-gray-300 px-4">
               Choose the plan that fits your innovation needs
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8 max-w-6xl mx-auto">
             {/* Free Plan */}
             <Card className="premium-card border-gray-600/30">
               <CardHeader className="text-center">
@@ -223,19 +223,19 @@ export default function Landing() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 flame-bg">
+      <section className="py-12 sm:py-16 md:py-20 px-4 flame-bg">
         <div className="container mx-auto text-center">
-          <div className="flame-glass neon-flame-border p-12 rounded-lg max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold text-white mb-6 flame-text">
+          <div className="flame-glass neon-flame-border p-6 sm:p-8 md:p-12 rounded-lg max-w-4xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4 sm:mb-6 flame-text px-2">
               Ready to Discover Your Next Big Opportunity?
             </h2>
-            <p className="text-xl text-gray-200 mb-8 drop-shadow-md">
+            <p className="text-base sm:text-lg md:text-xl text-gray-200 mb-6 sm:mb-8 drop-shadow-md px-4">
               Join thousands of entrepreneurs who've discovered what's still Unbuilt
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="btn-flame px-8 py-6 text-lg hover-lift" onClick={handleGetStarted}>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
+              <Button size="lg" className="btn-flame px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg hover-lift touch-manipulation min-h-[44px]" onClick={handleGetStarted}>
                 Start Finding Gaps Today
-                <ArrowRight className="w-5 h-5 ml-2" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
               </Button>
             </div>
           </div>
@@ -243,9 +243,9 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="flame-glass border-t neon-flame-border text-white py-12 px-4">
+      <footer className="flame-glass border-t neon-flame-border text-white py-8 sm:py-12 px-4">
         <div className="container mx-auto">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-6 sm:mb-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <Logo size="sm" />

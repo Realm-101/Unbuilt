@@ -290,6 +290,112 @@ class SecureErrorHandler {
   }
 
   /**
+   * Format Zod validation errors into user-friendly messages
+   * 
+   * Converts Zod error objects into structured field-level error messages
+   * that can be displayed to users.
+   * 
+   * @param error - Zod validation error
+   * @returns Formatted validation error with field-specific messages
+   */
+  private formatValidationErrors(error: z.ZodError): {
+    message: string;
+    fields: Record<string, string>;
+  } {
+    const fields: Record<string, string> = {};
+    
+    error.errors.forEach((err) => {
+      const path = err.path.join('.');
+      const message = this.getUserFriendlyValidationMessage(err);
+      fields[path] = message;
+    });
+
+    const fieldCount = Object.keys(fields).length;
+    const message = fieldCount === 1
+      ? 'Please correct the highlighted field'
+      : `Please correct ${fieldCount} fields`;
+
+    return { message, fields };
+  }
+
+  /**
+   * Convert Zod error to user-friendly message
+   * 
+   * @param error - Individual Zod error
+   * @returns User-friendly error message
+   */
+  private getUserFriendlyValidationMessage(error: z.ZodIssue): string {
+    const fieldName = error.path[error.path.length - 1] || 'field';
+    
+    switch (error.code) {
+      case 'invalid_type':
+        return `${fieldName} must be a valid ${error.expected}`;
+      
+      case 'too_small':
+        if (error.type === 'string') {
+          return `${fieldName} must be at least ${error.minimum} characters`;
+        }
+        if (error.type === 'number') {
+          return `${fieldName} must be at least ${error.minimum}`;
+        }
+        if (error.type === 'array') {
+          return `${fieldName} must contain at least ${error.minimum} items`;
+        }
+        return error.message;
+      
+      case 'too_big':
+        if (error.type === 'string') {
+          return `${fieldName} must be at most ${error.maximum} characters`;
+        }
+        if (error.type === 'number') {
+          return `${fieldName} must be at most ${error.maximum}`;
+        }
+        if (error.type === 'array') {
+          return `${fieldName} must contain at most ${error.maximum} items`;
+        }
+        return error.message;
+      
+      case 'invalid_string':
+        if (error.validation === 'email') {
+          return `${fieldName} must be a valid email address`;
+        }
+        if (error.validation === 'url') {
+          return `${fieldName} must be a valid URL`;
+        }
+        return `${fieldName} format is invalid`;
+      
+      case 'invalid_enum_value':
+        return `${fieldName} must be one of: ${error.options.join(', ')}`;
+      
+      default:
+        return error.message || `${fieldName} is invalid`;
+    }
+  }
+
+  /**
+   * Detect if error is network-related
+   * 
+   * @param error - Error to check
+   * @returns True if error is network-related
+   */
+  private isNetworkError(error: Error): boolean {
+    const networkKeywords = [
+      'ECONNREFUSED',
+      'ENOTFOUND',
+      'ETIMEDOUT',
+      'ECONNRESET',
+      'network',
+      'fetch failed',
+      'connection',
+    ];
+
+    return networkKeywords.some(keyword => 
+      error.message?.toLowerCase().includes(keyword.toLowerCase()) ||
+      error.name?.toLowerCase().includes(keyword.toLowerCase())
+    );
+  }
+
+  /**
    * Log security event for monitoring and auditing
    * 
    * Records security-related events for analysis and compliance.
@@ -361,6 +467,20 @@ class SecureErrorHandler {
     const requestId = this.generateRequestId();
     const isAppError = error instanceof AppError;
 
+    // Detect network errors
+    const isNetworkErr = this.isNetworkError(error);
+    if (isNetworkErr && !isAppError) {
+      const networkError = new AppError(
+        'Network connection error. Please check your connection and try again.',
+        ErrorType.SYSTEM,
+        503,
+        'SYS_NETWORK_ERROR'
+      );
+      const errorResponse = this.createErrorResponse(networkError, requestId);
+      res.status(503).json(errorResponse);
+      return;
+    }
+
     // Log detailed error information internally
     console.error(`[${requestId}] Error in ${req.method} ${req.path}:`, {
       message: error.message,
@@ -368,7 +488,8 @@ class SecureErrorHandler {
       type: isAppError ? error.type : 'UNKNOWN',
       userId: (req as any).user?.id,
       ip: req.ip || req.connection.remoteAddress,
-      userAgent: req.headers['user-agent']
+      userAgent: req.headers['user-agent'],
+      isNetworkError: isNetworkErr
     });
 
     // Determine security event type and log if necessary
@@ -415,19 +536,26 @@ class SecureErrorHandler {
       });
     }
 
-    // Handle Zod validation errors
+    // Handle Zod validation errors with formatted messages
     if (error instanceof z.ZodError) {
+      const formattedErrors = this.formatValidationErrors(error);
       const validationError = new AppError(
-        'Invalid input data',
+        formattedErrors.message,
         ErrorType.VALIDATION,
         400,
         'VAL_INVALID_INPUT',
         true,
-        { validationErrors: error.errors }
+        { 
+          validationErrors: error.errors,
+          fields: formattedErrors.fields
+        }
       );
       
       const errorResponse = this.createErrorResponse(validationError, requestId);
-      res.status(400).json(errorResponse);
+      res.status(400).json({
+        ...errorResponse,
+        fields: formattedErrors.fields
+      });
       return;
     }
 

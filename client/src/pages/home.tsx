@@ -5,7 +5,6 @@ import { Clock, Crown, Zap, Target, Lightbulb } from "lucide-react";
 import Layout from "@/components/layout-new";
 import PremiumSearchBar from "@/components/premium-search-bar";
 import LoadingModal from "@/components/loading-modal";
-import OnboardingTour from "@/components/onboarding-tour";
 import FreeTrialModal from "@/components/free-trial-modal";
 import UsageTracker from "@/components/usage-tracker";
 import { SearchFilters as SearchFiltersComponent, type SearchFilters } from "@/components/search/SearchFilters";
@@ -16,27 +15,10 @@ import type { Search } from "@shared/schema";
 export default function Home() {
   const [, setLocation] = useLocation();
   const [isSearching, setIsSearching] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [showTrialModal, setShowTrialModal] = useState(false);
   const [searchFilters, setSearchFilters] = useState<SearchFilters | null>(null);
   const [totalResults, setTotalResults] = useState<number | undefined>(undefined);
   const { user } = useAuth();
-  
-  // Simple onboarding tour state management
-  const hasSeenTour = localStorage.getItem('unbuilt-tour-completed') === 'true';
-  const shouldShowTour = !hasSeenTour;
-  
-  const markTourAsShown = () => {
-    localStorage.setItem('unbuilt-tour-completed', 'true');
-  };
-
-  React.useEffect(() => {
-    if (shouldShowTour) {
-      // Show tour after a brief delay for better UX
-      const timer = setTimeout(() => setShowOnboarding(true), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [shouldShowTour]);
 
   // If user is not authenticated, return null (App.tsx handles routing)
   if (!user) {
@@ -77,11 +59,6 @@ export default function Home() {
     setShowTrialModal(true);
   };
 
-  const handleCloseTour = () => {
-    setShowOnboarding(false);
-    markTourAsShown();
-  };
-
   const handleUpgrade = () => {
     setShowTrialModal(true);
   };
@@ -98,31 +75,31 @@ export default function Home() {
         <div className="fixed inset-0 bg-gradient-to-br from-purple-900/15 via-pink-900/15 to-orange-900/15 pointer-events-none z-0" />
         <div className="fixed inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(168,85,247,0.08),transparent_50%)] pointer-events-none z-0" />
         
-        <div className="relative max-w-6xl mx-auto px-4 py-8 z-10">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12 z-10">
           {/* Hero Section */}
-          <div className="text-center mb-8">
-            <div className="animate-float mb-8">
-              <h1 className="text-6xl font-bold mb-6">
+          <div className="text-center mb-6 sm:mb-8 lg:mb-12">
+            <div className="animate-float mb-6 sm:mb-8">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 px-2">
                 <span className="neon-glow">Discover What's</span>
                 <br />
                 <span className="neon-glow">Still Unbuilt</span>
               </h1>
             </div>
-            <p className="text-2xl text-gray-300 max-w-3xl mx-auto mb-8 leading-relaxed">
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-300 max-w-3xl mx-auto mb-6 sm:mb-8 leading-relaxed px-4">
               Find untapped market opportunities and innovation gaps using AI-powered analysis.
-              <br />
+              <br className="hidden sm:block" />
               <span className="text-purple-400">Turn hidden potential into your next big venture.</span>
             </p>
             
             {/* User Status Badge */}
             {user && (
-              <div className="flex items-center justify-center space-x-4 mb-8">
-                <div className="bg-gray-800 border border-gray-700 px-6 py-3 rounded-full">
-                  <span className="text-sm font-medium text-white">
+              <div className="flex items-center justify-center mb-6 sm:mb-8 px-4">
+                <div className="bg-gray-800 border border-gray-700 px-4 sm:px-6 py-2 sm:py-3 rounded-full">
+                  <span className="text-xs sm:text-sm font-medium text-white">
                     Welcome back, <span className="text-purple-400">{(user as any)?.firstName || (user as any)?.email || 'User'}</span>
                   </span>
                   {(user as any)?.plan === 'pro' && (
-                    <Crown className="inline w-4 h-4 ml-2 text-yellow-500" />
+                    <Crown className="inline w-3 h-3 sm:w-4 sm:h-4 ml-2 text-yellow-500" />
                   )}
                 </div>
               </div>
@@ -130,12 +107,12 @@ export default function Home() {
           </div>
           
           {/* Usage Tracker */}
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <UsageTracker onUpgrade={handleUpgrade} />
           </div>
 
           {/* Search with Filters */}
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <SearchFiltersComponent
               onFiltersChange={setSearchFilters}
               onSearch={handleSearch}
@@ -146,23 +123,23 @@ export default function Home() {
 
           {/* Recent Searches */}
           {recentSearches && recentSearches.length > 0 && (
-            <div className="mt-8">
-              <h2 className="text-2xl font-bold mb-6 text-center text-white">
+            <div className="mt-6 sm:mt-8">
+              <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-center text-white px-4">
                 <span className="text-purple-400">Recent Discoveries</span>
               </h2>
-              <div className="grid gap-4 max-w-2xl mx-auto">
+              <div className="grid gap-3 sm:gap-4 max-w-2xl mx-auto">
                 {recentSearches.map((search) => (
                   <button
                     key={search.id}
                     onClick={() => setLocation(`/search/${search.id}`)}
-                    className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:bg-gray-750 transition-all text-white"
+                    className="bg-gray-800 border border-gray-700 rounded-lg p-3 sm:p-4 hover:bg-gray-750 transition-all text-white touch-manipulation"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Clock className="w-4 h-4 text-purple-400" />
-                        <span className="font-medium">{search.query}</span>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                        <Clock className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                        <span className="font-medium text-sm sm:text-base truncate">{search.query}</span>
                       </div>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-400 flex-shrink-0">
                         {new Date(search.timestamp).toLocaleDateString()}
                       </span>
                     </div>
@@ -178,12 +155,6 @@ export default function Home() {
         isOpen={isSearching}
         title="Analyzing Market Gaps"
         message="Our AI is exploring untapped opportunities in your search area..."
-      />
-      
-      <OnboardingTour
-        isOpen={showOnboarding}
-        onClose={handleCloseTour}
-        onStartTrial={handleStartTrial}
       />
       
       <FreeTrialModal

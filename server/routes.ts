@@ -29,10 +29,13 @@ import adminRoutes from "./routes/admin";
 import securityMonitoringRoutes from "./routes/securityMonitoring";
 import securityDashboardRoutes from "./routes/securityDashboard";
 import captchaRoutes from "./routes/captcha";
+import privacyRoutes from "./routes/privacy";
 import { trackSession, monitorSessionSecurity } from "./middleware/sessionManagement";
 import { addUserAuthorization, requirePermission } from "./middleware/authorization";
 import { validateSearchOwnership, validateIdeaOwnership, enforceUserDataScope } from "./middleware/resourceOwnership";
 import { Permission } from "./services/authorizationService";
+import { trackSearchMiddleware, trackExportMiddleware, trackPageView } from "./middleware/trackingMiddleware";
+import { cacheStatsMiddleware, cacheStatsTracker } from "./middleware/cacheStats";
 import { 
   AppError, 
   ErrorType, 
@@ -61,7 +64,10 @@ import { getAIValidationInsights, combineValidationScores } from "./services/aiI
 import { generateFinancialModel, calculateBreakEvenAnalysis, generateScenarioAnalysis } from "./services/financialModeling";
 import { exportResults, sendEmailReport } from "./routes/export";
 import analyticsRouter from "./routes/analytics";
+import analyticsAdminRouter from "./routes/analyticsAdmin";
 import aiAssistantRouter from "./routes/aiAssistant";
+import stripeRouter from "./routes/stripe";
+import searchHistoryRouter from "./routes/searchHistory";
 import { config, configStatus } from "./config";
 import Stripe from "stripe";
 
@@ -163,11 +169,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apply global input sanitization and validation to all API routes
   app.use('/api', apiRateLimit, comprehensiveValidation, sanitizeInput, validateApiInput);
   
+  // Apply cache statistics tracking
+  app.use('/api', cacheStatsMiddleware);
+  
   // Apply session tracking and security monitoring to authenticated routes
   app.use('/api', trackSession, monitorSessionSecurity);
   
   // Add user authorization info to all authenticated requests
   app.use('/api', addUserAuthorization);
+  
+  // Apply analytics tracking middleware
+  app.use('/api', trackSearchMiddleware, trackExportMiddleware);
   
   // JWT Authentication routes
   app.use('/api/auth', authRoutes);
@@ -193,8 +205,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Analytics routes
   app.use('/api/analytics', analyticsRouter);
   
+  // Analytics admin routes (protected)
+  app.use('/api/analytics-admin', analyticsAdminRouter);
+  
   // AI Assistant routes
   app.use('/api/ai-assistant', aiAssistantRouter);
+  
+  // Stripe payment routes
+  app.use('/api/stripe', stripeRouter);
+  
+  // Search history routes
+  app.use('/api/search-history', searchHistoryRouter);
+  
+  // Privacy and data control routes
+  app.use('/api/privacy', privacyRoutes);
 
 
 
@@ -204,16 +228,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const parsedQuery = insertSearchSchema.parse({ query });
     const userId = req.user!.id;
     
-    // Create search record
-    const search = await storage.createSearch({ query: parsedQuery.query, userId: String(userId) });
+    // Generate cache key for this search query
+    const { cacheService, CacheNamespaces, CacheTTL } = await import("./services/cache");
+    const { log: logMessage } = await import("./vite");
+    const cacheKey = cacheService.generateKey(
+      CacheNamespaces.SEARCH_RESULTS, 
+      `${parsedQuery.query}:${JSON.stringify(filters || {})}`
+    );
     
-    // Analyze gaps using Gemini with filters context
-    let gaps = await analyzeGaps(parsedQuery.query);
+    // Check cache first
+    const cachedGaps = await cacheService.get<any[]>(cacheKey);
+    let gaps: any[];
+    let cacheHit = false;
+    
+    if (cachedGaps) {
+      gaps = cachedGaps;
+      cacheHit = true;
+      logMessage(`Cache hit for search: ${parsedQuery.query}`);
+    } else {
+      // Analyze gaps using Gemini with filters context
+      gaps = await analyzeGaps(parsedQuery.query);
+      
+      // Cache the results for 1 hour
+      await cacheService.set(cacheKey, gaps, CacheTTL.LONG);
+      logMessage(`Cache miss for search: ${parsedQuery.query}`);
+    }
     
     // Apply filters if provided
     if (filters) {
       gaps = applySearchFilters(gaps, filters);
     }
+    
+    // Create search record
+    const search = await storage.createSearch({ query: parsedQuery.query, userId: String(userId) });
     
     // Create search results
     const results = await Promise.all(
@@ -232,7 +279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       )
     );
     
-    sendSuccess(res, { search, results });
+    sendSuccess(res, { search, results, _cacheHit: cacheHit });
   }));
 
   // Get search results
@@ -247,6 +294,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const userId = req.query.userId as string;
     const searches = await storage.getSearches(userId);
     sendSuccess(res, searches);
+  }));
+
+  // Get cache statistics (admin only)
+  app.get("/api/cache/stats", apiRateLimit, jwtAuth, requirePermission(Permission.MANAGE_USERS), asyncHandler(async (req, res) => {
+    const stats = cacheStatsTracker.getAllStats();
+    const { cacheService } = await import("./services/cache");
+    const cacheAvailable = cacheService.isAvailable();
+    
+    sendSuccess(res, {
+      cacheAvailable,
+      statistics: stats,
+      timestamp: new Date().toISOString()
+    });
+  }));
+
+  // Clear cache (admin only)
+  app.post("/api/cache/clear", apiRateLimit, jwtAuth, requirePermission(Permission.MANAGE_USERS), asyncHandler(async (req, res) => {
+    const { cacheService } = await import("./services/cache");
+    const { pattern } = req.body;
+    
+    let cleared = 0;
+    if (pattern) {
+      cleared = await cacheService.deletePattern(pattern);
+    } else {
+      await cacheService.flushAll();
+      cleared = -1; // Indicates full flush
+    }
+    
+    sendSuccess(res, {
+      message: cleared === -1 ? 'All cache cleared' : `Cleared ${cleared} cache entries`,
+      cleared
+    });
   }));
 
   // Save/unsave result

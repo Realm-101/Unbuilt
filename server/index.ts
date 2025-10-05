@@ -9,6 +9,7 @@ import { scheduledTaskService } from "./services/scheduledTasks";
 import { envValidator } from "./config/envValidator";
 import { securityHeadersMiddleware } from "./middleware/securityHeaders";
 import { httpsEnforcementMiddleware, secureCookieMiddleware, sessionSecurityMiddleware } from "./middleware/httpsEnforcement";
+import { cacheService } from "./services/cache";
 
 const app = express();
 
@@ -90,6 +91,15 @@ app.get('/health', (req, res) => {
 
   if (requiredValidation.isValid) {
     log("✅ Environment configuration validated successfully");
+  }
+
+  // Initialize Redis cache service
+  log("Initializing Redis cache service...");
+  await cacheService.connect();
+  if (cacheService.isAvailable()) {
+    log("✅ Redis cache service connected successfully");
+  } else {
+    log("⚠️  Redis cache service unavailable - continuing without cache");
   }
 
   // Add security monitoring middleware before routes

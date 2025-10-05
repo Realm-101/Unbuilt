@@ -4,6 +4,7 @@ import { useRoute } from "wouter";
 import { Filter, Grid, List, ChevronLeft, ChevronRight, Download, Search as SearchIcon, SlidersHorizontal, BarChart3, Eye } from "lucide-react";
 import Layout from "@/components/layout-new";
 import ResultCard from "@/components/result-card";
+import GapCategoryCard from "@/components/GapCategoryCard";
 import ShareModal from "@/components/share-modal";
 import ActionPlanModal from "@/components/action-plan-modal";
 import ExportModal from "@/components/export-modal";
@@ -150,11 +151,11 @@ export default function SearchResults() {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8">
           {/* Sidebar - Only show for results view */}
           {viewMode === "results" && (
-            <aside className="w-64 hidden lg:block">
+            <aside className="w-full lg:w-64 hidden lg:block">
               <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-6">
                 <h3 className="font-medium text-white mb-3">Filter by Category</h3>
                 <div className="space-y-2">
@@ -176,26 +177,26 @@ export default function SearchResults() {
           )}
 
           {/* Main Content */}
-          <main className="flex-1">
+          <main className="flex-1 min-w-0">
             {/* Search Results Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-medium text-white">Gap Analysis Results</h2>
-                <p className="text-sm text-gray-400">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-medium text-white truncate">Gap Analysis Results</h2>
+                <p className="text-xs sm:text-sm text-gray-400">
                   About {filteredResults.length} opportunities found for "{search?.query}"
                 </p>
               </div>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                 {/* View Mode Toggle */}
-                <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "results" | "analytics")}>
-                  <TabsList className="bg-gray-800 border-gray-700">
-                    <TabsTrigger value="results" className="flex items-center gap-2">
-                      <Eye className="w-4 h-4" />
-                      Results
+                <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "results" | "analytics")} className="w-full sm:w-auto">
+                  <TabsList className="bg-gray-800 border-gray-700 w-full sm:w-auto">
+                    <TabsTrigger value="results" className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-initial">
+                      <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="text-xs sm:text-sm">Results</span>
                     </TabsTrigger>
-                    <TabsTrigger value="analytics" className="flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4" />
-                      Analytics
+                    <TabsTrigger value="analytics" className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-initial">
+                      <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="text-xs sm:text-sm">Analytics</span>
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -204,23 +205,23 @@ export default function SearchResults() {
                   variant="outline" 
                   size="sm"
                   onClick={() => setFiltersOpen(!filtersOpen)}
-                  className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800 touch-manipulation"
                 >
-                  <SlidersHorizontal className="w-4 h-4 mr-2" />
-                  Advanced Filters
+                  <SlidersHorizontal className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Advanced Filters</span>
                 </Button>
                 <Button 
                   variant="outline" 
                   size="sm"
                   onClick={() => setExportModalOpen(true)}
-                  className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800 touch-manipulation"
                 >
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
+                  <Download className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Export</span>
                 </Button>
                 {viewMode === "results" && (
                   <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-48 bg-gray-800 border-gray-700 text-gray-300">
+                    <SelectTrigger className="w-full sm:w-48 bg-gray-800 border-gray-700 text-gray-300 text-xs sm:text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-800 border-gray-700">
@@ -238,9 +239,9 @@ export default function SearchResults() {
             {viewMode === "results" && (
               <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
                 <CollapsibleContent>
-                  <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 mb-6">
-                  <h3 className="font-semibold text-white mb-4">Advanced Filters</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6 mb-4 sm:mb-6">
+                  <h3 className="font-semibold text-white mb-3 sm:mb-4 text-sm sm:text-base">Advanced Filters</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {/* Search Query Filter */}
                     <div>
                       <Label htmlFor="search-filter">Search within results</Label>
@@ -354,7 +355,7 @@ export default function SearchResults() {
                 {/* Results */}
                 <div className="space-y-6">
                   {paginatedResults.map((result: SearchResult) => (
-                    <ResultCard
+                    <GapCategoryCard
                       key={result.id}
                       result={result}
                       onSave={handleSaveResult}
@@ -366,34 +367,36 @@ export default function SearchResults() {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-center mt-8">
-                    <div className="flex items-center space-x-2">
+                  <div className="flex items-center justify-center mt-6 sm:mt-8">
+                    <div className="flex items-center gap-1 sm:gap-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                         disabled={currentPage === 1}
-                        className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                        className="border-gray-700 text-gray-300 hover:bg-gray-800 touch-manipulation min-w-[44px] min-h-[44px]"
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </Button>
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                        <Button
-                          key={page}
-                          variant={currentPage === page ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCurrentPage(page)}
-                          className={currentPage === page ? "bg-orange-600 hover:bg-orange-700" : "border-gray-700 text-gray-300 hover:bg-gray-800"}
-                        >
-                          {page}
-                        </Button>
-                      ))}
+                      <div className="flex items-center gap-1 overflow-x-auto max-w-[200px] sm:max-w-none">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                          <Button
+                            key={page}
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(page)}
+                            className={`touch-manipulation min-w-[44px] min-h-[44px] ${currentPage === page ? "bg-orange-600 hover:bg-orange-700" : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
+                          >
+                            {page}
+                          </Button>
+                        ))}
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                         disabled={currentPage === totalPages}
-                        className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                        className="border-gray-700 text-gray-300 hover:bg-gray-800 touch-manipulation min-w-[44px] min-h-[44px]"
                       >
                         <ChevronRight className="w-4 h-4" />
                       </Button>

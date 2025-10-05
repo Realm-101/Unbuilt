@@ -1,13 +1,12 @@
-import { useState, useEffect } from "react";
-import { X, ArrowRight, ArrowLeft, Sparkles, Target, TrendingUp, Download } from "lucide-react";
+import { useEffect } from "react";
+import { X, ArrowRight, ArrowLeft, Sparkles, Target, TrendingUp, Download, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-
+import { useOnboarding } from "@/hooks/useOnboarding";
+import { useLocation } from "wouter";
 
 interface OnboardingTourProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onStartTrial: () => void;
+  onStartTrial?: () => void;
 }
 
 const tourSteps = [
@@ -49,16 +48,28 @@ const tourSteps = [
   }
 ];
 
-export default function OnboardingTour({ isOpen, onClose, onStartTrial }: OnboardingTourProps) {
-  const [currentStep, setCurrentStep] = useState(0);
+export default function OnboardingTour({ onStartTrial }: OnboardingTourProps) {
+  const [, setLocation] = useLocation();
+  const {
+    isActive,
+    currentStep,
+    nextStep,
+    previousStep,
+    skipOnboarding,
+    completeOnboarding,
+    canGoNext,
+    canGoPrevious,
+    progress,
+  } = useOnboarding();
 
   useEffect(() => {
-    if (isOpen) {
-      // Highlight elements when tour opens
+    if (isActive) {
+      // Highlight elements when tour is active
       const highlightElement = (elementId: string) => {
         const element = document.getElementById(elementId);
         if (element) {
           element.classList.add('tour-highlight');
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       };
 
@@ -74,29 +85,40 @@ export default function OnboardingTour({ isOpen, onClose, onStartTrial }: Onboar
         el.classList.remove('tour-highlight');
       });
     };
-  }, [isOpen, currentStep]);
+  }, [isActive, currentStep]);
 
-  if (!isOpen) return null;
+  if (!isActive) return null;
 
   const currentStepData = tourSteps[currentStep];
   const isLastStep = currentStep === tourSteps.length - 1;
   const isFirstStep = currentStep === 0;
 
-  const nextStep = () => {
-    if (currentStep < tourSteps.length - 1) {
-      setCurrentStep(currentStep + 1);
+  const handleNext = () => {
+    if (canGoNext) {
+      nextStep();
     }
   };
 
-  const prevStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+  const handlePrevious = () => {
+    if (canGoPrevious) {
+      previousStep();
     }
   };
 
-  const handleStartTrial = () => {
-    onStartTrial();
-    onClose();
+  const handleSkip = () => {
+    skipOnboarding();
+  };
+
+  const handleComplete = async () => {
+    await completeOnboarding();
+    
+    // Offer sample search demo
+    if (onStartTrial) {
+      onStartTrial();
+    } else {
+      // Navigate to home with a sample search suggestion
+      setLocation('/');
+    }
   };
 
   return (
@@ -115,7 +137,7 @@ export default function OnboardingTour({ isOpen, onClose, onStartTrial }: Onboar
                   <p className="text-sm text-purple-200">Step {currentStep + 1} of {tourSteps.length}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={onClose} className="text-white hover:bg-white/10">
+              <Button variant="ghost" size="sm" onClick={handleSkip} className="text-white hover:bg-white/10">
                 <X className="w-4 h-4" />
               </Button>
             </div>
@@ -124,7 +146,7 @@ export default function OnboardingTour({ isOpen, onClose, onStartTrial }: Onboar
             <div className="w-full bg-gray-700 rounded-full h-2 mb-6">
               <div 
                 className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${((currentStep + 1) / tourSteps.length) * 100}%` }}
+                style={{ width: `${progress}%` }}
               />
             </div>
 
@@ -167,36 +189,39 @@ export default function OnboardingTour({ isOpen, onClose, onStartTrial }: Onboar
 
             {/* Navigation */}
             <div className="flex items-center justify-between">
-              <Button 
-                variant="ghost" 
-                onClick={prevStep} 
-                disabled={isFirstStep}
-                className="text-white hover:bg-white/10 disabled:opacity-50"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Previous
-              </Button>
+              <div className="flex items-center space-x-2">
+                <Button 
+                  variant="ghost" 
+                  onClick={handlePrevious} 
+                  disabled={!canGoPrevious}
+                  className="text-white hover:bg-white/10 disabled:opacity-50"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Previous
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  onClick={handleSkip}
+                  className="text-white/70 hover:bg-white/10 text-sm"
+                >
+                  Skip Tour
+                </Button>
+              </div>
 
               {isLastStep ? (
                 <div className="space-x-3">
                   <Button 
-                    variant="outline" 
-                    onClick={onClose}
-                    className="text-white border-white/20 hover:bg-white/10"
-                  >
-                    Maybe Later
-                  </Button>
-                  <Button 
-                    onClick={handleStartTrial}
+                    onClick={handleComplete}
                     className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg"
                   >
-                    Start Free Trial
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <Play className="w-4 h-4 mr-2" />
+                    Try Sample Search
                   </Button>
                 </div>
               ) : (
                 <Button 
-                  onClick={nextStep}
+                  onClick={handleNext}
+                  disabled={!canGoNext}
                   className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                 >
                   Next

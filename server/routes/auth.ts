@@ -20,6 +20,7 @@ import {
   asyncHandler, 
   sendSuccess
 } from '../middleware/errorHandler';
+import { trackSignupEvent } from '../middleware/trackingMiddleware';
 
 const router = Router();
 
@@ -124,6 +125,9 @@ router.post('/register', registerRateLimit, validateRegister, sanitizeInput, val
     name: userData.name,
     provider: 'local'
   });
+
+  // Track signup event
+  await trackSignupEvent(user.id, 'local');
 
   // Parse device info and get IP
   const deviceInfo = SessionManager.parseDeviceInfo(req.headers['user-agent']);
@@ -355,6 +359,18 @@ router.post('/validate-password-strength', authRateLimit, validatePasswordStreng
     score: strengthResult.score,
     feedback: strengthResult.feedback,
     requirements: strengthResult.requirements
+  });
+}));
+
+// Mark onboarding as complete for user
+router.post('/onboarding-complete', jwtAuth, asyncHandler(async (req, res) => {
+  const userId = req.user!.id;
+  
+  // For now, just return success since we're using localStorage
+  // In the future, we can add an onboardingCompleted field to the users table
+  sendSuccess(res, { 
+    success: true,
+    message: 'Onboarding completed successfully'
   });
 }));
 

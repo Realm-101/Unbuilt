@@ -8,12 +8,16 @@ export const searches = pgTable("searches", {
   timestamp: timestamp({ mode: 'string' }).defaultNow().notNull(),
   resultsCount: integer("results_count").default(0).notNull(),
   userId: integer("user_id"),
+  isFavorite: boolean("is_favorite").default(false).notNull(),
 }, (table) => [
   foreignKey({
     columns: [table.userId],
     foreignColumns: [users.id],
     name: "searches_user_id_users_id_fk"
   }),
+  index("idx_searches_user_id").on(table.userId),
+  index("idx_searches_timestamp").on(table.timestamp.desc()),
+  index("idx_searches_is_favorite").on(table.isFavorite),
 ]);
 
 export const searchResults = pgTable("search_results", {
@@ -21,19 +25,30 @@ export const searchResults = pgTable("search_results", {
   searchId: integer("search_id").notNull(),
   title: text().notNull(),
   description: text().notNull(),
-  category: text().notNull(),
-  feasibility: text().notNull(),
-  marketPotential: text("market_potential").notNull(),
+  category: text().notNull(), // 'market' | 'technology' | 'ux' | 'business_model'
+  feasibility: text().notNull(), // 'high' | 'medium' | 'low'
+  marketPotential: text("market_potential").notNull(), // 'high' | 'medium' | 'low'
   innovationScore: integer("innovation_score").notNull(),
   marketSize: text("market_size").notNull(),
   gapReason: text("gap_reason").notNull(),
   isSaved: boolean("is_saved").default(false).notNull(),
+  // Phase 3 enhanced fields
+  confidenceScore: integer("confidence_score").default(75).notNull(), // 0-100
+  priority: text().default('medium').notNull(), // 'high' | 'medium' | 'low'
+  actionableRecommendations: jsonb("actionable_recommendations").default([]).notNull(), // string[]
+  competitorAnalysis: text("competitor_analysis"),
+  industryContext: text("industry_context"),
+  targetAudience: text("target_audience"),
+  keyTrends: jsonb("key_trends").default([]), // string[]
 }, (table) => [
   foreignKey({
     columns: [table.searchId],
     foreignColumns: [searches.id],
     name: "search_results_search_id_searches_id_fk"
   }),
+  index("idx_search_results_priority").on(table.priority),
+  index("idx_search_results_category").on(table.category),
+  index("idx_search_results_confidence_score").on(table.confidenceScore.desc()),
 ]);
 
 export const users = pgTable("users", {
@@ -48,7 +63,9 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
+  subscriptionTier: text("subscription_tier").default('free').notNull(), // 'free' | 'pro' | 'business' | 'enterprise'
   subscriptionStatus: text("subscription_status").default('inactive'),
+  subscriptionPeriodEnd: timestamp("subscription_period_end", { mode: 'string' }),
   trialUsed: boolean("trial_used").default(false).notNull(),
   trialExpiration: timestamp("trial_expiration", { mode: 'string' }),
   preferences: jsonb().default({}),
@@ -64,6 +81,8 @@ export const users = pgTable("users", {
   lastFailedLogin: timestamp("last_failed_login", { mode: 'string' }),
   accountLocked: boolean("account_locked").default(false).notNull(),
   lockoutExpires: timestamp("lockout_expires", { mode: 'string' }),
+  // Privacy controls
+  analyticsOptOut: boolean("analytics_opt_out").default(false).notNull(),
   // Password security fields
   lastPasswordChange: timestamp("last_password_change", { mode: 'string' }).defaultNow(),
   passwordExpiryWarningSent: boolean("password_expiry_warning_sent").default(false).notNull(),
@@ -162,6 +181,13 @@ export const insertSearchResultSchema = createInsertSchema(searchResults).pick({
   innovationScore: true,
   marketSize: true,
   gapReason: true,
+  confidenceScore: true,
+  priority: true,
+  actionableRecommendations: true,
+  competitorAnalysis: true,
+  industryContext: true,
+  targetAudience: true,
+  keyTrends: true,
 });
 
 export const loginSchema = z.object({
@@ -390,6 +416,27 @@ export const passwordHistory = pgTable("password_history", {
   index("password_history_user_created_idx").on(table.userId, table.createdAt.desc()),
 ]);
 
+// Analytics events table for usage tracking
+export const analyticsEvents = pgTable("analytics_events", {
+  id: serial().primaryKey().notNull(),
+  eventType: text("event_type").notNull(), // search_performed, export_generated, page_view, feature_usage, etc.
+  userId: integer("user_id"),
+  timestamp: timestamp({ mode: 'string' }).defaultNow().notNull(),
+  metadata: jsonb().default({}), // Event-specific data (query, format, page, etc.)
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  sessionId: text("session_id"),
+}, (table) => [
+  foreignKey({
+    columns: [table.userId],
+    foreignColumns: [users.id],
+    name: "analytics_events_user_id_users_id_fk"
+  }),
+  index("analytics_events_timestamp_idx").on(table.timestamp),
+  index("analytics_events_event_type_idx").on(table.eventType),
+  index("analytics_events_user_id_idx").on(table.userId),
+]);
+
 export const PLAN_LIMITS = {
   free: { searches: 5, exports: 3 },
   pro: { searches: -1, exports: -1 }, // unlimited
@@ -453,3 +500,5 @@ export type SecurityAlert = typeof securityAlerts.$inferSelect;
 export type InsertSecurityAlert = typeof securityAlerts.$inferInsert;
 export type PasswordHistory = typeof passwordHistory.$inferSelect;
 export type InsertPasswordHistory = typeof passwordHistory.$inferInsert;
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type InsertAnalyticsEvent = typeof analyticsEvents.$inferInsert;

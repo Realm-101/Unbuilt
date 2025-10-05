@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { Download, Mail, FileText, Presentation, Database, Crown } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Download, Mail, FileText, Presentation, Database, Crown, FileSpreadsheet, FileJson } from "lucide-react";
 import { SearchResult } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -28,9 +29,48 @@ export default function ExportModal({ isOpen, results, onClose }: ExportModalPro
   const [customTitle, setCustomTitle] = useState("");
   const [customIntro, setCustomIntro] = useState("");
   const [emailRecipient, setEmailRecipient] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [authorName, setAuthorName] = useState(user?.username || "");
+  const [theme, setTheme] = useState("professional");
   const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [exportMessage, setExportMessage] = useState("");
+  const [exportId, setExportId] = useState<string | null>(null);
 
   const isPro = user?.plan === 'pro' || user?.plan === 'enterprise';
+
+  // Poll for export progress
+  useEffect(() => {
+    if (!exportId || !isExporting) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await apiRequest("GET", `/api/export/progress/${exportId}`);
+        const data = await response.json();
+        
+        setExportProgress(data.progress);
+        setExportMessage(data.message);
+
+        if (data.status === 'complete' || data.status === 'error') {
+          clearInterval(pollInterval);
+          setIsExporting(false);
+          
+          if (data.status === 'error') {
+            toast({
+              title: "Export Failed",
+              description: data.error || "Failed to generate export",
+              variant: "destructive"
+            });
+          }
+        }
+      } catch (error) {
+        clearInterval(pollInterval);
+        setIsExporting(false);
+      }
+    }, 500);
+
+    return () => clearInterval(pollInterval);
+  }, [exportId, isExporting, toast]);
 
   const exportFormats = [
     {
@@ -38,33 +78,39 @@ export default function ExportModal({ isOpen, results, onClose }: ExportModalPro
       name: "PDF Report",
       description: "Professional report with charts and analysis",
       icon: FileText,
-      premium: false
+      premium: false,
+      extension: "pdf"
     },
     {
-      id: "csv", 
-      name: "CSV Data",
-      description: "Raw data for spreadsheet analysis",
-      icon: Database,
-      premium: false
+      id: "excel",
+      name: "Excel Workbook",
+      description: "Structured data with multiple sheets and formulas",
+      icon: FileSpreadsheet,
+      premium: false,
+      extension: "xlsx"
     },
     {
-      id: "pitch",
-      name: "Investor Pitch Deck",
-      description: "Ready-to-present PowerPoint with market analysis",
+      id: "pptx",
+      name: "PowerPoint Presentation",
+      description: "Ready-to-present slides with key insights",
       icon: Presentation,
-      premium: true
+      premium: true,
+      extension: "pptx"
     },
     {
-      id: "executive",
-      name: "Executive Summary",
-      description: "C-level focused strategic overview",
-      icon: FileText,
-      premium: true
+      id: "json",
+      name: "JSON Data",
+      description: "Raw structured data for API integration",
+      icon: FileJson,
+      premium: false,
+      extension: "json"
     }
   ];
 
   const handleExport = async () => {
-    if (!isPro && exportFormats.find(f => f.id === exportFormat)?.premium) {
+    const selectedFormat = exportFormats.find(f => f.id === exportFormat);
+    
+    if (!isPro && selectedFormat?.premium) {
       toast({
         title: "Pro Feature Required",
         description: "Upgrade to Pro to export premium formats",
@@ -74,49 +120,69 @@ export default function ExportModal({ isOpen, results, onClose }: ExportModalPro
     }
 
     setIsExporting(true);
+    setExportProgress(0);
+    setExportMessage("Preparing export...");
+    
+    // Generate unique export ID
+    const newExportId = `export-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setExportId(newExportId);
+
     try {
       const response = await apiRequest("POST", "/api/export", {
+        exportId: newExportId,
         format: exportFormat,
-        results: results.map(r => r.id),
+        results: results,
         options: {
-          includeDetails,
-          customTitle: customTitle || "Market Gap Analysis Report",
-          customIntro,
-          branding: isPro
+          customization: {
+            companyName: companyName || undefined,
+            authorName: authorName || undefined,
+            theme: theme,
+            includeCharts: true,
+            includeFormulas: true
+          },
+          emailTo: emailRecipient || undefined
         }
       });
 
-      if (exportFormat === "email") {
-        toast({
-          title: "Email Sent",
-          description: `Report sent to ${emailRecipient}`,
-        });
-      } else {
-        // Trigger download
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `market-analysis-${Date.now()}.${exportFormat === 'csv' ? 'csv' : 'pdf'}`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        toast({
-          title: "Export Complete",
-          description: "Your report has been downloaded",
-        });
+      if (!response.ok) {
+        throw new Error('Export failed');
       }
-      onClose();
+
+      // Trigger download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `market-analysis-${Date.now()}.${selectedFormat?.extension || 'pdf'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Export Complete",
+        description: emailRecipient 
+          ? `Report downloaded and sent to ${emailRecipient}`
+          : "Your report has been downloaded",
+      });
+      
+      // Reset and close after a short delay
+      setTimeout(() => {
+        setExportProgress(0);
+        setExportMessage("");
+        setExportId(null);
+        onClose();
+      }, 1000);
     } catch (error) {
       toast({
         title: "Export Failed",
         description: "Failed to generate report. Please try again.",
         variant: "destructive"
       });
-    } finally {
       setIsExporting(false);
+      setExportProgress(0);
+      setExportMessage("");
+      setExportId(null);
     }
   };
 
@@ -213,41 +279,61 @@ export default function ExportModal({ isOpen, results, onClose }: ExportModalPro
           <Separator />
 
           {/* Customization Options */}
-          <div className="space-y-4">
-            <Label className="text-base font-semibold">Customization</Label>
-            
-            <div>
-              <Label htmlFor="title">Report Title</Label>
-              <Input
-                id="title"
-                value={customTitle}
-                onChange={(e) => setCustomTitle(e.target.value)}
-                placeholder="Market Gap Analysis Report"
-              />
-            </div>
+          {isPro && (
+            <>
+              <Separator />
+              <div className="space-y-4">
+                <Label className="text-base font-semibold flex items-center space-x-2">
+                  <Crown className="w-4 h-4 text-yellow-500" />
+                  <span>Pro Customization</span>
+                </Label>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="companyName">Company Name</Label>
+                    <Input
+                      id="companyName"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      placeholder="Your Company"
+                    />
+                  </div>
 
-            <div>
-              <Label htmlFor="intro">Executive Summary</Label>
-              <Textarea
-                id="intro"
-                value={customIntro}
-                onChange={(e) => setCustomIntro(e.target.value)}
-                placeholder="Add a custom introduction or executive summary..."
-                rows={3}
-              />
-            </div>
+                  <div>
+                    <Label htmlFor="authorName">Author Name</Label>
+                    <Input
+                      id="authorName"
+                      value={authorName}
+                      onChange={(e) => setAuthorName(e.target.value)}
+                      placeholder="Your Name"
+                    />
+                  </div>
+                </div>
 
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="details"
-                checked={includeDetails}
-                onChange={(e) => setIncludeDetails(e.target.checked)}
-                className="rounded"
-              />
-              <Label htmlFor="details">Include detailed analysis and recommendations</Label>
-            </div>
-          </div>
+                {exportFormat === 'pptx' && (
+                  <div>
+                    <Label htmlFor="theme">Presentation Theme</Label>
+                    <RadioGroup value={theme} onValueChange={setTheme}>
+                      <div className="flex space-x-4 mt-2">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="professional" id="professional" />
+                          <Label htmlFor="professional">Professional</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="modern" id="modern" />
+                          <Label htmlFor="modern">Modern</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="minimal" id="minimal" />
+                          <Label htmlFor="minimal">Minimal</Label>
+                        </div>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           <Separator />
 
@@ -276,13 +362,27 @@ export default function ExportModal({ isOpen, results, onClose }: ExportModalPro
             </div>
           </div>
 
+          {/* Progress Indicator */}
+          {isExporting && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{exportMessage}</span>
+                  <span className="font-medium">{exportProgress}%</span>
+                </div>
+                <Progress value={exportProgress} className="h-2" />
+              </div>
+            </>
+          )}
+
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-4">
             <div className="text-sm text-gray-500">
               {results.length} result{results.length !== 1 ? 's' : ''} selected
             </div>
             <div className="flex space-x-2">
-              <Button variant="outline" onClick={onClose}>
+              <Button variant="outline" onClick={onClose} disabled={isExporting}>
                 Cancel
               </Button>
               <Button 
