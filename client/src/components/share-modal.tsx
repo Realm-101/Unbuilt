@@ -36,17 +36,17 @@ export default function ShareModal({ isOpen, result, onClose }: ShareModalProps)
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+      <div className="bg-gray-800 rounded-lg p-6 max-w-md mx-4 border border-gray-700">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium text-google-gray-dark">Share This Gap</h3>
-          <Button variant="ghost" size="sm" onClick={onClose} className="p-2">
+          <h3 className="text-lg font-medium text-white">Share This Gap</h3>
+          <Button variant="ghost" size="sm" onClick={onClose} className="p-2 text-gray-400 hover:text-white">
             <X className="w-4 h-4" />
           </Button>
         </div>
         <div className="space-y-3">
           <Button
             variant="outline"
-            className="w-full flex items-center justify-center py-3"
+            className="w-full flex items-center justify-center py-3 bg-gray-900 border-gray-700 text-white hover:bg-gray-700"
             onClick={handleTwitterShare}
           >
             <Twitter className="w-4 h-4 mr-2 text-blue-400" />
@@ -54,7 +54,7 @@ export default function ShareModal({ isOpen, result, onClose }: ShareModalProps)
           </Button>
           <Button
             variant="outline"
-            className="w-full flex items-center justify-center py-3"
+            className="w-full flex items-center justify-center py-3 bg-gray-900 border-gray-700 text-white hover:bg-gray-700"
             onClick={handleLinkedInShare}
           >
             <Linkedin className="w-4 h-4 mr-2 text-blue-600" />
@@ -62,13 +62,16 @@ export default function ShareModal({ isOpen, result, onClose }: ShareModalProps)
           </Button>
           <Button
             variant="outline"
-            className="w-full flex items-center justify-center py-3"
+            className="w-full flex items-center justify-center py-3 bg-gray-900 border-gray-700 text-white hover:bg-gray-700"
             onClick={handleCopyLink}
           >
-            <Link className="w-4 h-4 mr-2 text-google-gray" />
+            <Link className="w-4 h-4 mr-2 text-gray-400" />
             Copy Link
           </Button>
         </div>
+        <p className="mt-4 text-xs text-gray-400 text-center">
+          Note: Direct links work best when deployed. Local links may not be accessible to others.
+        </p>
       </div>
     </div>
   );

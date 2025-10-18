@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, setAccessToken } from "@/lib/queryClient";
 import type { User, LoginData, RegisterData } from "@shared/schema";
 
 interface AuthState {
@@ -27,6 +27,10 @@ export const useAuth = create<AuthState>()(
           const result = await response.json();
           
           if (result.success && result.data?.user) {
+            // Store the access token for API requests
+            if (result.data.accessToken) {
+              setAccessToken(result.data.accessToken);
+            }
             set({ user: result.data.user, loading: false });
             // Invalidate the auth query to trigger a refetch
             queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
@@ -46,6 +50,10 @@ export const useAuth = create<AuthState>()(
           const result = await response.json();
           
           if (result.success && result.data?.user) {
+            // Store the access token for API requests
+            if (result.data.accessToken) {
+              setAccessToken(result.data.accessToken);
+            }
             set({ user: result.data.user, loading: false });
             // Invalidate the auth query to trigger a refetch
             queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
@@ -62,6 +70,8 @@ export const useAuth = create<AuthState>()(
         set({ loading: true });
         try {
           await apiRequest("POST", "/api/auth/logout", {});
+          // Clear the access token
+          setAccessToken(null);
           set({ user: null, loading: false });
         } catch (error) {
           set({ loading: false });
@@ -130,7 +140,53 @@ export const useAuth = create<AuthState>()(
 );
 
 // Initialize auth state on app load
-export function initializeAuth() {
-  const { getProfile } = useAuth.getState();
-  getProfile();
+let isInitializing = false;
+let lastInitTime = 0;
+const INIT_COOLDOWN = 60000; // 1 minute cooldown between initializations
+
+export async function initializeAuth() {
+  // Prevent multiple simultaneous initializations
+  if (isInitializing) {
+    console.log('⏳ Auth initialization already in progress, skipping');
+    return;
+  }
+  
+  // Prevent too frequent initializations
+  const now = Date.now();
+  if (now - lastInitTime < INIT_COOLDOWN) {
+    console.log('⏳ Auth initialization on cooldown, skipping');
+    return;
+  }
+  
+  isInitializing = true;
+  lastInitTime = now;
+  
+  try {
+    // Try to refresh the access token using the refresh token cookie
+    const response = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      credentials: 'include', // Send cookies
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success && result.data?.accessToken) {
+        // Store the new access token
+        setAccessToken(result.data.accessToken);
+        console.log('✅ Access token refreshed successfully');
+        
+        // Now get the user profile
+        const { getProfile } = useAuth.getState();
+        await getProfile();
+      }
+    } else {
+      console.log('⚠️ No valid refresh token, user needs to login');
+      setAccessToken(null);
+    }
+  } catch (error) {
+    console.error('Failed to initialize auth:', error);
+    setAccessToken(null);
+  } finally {
+    isInitializing = false;
+  }
 }

@@ -33,9 +33,10 @@ export default function SearchResults() {
   const [feasibilityFilter, setFeasibilityFilter] = useState<string[]>(["high", "medium", "low"]);
   const [marketPotentialFilter, setMarketPotentialFilter] = useState<string[]>(["high", "medium", "low"]);
   const [categoryFilters, setCategoryFilters] = useState<string[]>([
-    "Tech That's Missing",
-    "Services That Don't Exist", 
-    "Products Nobody's Made"
+    "technology",
+    "market", 
+    "ux",
+    "business_model"
   ]);
   const [sortBy, setSortBy] = useState("relevance");
   const [currentPage, setCurrentPage] = useState(1);
@@ -47,15 +48,40 @@ export default function SearchResults() {
   const { data: search, isLoading: searchLoading } = useQuery<Search>({
     queryKey: ["/api/search", searchId],
     enabled: !!searchId,
+    staleTime: 0, // Always fetch fresh data
     queryFn: async () => {
-      const response = await fetch(`/api/search/${searchId}`);
-      return response.json();
+      const response = await apiRequest("GET", `/api/search/${searchId}`);
+      const result = await response.json();
+      // Unwrap the success response wrapper
+      return result?.data || result;
     }
   });
 
   const { data: results = [], isLoading: resultsLoading } = useQuery<SearchResult[]>({
     queryKey: ["/api/search", searchId, "results"],
     enabled: !!searchId,
+    staleTime: 0, // Always fetch fresh data
+    select: (response: any) => {
+      // Unwrap the success response wrapper
+      console.log("🔍 Raw response:", JSON.stringify(response).substring(0, 200));
+      
+      // Handle different response formats
+      if (response && typeof response === 'object') {
+        // If response has success and data properties, unwrap it
+        if (response.success && response.data) {
+          console.log("✅ Found success wrapper, unwrapping data");
+          return Array.isArray(response.data) ? response.data : [];
+        }
+        // If response is already an array, return it
+        if (Array.isArray(response)) {
+          console.log("✅ Response is already an array");
+          return response;
+        }
+      }
+      
+      console.log("⚠️ Unexpected response format, returning empty array");
+      return [];
+    },
   }) as { data: SearchResult[]; isLoading: boolean };
 
   const saveResultMutation = useMutation({
@@ -159,15 +185,20 @@ export default function SearchResults() {
               <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-6">
                 <h3 className="font-medium text-white mb-3">Filter by Category</h3>
                 <div className="space-y-2">
-                  {["Tech That's Missing", "Services That Don't Exist", "Products Nobody's Made", "Business Models"].map((category) => (
-                    <div key={category} className="flex items-center space-x-2">
+                  {[
+                    { value: "technology", label: "Technology" },
+                    { value: "market", label: "Market" },
+                    { value: "ux", label: "User Experience" },
+                    { value: "business_model", label: "Business Model" }
+                  ].map(({ value, label }) => (
+                    <div key={value} className="flex items-center space-x-2">
                       <Checkbox
-                        id={category}
-                        checked={categoryFilters.includes(category)}
-                        onCheckedChange={() => handleCategoryFilter(category)}
+                        id={value}
+                        checked={categoryFilters.includes(value)}
+                        onCheckedChange={() => handleCategoryFilter(value)}
                       />
-                      <label htmlFor={category} className="text-sm cursor-pointer text-gray-300">
-                        {category}
+                      <label htmlFor={value} className="text-sm cursor-pointer text-gray-300">
+                        {label}
                       </label>
                     </div>
                   ))}

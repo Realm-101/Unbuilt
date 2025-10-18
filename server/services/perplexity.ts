@@ -41,9 +41,14 @@ export interface MarketGap {
 }
 
 export async function discoverMarketGaps(query: string): Promise<MarketGap[]> {
+  console.log(`🔍 discoverMarketGaps called with query: "${query}"`);
+  console.log(`🔑 PERPLEXITY_API_KEY configured: ${!!PERPLEXITY_API_KEY}`);
+  
   if (!PERPLEXITY_API_KEY) {
     console.warn('⚠️ Perplexity API key not configured - using fallback data');
-    return getFallbackGaps(query);
+    const fallbackData = getFallbackGaps(query);
+    console.log(`📦 Returning ${fallbackData.length} fallback gaps`);
+    return fallbackData;
   }
 
   const prompt = `You are a market research expert analyzing untapped opportunities and market gaps. Analyze the following query and identify 5-8 specific market gaps or unbuilt opportunities.
@@ -81,6 +86,7 @@ Return ONLY a JSON array with the gaps, no additional text. Format:
 ]`;
 
   try {
+    console.log(`📡 Calling Perplexity API...`);
     const response = await axios.post<PerplexityResponse>(
       PERPLEXITY_API_URL,
       {
@@ -110,19 +116,24 @@ Return ONLY a JSON array with the gaps, no additional text. Format:
       }
     );
 
+    console.log(`✅ Perplexity API responded`);
     const content = response.data.choices[0]?.message?.content;
     if (!content) {
+      console.error('❌ No content in Perplexity response');
       throw new Error('No content in Perplexity response');
     }
+    console.log(`📝 Perplexity content length: ${content.length} characters`);
 
     // Parse the JSON response
     try {
       // Clean the response - remove markdown code blocks if present
       const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      console.log(`🧹 Cleaned content (first 200 chars): ${cleanContent.substring(0, 200)}...`);
       const gaps = JSON.parse(cleanContent);
+      console.log(`✅ Parsed ${gaps.length} gaps from Perplexity response`);
       
       // Validate and clean the data
-      return gaps.map((gap: any) => ({
+      const cleanedGaps = gaps.map((gap: any) => ({
         title: gap.title ?? 'Untitled Opportunity',
         description: gap.description ?? 'No description available',
         category: gap.category ?? 'Tech That\'s Missing',
@@ -134,17 +145,24 @@ Return ONLY a JSON array with the gaps, no additional text. Format:
         targetAudience: gap.targetAudience,
         keyTrends: gap.keyTrends ?? []
       }));
+      console.log(`✅ Returning ${cleanedGaps.length} cleaned gaps from Perplexity`);
+      return cleanedGaps;
     } catch (parseError) {
-      console.error('Error parsing Perplexity response:', parseError);
+      console.error('❌ Error parsing Perplexity response:', parseError);
       console.error('Raw content:', content);
-      return getFallbackGaps(query);
+      const fallbackData = getFallbackGaps(query);
+      console.log(`📦 Returning ${fallbackData.length} fallback gaps after parse error`);
+      return fallbackData;
     }
   } catch (error) {
-    console.error('Perplexity API error:', error);
+    console.error('❌ Perplexity API error:', error);
     if (axios.isAxiosError(error)) {
+      console.error('Response status:', error.response?.status);
       console.error('Response data:', error.response?.data);
     }
-    return getFallbackGaps(query);
+    const fallbackData = getFallbackGaps(query);
+    console.log(`📦 Returning ${fallbackData.length} fallback gaps after API error`);
+    return fallbackData;
   }
 }
 

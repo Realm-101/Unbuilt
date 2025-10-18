@@ -4,8 +4,9 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { useAuth } from "./hooks/useAuth";
+import { initializeAuth } from "./hooks/use-auth";
 
 // Eager load critical pages
 import Home from "@/pages/home";
@@ -108,6 +109,11 @@ function Router() {
 }
 
 function App() {
+  // Initialize auth on app load (only once)
+  useEffect(() => {
+    initializeAuth();
+  }, []); // Empty dependency array ensures this runs only once
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>

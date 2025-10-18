@@ -180,7 +180,7 @@ router.post('/register', registerRateLimit, validateRegister, sanitizeInput, val
  * POST /api/auth/refresh
  * Refresh access token using refresh token
  */
-router.post('/refresh', authRateLimit, sanitizeInput, validateSensitiveOperation(10, 15 * 60 * 1000), asyncHandler(async (req: Request, res: Response) => {
+router.post('/refresh', authRateLimit, sanitizeInput, validateSensitiveOperation(100, 15 * 60 * 1000), asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
   if (!refreshToken) {
@@ -266,9 +266,9 @@ router.get('/me', apiRateLimit, jwtAuth, validateUserData, asyncHandler(async (r
 
 /**
  * GET /api/auth/user
- * Compatibility endpoint for client - uses session-based auth
+ * Get current user information - uses JWT auth
  */
-router.get('/user', apiRateLimit, requireAuth, validateUserData, asyncHandler(async (req: Request, res: Response) => {
+router.get('/user', apiRateLimit, jwtAuth, validateUserData, asyncHandler(async (req: Request, res: Response) => {
   const user = await authService.getUserById(req.user!.id);
   if (!user) {
     throw AppError.createNotFoundError('User account not found', 'USER_NOT_FOUND');

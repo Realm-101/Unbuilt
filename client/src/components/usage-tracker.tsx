@@ -16,9 +16,28 @@ export default function UsageTracker({ onUpgrade, className = "" }: UsageTracker
     queryKey: ["/api/auth/user"],
   });
 
-  const { data: searches = [] } = useQuery({
+  const { data: searchesResponse, isLoading: searchesLoading } = useQuery({
     queryKey: ["/api/searches"],
   });
+  
+  // Unwrap the response - server returns { success, data }
+  // Handle multiple possible response formats
+  let searches: Search[] = [];
+  if (searchesResponse) {
+    if (Array.isArray(searchesResponse)) {
+      // Direct array response
+      searches = searchesResponse;
+    } else if ((searchesResponse as any).data) {
+      // Wrapped response: { success, data: [...] }
+      const data = (searchesResponse as any).data;
+      searches = Array.isArray(data) ? data : [];
+    }
+  }
+  
+  // Don't render until searches are loaded
+  if (searchesLoading) {
+    return null;
+  }
 
   if (!user) return null;
 
@@ -29,7 +48,7 @@ export default function UsageTracker({ onUpgrade, className = "" }: UsageTracker
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
   
-  const monthlySearches = (searches as Search[]).filter((search: Search) => {
+  const monthlySearches = searches.filter((search: Search) => {
     const searchDate = new Date(search.timestamp);
     return searchDate.getMonth() === currentMonth && searchDate.getFullYear() === currentYear;
   });

@@ -29,6 +29,7 @@ export interface IStorage {
   getSearchResults(searchId: number): Promise<(typeof searchResults.$inferSelect)[]>;
   getSearchResultById(id: number): Promise<typeof searchResults.$inferSelect | undefined>;
   updateSearchResult(id: number, updates: SearchResultUpdate): Promise<typeof searchResults.$inferSelect>;
+  getAllSavedResults(userId: string): Promise<(typeof searchResults.$inferSelect)[]>;
   
   // Idea operations
   createIdea(idea: ValidateIdea & { 
@@ -117,6 +118,36 @@ export class DatabaseStorage implements IStorage {
       .where(eq(searchResults.id, id))
       .returning();
     return updated;
+  }
+
+  async getAllSavedResults(userId: string) {
+    // Get all saved results for searches belonging to this user
+    const results = await db
+      .select({
+        id: searchResults.id,
+        searchId: searchResults.searchId,
+        title: searchResults.title,
+        description: searchResults.description,
+        category: searchResults.category,
+        feasibility: searchResults.feasibility,
+        marketPotential: searchResults.marketPotential,
+        innovationScore: searchResults.innovationScore,
+        marketSize: searchResults.marketSize,
+        gapReason: searchResults.gapReason,
+        isSaved: searchResults.isSaved,
+        confidenceScore: searchResults.confidenceScore,
+        priority: searchResults.priority,
+        actionableRecommendations: searchResults.actionableRecommendations,
+        industryContext: searchResults.industryContext,
+        competitorAnalysis: searchResults.competitorAnalysis,
+      })
+      .from(searchResults)
+      .innerJoin(searches, eq(searchResults.searchId, searches.id))
+      .where(eq(searches.userId, parseInt(userId)))
+      .where(eq(searchResults.isSaved, true))
+      .orderBy(desc(searchResults.id));
+    
+    return results;
   }
 
   // Idea operations

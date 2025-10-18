@@ -198,7 +198,7 @@ export default function ExportModal({ isOpen, results, onClose }: ExportModalPro
 
     setIsExporting(true);
     try {
-      await apiRequest("POST", "/api/send-report", {
+      await apiRequest("POST", "/api/email-report", {
         email: emailRecipient,
         results: results.map(r => r.id),
         options: {
@@ -209,14 +209,14 @@ export default function ExportModal({ isOpen, results, onClose }: ExportModalPro
       });
 
       toast({
-        title: "Email Sent",
-        description: `Report sent to ${emailRecipient}`,
+        title: "Email Queued",
+        description: `Report will be sent to ${emailRecipient}`,
       });
       onClose();
     } catch (error) {
       toast({
         title: "Send Failed",
-        description: "Failed to send email. Please try again.",
+        description: "Failed to queue email. Please try again.",
         variant: "destructive"
       });
     } finally {

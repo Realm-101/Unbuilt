@@ -27,18 +27,32 @@ export default function Home() {
 
   const { data: recentSearches } = useQuery({
     queryKey: ["/api/searches"],
-    select: (data: Search[]) => data.slice(0, 5),
+    select: (response: any) => {
+      // Unwrap response - server returns { success, data }
+      const searches = response?.data || response || [];
+      return Array.isArray(searches) ? searches.slice(0, 5) : [];
+    },
   });
 
   const handleSearch = async (query: string) => {
     setIsSearching(true);
     
     try {
-      const response = await apiRequest("POST", "/api/search", { 
-        query,
-        filters: searchFilters 
-      });
-      const data = await response.json();
+      // Only include filters if they exist (not null)
+      const requestBody: { query: string; filters?: SearchFilters } = { query };
+      if (searchFilters) {
+        requestBody.filters = searchFilters;
+      }
+      
+      const response = await apiRequest("POST", "/api/search", requestBody);
+      const result = await response.json();
+      
+      // Check if response is successful
+      if (!result.success) {
+        throw new Error(result.message || 'Search failed');
+      }
+      
+      const data = result.data;
       
       if (data.upgradeRequired) {
         // Handle upgrade required
@@ -47,7 +61,11 @@ export default function Home() {
       }
       
       // Navigate to results page with search ID
-      setLocation(`/search/${data.search.id}`);
+      if (data.search && data.search.id) {
+        setLocation(`/search/${data.search.id}`);
+      } else {
+        throw new Error('Invalid search response');
+      }
     } catch (error) {
       console.error("Search failed:", error);
     } finally {

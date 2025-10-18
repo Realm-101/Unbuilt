@@ -1,6 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
+import { users } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import { jwtAuth, optionalJwtAuth } from "./middleware/jwtAuth";
 import { sanitizeInput, validateApiInput } from "./middleware/inputSanitization";
 import { validateQueryResults, validateSearchData } from "./middleware/queryValidation";
@@ -239,6 +242,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const parsedQuery = insertSearchSchema.parse({ query });
     const userId = req.user!.id;
     
+    console.log(`🔍 Starting search for query: "${parsedQuery.query}" by user ${userId}`);
+    
     // Generate cache key for this search query
     const { cacheService, CacheNamespaces, CacheTTL } = await import("./services/cache");
     const { log: logMessage } = await import("./vite");
@@ -255,10 +260,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (cachedGaps) {
       gaps = cachedGaps;
       cacheHit = true;
+      console.log(`✅ Cache hit for search: ${parsedQuery.query}, found ${gaps.length} gaps`);
       logMessage(`Cache hit for search: ${parsedQuery.query}`);
     } else {
+      console.log(`⏳ Cache miss, calling analyzeGaps for: ${parsedQuery.query}`);
       // Analyze gaps using Gemini with filters context
       gaps = await analyzeGaps(parsedQuery.query);
+      console.log(`✅ analyzeGaps returned ${gaps.length} gaps`);
       
       // Cache the results for 1 hour
       await cacheService.set(cacheKey, gaps, CacheTTL.LONG);
@@ -267,8 +275,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Apply filters if provided
     if (filters) {
+      const beforeFilter = gaps.length;
       gaps = applySearchFilters(gaps, filters);
+      console.log(`🔍 Applied filters: ${beforeFilter} gaps -> ${gaps.length} gaps`);
     }
+    
+    console.log(`📝 Creating search record with ${gaps.length} gaps`);
     
     // Create search record
     const search = await storage.createSearch({ query: parsedQuery.query, userId: String(userId) });
@@ -290,7 +302,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       )
     );
     
+    console.log(`✅ Created ${results.length} search results for search ID ${search.id}`);
+    
     sendSuccess(res, { search, results, _cacheHit: cacheHit });
+  }));
+
+  // Get search by ID
+  app.get("/api/search/:id", apiRateLimit, jwtAuth, validateIdParam, validateSearchOwnership('read'), validateSearchData, asyncHandler(async (req, res) => {
+    const search = req.resource; // Loaded by validateSearchOwnership middleware
+    sendSuccess(res, search);
   }));
 
   // Get search results
@@ -357,14 +377,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get saved results
-  app.get("/api/results/saved", apiRateLimit, jwtAuth, validateQueryResults, async (req, res) => {
-    try {
-      // For now return empty array until getAllSavedResults is implemented
-      res.json([]);
-    } catch (error) {
-      res.status(500).json({ message: 'Failed to get saved results' });
-    }
-  });
+  app.get("/api/results/saved", apiRateLimit, jwtAuth, validateQueryResults, asyncHandler(async (req, res) => {
+    const userId = req.user!.id.toString();
+    const savedResults = await storage.getAllSavedResults(userId);
+    sendSuccess(res, savedResults);
+  }));
 
   // Export results
   app.post("/api/export", apiRateLimit, jwtAuth, exportResults);
@@ -922,6 +939,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // DEVELOPMENT ONLY: Reset search count for testing
+  if (process.env.NODE_ENV !== 'production') {
+    app.post("/api/dev/reset-searches", jwtAuth, asyncHandler(async (req, res) => {
+      const userId = req.user!.id;
+      await db.update(users)
+        .set({ searchCount: 0, lastResetDate: new Date().toISOString() })
+        .where(eq(users.id, userId));
+      sendSuccess(res, { message: "Search count reset successfully" });
+    }));
+  }
 
   const httpServer = createServer(app);
   return httpServer;

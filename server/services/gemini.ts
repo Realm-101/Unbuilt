@@ -81,16 +81,22 @@ export interface GapAnalysisResult {
 }
 
 export async function analyzeGaps(query: string): Promise<GapAnalysisResult[]> {
+  console.log(`🚀 analyzeGaps called with query: "${query}"`);
+  
   // Check cache first
   const cachedResults = aiCache.get(query);
   if (cachedResults) {
+    console.log(`✅ Found ${cachedResults.length} cached results`);
     return cachedResults;
   }
+  
+  console.log(`⏳ No cache, proceeding with API calls`);
   
   try {
     // Try Perplexity first for real-time web search capabilities
     console.log(`🔍 Using Perplexity AI for market gap discovery: ${query}`);
     const perplexityResults = await discoverMarketGaps(query);
+    console.log(`✅ Perplexity returned ${perplexityResults.length} results`);
     
     // Convert MarketGap to GapAnalysisResult format with enhanced fields
     const results: GapAnalysisResult[] = perplexityResults.map((gap: MarketGap) => {
@@ -123,11 +129,15 @@ export async function analyzeGaps(query: string): Promise<GapAnalysisResult[]> {
     // Cache the results
     if (results.length > 0) {
       aiCache.set(query, results);
+      console.log(`💾 Cached ${results.length} Perplexity results`);
+    } else {
+      console.warn(`⚠️ No results to cache from Perplexity`);
     }
     
+    console.log(`✅ Returning ${results.length} results from Perplexity`);
     return results;
   } catch (perplexityError) {
-    console.error('Perplexity API failed, trying Gemini fallback:', perplexityError);
+    console.error('❌ Perplexity API failed, trying Gemini fallback:', perplexityError);
     
     // Fallback to Gemini if Perplexity fails
     if (!ai || !hasApiKey) {
