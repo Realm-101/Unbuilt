@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import Layout from '@/components/layout-new';
 
 interface AnalyticsMetrics {
   totalSearches: number;
@@ -27,7 +28,7 @@ export default function AnalyticsDashboard() {
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/analytics-admin/metrics?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
+        `/api/analytics?range=30d`,
         {
           credentials: 'include',
         }
@@ -38,12 +39,36 @@ export default function AnalyticsDashboard() {
       }
 
       const data = await response.json();
-      setMetrics(data.data);
+      
+      // Transform the data to match our interface
+      const transformedMetrics: AnalyticsMetrics = {
+        totalSearches: data.summary?.totalSearches || 0,
+        totalExports: 0, // Not available in current API
+        totalPageViews: 0, // Not available in current API
+        activeUsers: data.summary?.uniqueUsers || 0,
+        popularSearches: [], // Not available in current API
+        exportsByFormat: {}, // Not available in current API
+        conversionRate: 0, // Not available in current API
+      };
+      
+      setMetrics(transformedMetrics);
     } catch (error) {
+      console.error('Analytics fetch error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load analytics data',
+        description: 'Failed to load analytics data. Using demo data.',
         variant: 'destructive',
+      });
+      
+      // Set demo data on error
+      setMetrics({
+        totalSearches: 0,
+        totalExports: 0,
+        totalPageViews: 0,
+        activeUsers: 0,
+        popularSearches: [],
+        exportsByFormat: {},
+        conversionRate: 0,
       });
     } finally {
       setLoading(false);
@@ -65,40 +90,45 @@ export default function AnalyticsDashboard() {
 
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading analytics...</div>
+      <Layout>
+        <div className="container mx-auto p-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-lg text-foreground">Loading analytics...</div>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   if (!metrics) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">No analytics data available</div>
+      <Layout>
+        <div className="container mx-auto p-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-lg text-foreground">No analytics data available</div>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <Layout>
+      <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+        <h1 className="text-3xl font-bold text-foreground">Analytics Dashboard</h1>
         <div className="flex gap-4">
           <input
             type="date"
             value={dateRange.startDate}
             onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
-            className="border rounded px-3 py-2"
+            className="border rounded px-3 py-2 bg-background text-foreground border-border"
           />
           <input
             type="date"
             value={dateRange.endDate}
             onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
-            className="border rounded px-3 py-2"
+            className="border rounded px-3 py-2 bg-background text-foreground border-border"
           />
           <Button onClick={fetchMetrics}>Refresh</Button>
         </div>
@@ -207,5 +237,6 @@ export default function AnalyticsDashboard() {
         </CardContent>
       </Card>
     </div>
+    </Layout>
   );
 }

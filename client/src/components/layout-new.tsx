@@ -77,7 +77,7 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen bg-background transition-colors">
       {/* Simplified Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
+      <header className="sticky top-0 z-50 bg-gray-900/95 backdrop-blur-md border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Left: Logo */}
@@ -112,53 +112,12 @@ export default function Layout({ children }: LayoutProps) {
               )}
             </div>
 
-            {/* Center: Search Bar */}
-            {typedUser && (
-              <div className="hidden md:flex flex-1 max-w-xl mx-8">
-                <form onSubmit={handleSearch} className="w-full relative">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      ref={searchRef}
-                      type="text"
-                      placeholder="Search market opportunities... (⌘K)"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onFocus={() => setIsSearchFocused(true)}
-                      onBlur={() => setIsSearchFocused(false)}
-                      className="pl-10 pr-4 w-full bg-secondary/50 border-secondary focus:bg-secondary"
-                    />
-                    {searchQuery && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2"
-                        onClick={() => setSearchQuery("")}
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    )}
-                  </div>
-                </form>
-              </div>
-            )}
+            {/* Search Bar removed - not functional */}
 
             {/* Right: User Actions */}
             <div className="flex items-center gap-2">
               {typedUser ? (
                 <>
-                  {/* Quick Actions */}
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="hidden lg:flex"
-                    onClick={() => setLocation('/validate-idea')}
-                    title="Quick Validate"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-
                   {/* Upgrade Button for Free Users */}
                   {!isProUser && (
                     <Button 
@@ -221,7 +180,7 @@ export default function Layout({ children }: LayoutProps) {
                       
                       <DropdownMenuSeparator />
 
-                      <DropdownMenuItem onClick={() => setLocation('/profile')}>
+                      <DropdownMenuItem onClick={() => setLocation('/account')}>
                         <Settings className="mr-2 h-4 w-4" />
                         <span>Settings</span>
                       </DropdownMenuItem>
@@ -290,23 +249,9 @@ export default function Layout({ children }: LayoutProps) {
         
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden border-t border-border bg-background">
+          <div className="lg:hidden border-t border-gray-800 bg-gray-900">
             <div className="px-4 py-4 space-y-2">
-              {/* Mobile Search */}
-              {typedUser && (
-                <form onSubmit={handleSearch} className="mb-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="Search opportunities..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 w-full"
-                    />
-                  </div>
-                </form>
-              )}
+              {/* Mobile Search removed - not functional */}
 
               {/* Mobile Navigation */}
               {typedUser ? (

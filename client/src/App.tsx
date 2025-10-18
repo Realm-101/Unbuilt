@@ -31,6 +31,7 @@ const ActionPlanPage = lazy(() => import("@/pages/action-plan"));
 const MarketResearchPage = lazy(() => import("@/pages/market-research"));
 const MarketTrendsPage = lazy(() => import("@/pages/market-trends"));
 const AnalyticsDashboard = lazy(() => import("@/pages/analytics-dashboard"));
+const Profile = lazy(() => import("@/pages/profile"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Documentation = lazy(() => import("@/pages/documentation").then(m => ({ default: m.Documentation })));
 const AIChat = lazy(() => import("@/components/ai-assistant/AIChat").then(m => ({ default: m.AIChat })));
@@ -79,6 +80,7 @@ function Router() {
             <Route path="/documentation" component={Documentation} />
             <Route path="/pricing" component={Pricing} />
             <Route path="/account" component={Account} />
+            <Route path="/profile" component={Profile} />
             <Route path="/subscription/success" component={SubscriptionSuccess} />
             <Route path="/about" component={About} />
             <Route path="/help" component={Help} />

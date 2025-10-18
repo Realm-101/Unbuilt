@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
-import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface TrendData {
   id: string;
@@ -57,6 +57,7 @@ export default function MarketTrendsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [trendData, setTrendData] = useState<CategoryData[]>([]);
   const [hoveredTrend, setHoveredTrend] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadTrendData();
@@ -65,12 +66,21 @@ export default function MarketTrendsPage() {
   const loadTrendData = async () => {
     setIsLoading(true);
     try {
-      // This would fetch real trend data from the API
-      // For now, generating sample data
+      // TODO: Implement real trend data API endpoint
+      // For now, using sample data
+      toast({
+        title: 'Demo Data',
+        description: 'Currently showing sample trend data. Real-time data integration coming soon.',
+      });
       const sampleData = generateSampleTrends();
       setTrendData(sampleData);
     } catch (error) {
       console.error('Failed to load trends:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load trend data',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }

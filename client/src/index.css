@@ -4,6 +4,43 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   CRITICAL CONTRAST FIXES
+   ============================================ */
+
+/* Prevent any light text on light backgrounds or dark text on dark backgrounds */
+* {
+  /* Ensure text is always readable */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dark mode (default) - white text on dark backgrounds */
+:root,
+:root.dark {
+  color-scheme: dark;
+}
+
+:root body,
+:root.dark body {
+  background-color: rgb(17, 24, 39) !important; /* gray-900 */
+  color: white !important;
+}
+
+/* Light mode - dark text on light backgrounds */
+:root.light {
+  color-scheme: light;
+}
+
+:root.light body {
+  background-color: white !important;
+  color: rgb(17, 24, 39) !important; /* gray-900 */
+}
+
+/* ============================================
+   END CRITICAL CONTRAST FIXES
+   ============================================ */
+
 @layer base {
   :root {
     /* Native Dark Mode - Neon Flame Theme */
@@ -47,48 +84,67 @@
   }
 
   .light {
-    /* Light mode fallback - still maintain flame theme */
-    --background: 0 0% 98%;
-    --foreground: 0 0% 8%;
+    /* Light mode - proper contrast */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 8%;
+    --card-foreground: 0 0% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 8%;
+    --popover-foreground: 0 0% 10%;
     --primary: 280 85% 55%;
-    --primary-foreground: 0 0% 98%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 15 75% 50%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 95%;
-    --muted-foreground: 0 0% 45%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
     --accent: 330 75% 55%;
-    --accent-foreground: 0 0% 98%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 75% 50%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 0 0% 100%;
     --border: 0 0% 90%;
-    --input: 0 0% 95%;
+    --input: 0 0% 96%;
     --ring: 280 85% 55%;
   }
 }
 
-/* CRITICAL: Force white text in header navigation to prevent light-on-light issues */
-.flame-glass nav button,
-.flame-glass nav a button,
+/* CRITICAL: Force proper text contrast throughout the app */
+/* Header navigation fixes */
 header nav button,
-/* Header text contrast fixes */
-header nav a button {
+header nav a button,
+header button,
+header a {
   color: white !important;
 }
 
-.flame-glass nav button:hover,
-.flame-glass nav a button:hover,
 header nav button:hover,
-header nav a button:hover {
+header nav a button:hover,
+header button:hover {
   color: hsl(var(--neon-purple)) !important;
 }
 
+/* Dropdown menu text fixes */
+[role="menu"] button,
+[role="menuitem"],
+[data-radix-dropdown-menu-content] button,
+[data-radix-dropdown-menu-content] a {
+  color: white !important;
+}
+
+/* Input and search bar fixes */
+header input,
+header input::placeholder {
+  color: white !important;
+}
+
+header input::placeholder {
+  opacity: 0.6;
+}
+
 /* Modal and dialog background fixes */
-[role="dialog"] {
+[role="dialog"],
+[data-radix-dialog-content] {
   background: hsl(var(--card)) !important;
+  color: hsl(var(--card-foreground)) !important;
   border: 1px solid hsl(var(--border)) !important;
 }
 
@@ -98,7 +154,28 @@ header nav a button:hover {
   border: 1px solid hsl(var(--border)) !important;
 }
 
-/* Trending page text contrast fixes */
+/* Ensure all dialog text is visible */
+[role="dialog"] *,
+[data-radix-dialog-content] * {
+  color: inherit;
+}
+
+[role="dialog"] h1,
+[role="dialog"] h2,
+[role="dialog"] h3,
+[role="dialog"] h4,
+[role="dialog"] h5,
+[role="dialog"] h6,
+[data-radix-dialog-content] h1,
+[data-radix-dialog-content] h2,
+[data-radix-dialog-content] h3,
+[data-radix-dialog-content] h4,
+[data-radix-dialog-content] h5,
+[data-radix-dialog-content] h6 {
+  color: white !important;
+}
+
+/* Page content text contrast fixes */
 .trending-content h2, 
 .trending-content h3, 
 .trending-content .font-semibold,
@@ -110,6 +187,80 @@ header nav a button:hover {
 .trending-content .text-gray-600,
 .trending-content .text-gray-500 {
   color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Fix all gray text classes to be visible on dark backgrounds */
+.text-gray-100 {
+  color: rgb(243, 244, 246) !important; /* gray-100 */
+}
+
+.text-gray-200 {
+  color: rgb(229, 231, 235) !important; /* gray-200 */
+}
+
+.text-gray-300 {
+  color: rgb(209, 213, 219) !important; /* gray-300 */
+}
+
+.text-gray-400 {
+  color: rgb(156, 163, 175) !important; /* gray-400 */
+}
+
+.text-gray-500 {
+  color: rgb(156, 163, 175) !important; /* gray-400 - lighter for visibility */
+}
+
+.text-gray-600 {
+  color: rgb(156, 163, 175) !important; /* gray-400 - lighter for visibility */
+}
+
+.text-gray-700 {
+  color: rgb(209, 213, 219) !important; /* gray-300 - much lighter for visibility */
+}
+
+.text-gray-800 {
+  color: rgb(229, 231, 235) !important; /* gray-200 - much lighter for visibility */
+}
+
+.text-gray-900 {
+  color: rgb(243, 244, 246) !important; /* gray-100 - much lighter for visibility */
+}
+
+/* Light mode overrides for gray text */
+.light .text-gray-100 {
+  color: rgb(31, 41, 55) !important; /* gray-800 */
+}
+
+.light .text-gray-200 {
+  color: rgb(55, 65, 81) !important; /* gray-700 */
+}
+
+.light .text-gray-300 {
+  color: rgb(75, 85, 99) !important; /* gray-600 */
+}
+
+.light .text-gray-400 {
+  color: rgb(107, 114, 128) !important; /* gray-500 */
+}
+
+.light .text-gray-500 {
+  color: rgb(107, 114, 128) !important; /* gray-500 */
+}
+
+.light .text-gray-600 {
+  color: rgb(75, 85, 99) !important; /* gray-600 */
+}
+
+.light .text-gray-700 {
+  color: rgb(55, 65, 81) !important; /* gray-700 */
+}
+
+.light .text-gray-800 {
+  color: rgb(31, 41, 55) !important; /* gray-800 */
+}
+
+.light .text-gray-900 {
+  color: rgb(17, 24, 39) !important; /* gray-900 */
 }
 
 /* Logo positioning fix */
@@ -127,7 +278,12 @@ header nav a button:hover {
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  }
+  
+  /* Dark mode is default - ensure proper contrast */
+  body {
+    background: rgb(17, 24, 39) !important; /* gray-900 */
+    color: white !important;
   }
   
   /* Enforce consistent text colors - NEVER allow invisible text */
@@ -137,7 +293,7 @@ header nav a button:hover {
   
   /* Override any accidental dark text on dark backgrounds */
   .dark * {
-    color: hsl(var(--foreground));
+    color: white;
   }
   
   /* Light text classes for dark theme */
@@ -147,11 +303,35 @@ header nav a button:hover {
   
   /* Ensure form elements are always visible */
   input, textarea, select {
-    @apply text-white bg-gray-900 border-gray-600;
+    @apply text-white bg-gray-800 border-gray-700;
   }
   
   input::placeholder, textarea::placeholder {
     @apply text-gray-400;
+  }
+  
+  /* Button text visibility */
+  button {
+    color: white;
+  }
+  
+  /* Ensure headings are always visible */
+  h1, h2, h3, h4, h5, h6 {
+    color: white !important;
+  }
+  
+  /* Paragraph and span visibility */
+  p {
+    color: rgb(209, 213, 219); /* gray-300 */
+  }
+  
+  /* Link visibility */
+  a {
+    color: rgb(192, 132, 252); /* purple-400 */
+  }
+  
+  a:hover {
+    color: rgb(216, 180, 254); /* purple-300 */
   }
 }
 
@@ -329,7 +509,7 @@ header nav a button:hover {
   
   /* Global text visibility enforcement */
   h1, h2, h3, h4, h5, h6 {
-    @apply text-white;
+    color: white !important;
   }
   
   p, span, div {
@@ -342,22 +522,29 @@ header nav a button:hover {
   input[type="password"], 
   textarea,
   select {
-    @apply comic-input;
+    background: rgb(31, 41, 55) !important; /* gray-800 */
+    color: white !important;
+    border-color: rgb(75, 85, 99) !important; /* gray-600 */
   }
   
   /* Button consistency */
   button {
-    @apply text-white;
+    color: white;
   }
   
   /* Link visibility */
   a {
-    @apply text-purple-400 hover:text-purple-300;
+    color: rgb(192, 132, 252) !important; /* purple-400 */
+  }
+  
+  a:hover {
+    color: rgb(216, 180, 254) !important; /* purple-300 */
   }
   
   /* Form labels */
   label {
-    @apply text-white font-medium;
+    color: white !important;
+    font-weight: 500;
   }
   
   /* Card text enforcement */
@@ -371,12 +558,31 @@ header nav a button:hover {
   .flame-card h4, 
   .flame-card h5, 
   .flame-card h6 {
-    @apply text-white;
+    color: white !important;
+  }
+  
+  /* Badge visibility */
+  .badge,
+  [class*="badge"] {
+    color: white !important;
+  }
+  
+  /* Dropdown and popover fixes */
+  [data-radix-popper-content-wrapper],
+  [data-radix-dropdown-menu-content],
+  [data-radix-popover-content] {
+    background: rgb(31, 41, 55) !important; /* gray-800 */
+    border: 1px solid rgb(75, 85, 99) !important; /* gray-600 */
+  }
+  
+  [data-radix-dropdown-menu-content] *,
+  [data-radix-popover-content] * {
+    color: white !important;
   }
   
   /* Flame Backgrounds */
   .flame-bg {
-    background: hsl(var(--background));
+    background: rgb(17, 24, 39); /* gray-900 */
   }
   
   .flame-gradient {
@@ -384,6 +590,56 @@ header nav a button:hover {
       hsl(var(--flame-start)), 
       hsl(var(--flame-mid)), 
       hsl(var(--flame-end)));
+  }
+  
+  /* Light mode overrides */
+  .light body {
+    background: white !important;
+    color: rgb(17, 24, 39) !important; /* gray-900 */
+  }
+  
+  .light h1, .light h2, .light h3, .light h4, .light h5, .light h6 {
+    color: rgb(17, 24, 39) !important; /* gray-900 */
+  }
+  
+  .light p {
+    color: rgb(55, 65, 81) !important; /* gray-700 */
+  }
+  
+  .light input, .light textarea, .light select {
+    background: white !important;
+    color: rgb(17, 24, 39) !important;
+    border-color: rgb(209, 213, 219) !important; /* gray-300 */
+  }
+  
+  .light button {
+    color: white;
+  }
+  
+  .light header {
+    background: white !important;
+    border-color: rgb(229, 231, 235) !important; /* gray-200 */
+  }
+  
+  .light header button,
+  .light header a {
+    color: rgb(17, 24, 39) !important; /* gray-900 */
+  }
+  
+  .light header button:hover,
+  .light header a:hover {
+    color: rgb(147, 51, 234) !important; /* purple-600 */
+  }
+  
+  .light [data-radix-dropdown-menu-content],
+  .light [data-radix-popover-content] {
+    background: white !important;
+    border-color: rgb(229, 231, 235) !important; /* gray-200 */
+  }
+  
+  .light [data-radix-dropdown-menu-content] *,
+  .light [data-radix-popover-content] * {
+    color: rgb(17, 24, 39) !important; /* gray-900 */
   }
   
   /* Hover Effects */

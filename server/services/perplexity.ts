@@ -84,7 +84,7 @@ Return ONLY a JSON array with the gaps, no additional text. Format:
     const response = await axios.post<PerplexityResponse>(
       PERPLEXITY_API_URL,
       {
-        model: 'llama-3.1-sonar-large-128k-online',
+        model: 'sonar-pro', // Updated from deprecated llama-3.1-sonar-large-128k-online
         messages: [
           {
             role: 'system',

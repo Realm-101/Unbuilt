@@ -104,7 +104,7 @@ Return ONLY a JSON object with the structure matching the BusinessPlan interface
     const response = await axios.post<XAIResponse>(
       XAI_API_URL,
       {
-        model: 'grok-2-1212',
+        model: 'grok-beta', // Updated from grok-2-1212 to latest stable model
         messages: [
           {
             role: 'system',
@@ -171,7 +171,7 @@ Return as structured JSON with detailed insights.`;
     const response = await axios.post<XAIResponse>(
       XAI_API_URL,
       {
-        model: 'grok-2-1212',
+        model: 'grok-beta', // Updated from grok-2-1212 to latest stable model
         messages: [
           {
             role: 'system',

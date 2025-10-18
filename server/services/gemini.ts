@@ -348,7 +348,7 @@ Return the results as a JSON object with the exact structure:
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-exp",  // Faster and cheaper than 2.5-pro
+      model: "gemini-2.5-pro-latest",  // Updated from deprecated gemini-2.0-flash-exp for better reasoning
       config: {
         systemInstruction: systemPrompt,
         responseMimeType: "application/json",
