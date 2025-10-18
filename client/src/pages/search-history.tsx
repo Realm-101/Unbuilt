@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'wouter';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,7 +39,7 @@ export default function SearchHistory() {
   const [searchFilter, setSearchFilter] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'favorites'>('all');
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
   // Fetch search history
@@ -167,7 +167,7 @@ export default function SearchHistory() {
 
   // Re-run search
   const handleRerunSearch = (query: string) => {
-    navigate(`/search-results?q=${encodeURIComponent(query)}`);
+    setLocation(`/search-results?q=${encodeURIComponent(query)}`);
   };
 
   // Filter searches by query text
@@ -255,7 +255,7 @@ export default function SearchHistory() {
                 {!searchFilter && (
                   <Button
                     className="mt-4"
-                    onClick={() => navigate('/')}
+                    onClick={() => setLocation('/')}
                   >
                     Start Searching
                   </Button>

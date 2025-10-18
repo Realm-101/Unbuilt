@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import { z } from 'zod';
 import * as schema from '@shared/schema';
+import type { CursorPosition, Metadata } from '@shared/types';
 
 const { Pool } = pg;
 
@@ -18,11 +19,11 @@ interface CollaborationRoom {
   participants: Map<string, {
     userId: number;
     userName: string;
-    cursor?: { x: number; y: number };
+    cursor?: CursorPosition;
     selection?: string;
     ws: WebSocket;
   }>;
-  sharedState: any;
+  sharedState: Metadata;
   lastActivity: Date;
 }
 
@@ -88,7 +89,7 @@ export class CollaborationServer {
     }, 5 * 60 * 1000);
   }
 
-  private extractUserId(req: any): number | null {
+  private extractUserId(req: { headers: { cookie?: string } }): number | null {
     // Extract user ID from session or JWT token
     // This is a simplified version - implement proper authentication
     const cookies = req.headers.cookie?.split('; ') || [];
@@ -139,7 +140,7 @@ export class CollaborationServer {
     }
   }
 
-  private async handleJoinRoom(ws: WebSocket, userId: number, roomId: string, data: any) {
+  private async handleJoinRoom(ws: WebSocket, userId: number, roomId: string, data: { userName?: string }) {
     // Get or create room
     if (!this.rooms.has(roomId)) {
       this.rooms.set(roomId, {
@@ -199,7 +200,7 @@ export class CollaborationServer {
     room.lastActivity = new Date();
   }
 
-  private handleCursorUpdate(userId: number, roomId: string, data: any) {
+  private handleCursorUpdate(userId: number, roomId: string, data: { cursor: CursorPosition }) {
     const room = this.rooms.get(roomId);
     if (!room) return;
 
@@ -218,7 +219,7 @@ export class CollaborationServer {
     room.lastActivity = new Date();
   }
 
-  private handleSelectionUpdate(userId: number, roomId: string, data: any) {
+  private handleSelectionUpdate(userId: number, roomId: string, data: { selection: string }) {
     const room = this.rooms.get(roomId);
     if (!room) return;
 
@@ -237,7 +238,7 @@ export class CollaborationServer {
     room.lastActivity = new Date();
   }
 
-  private handleStateUpdate(userId: number, roomId: string, data: any) {
+  private handleStateUpdate(userId: number, roomId: string, data: { changes: Metadata }) {
     const room = this.rooms.get(roomId);
     if (!room) return;
 
@@ -255,7 +256,7 @@ export class CollaborationServer {
     room.lastActivity = new Date();
   }
 
-  private handleChatMessage(userId: number, roomId: string, data: any) {
+  private handleChatMessage(userId: number, roomId: string, data: { message: string }) {
     const room = this.rooms.get(roomId);
     if (!room) return;
 
@@ -274,7 +275,7 @@ export class CollaborationServer {
     room.lastActivity = new Date();
   }
 
-  private handleTypingIndicator(userId: number, roomId: string, data: any) {
+  private handleTypingIndicator(userId: number, roomId: string, data: { isTyping: boolean }) {
     const room = this.rooms.get(roomId);
     if (!room) return;
 
@@ -300,7 +301,7 @@ export class CollaborationServer {
     });
   }
 
-  private broadcastToRoom(roomId: string, message: any, excludeUserId?: number) {
+  private broadcastToRoom(roomId: string, message: Record<string, unknown>, excludeUserId?: number) {
     const room = this.rooms.get(roomId);
     if (!room) return;
 

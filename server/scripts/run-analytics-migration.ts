@@ -1,10 +1,10 @@
+// Load environment variables FIRST before any other imports
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 import { Pool } from '@neondatabase/serverless';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as dotenv from 'dotenv';
-
-// Load environment variables
-dotenv.config();
 
 const databaseUrl = process.env.SUPABASE_DB_URL || 
                    process.env.DATABASE_URL || 

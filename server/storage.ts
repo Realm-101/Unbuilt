@@ -9,6 +9,7 @@ import {
   type InsertIdea,
   type ValidateIdea,
 } from "@shared/schema";
+import type { SearchResultInput, SearchResultUpdate, FinancialProjections } from "@shared/types";
 import { db } from "./db";
 import { eq, like, desc, count } from "drizzle-orm";
 
@@ -24,10 +25,10 @@ export interface IStorage {
   getSearches(userId?: string): Promise<any[]>;
   
   // Search results operations
-  createSearchResult(result: any): Promise<any>;
-  getSearchResults(searchId: number): Promise<any[]>;
-  getSearchResultById(id: number): Promise<any | undefined>;
-  updateSearchResult(id: number, updates: any): Promise<any>;
+  createSearchResult(result: SearchResultInput): Promise<typeof searchResults.$inferSelect>;
+  getSearchResults(searchId: number): Promise<(typeof searchResults.$inferSelect)[]>;
+  getSearchResultById(id: number): Promise<typeof searchResults.$inferSelect | undefined>;
+  updateSearchResult(id: number, updates: SearchResultUpdate): Promise<typeof searchResults.$inferSelect>;
   
   // Idea operations
   createIdea(idea: ValidateIdea & { 
@@ -39,7 +40,7 @@ export interface IStorage {
     overallScore?: number;
     breakEvenMonths?: number;
     projectedRoi?: number;
-    financialProjections?: any;
+    financialProjections?: FinancialProjections;
     status?: string;
   }): Promise<Idea>;
   getIdeas(userId: string): Promise<Idea[]>;
@@ -96,7 +97,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Search results operations
-  async createSearchResult(result: any) {
+  async createSearchResult(result: SearchResultInput) {
     const [newResult] = await db.insert(searchResults).values(result).returning();
     return newResult;
   }
@@ -110,7 +111,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateSearchResult(id: number, updates: any) {
+  async updateSearchResult(id: number, updates: SearchResultUpdate) {
     const [updated] = await db.update(searchResults)
       .set(updates)
       .where(eq(searchResults.id, id))
@@ -128,7 +129,7 @@ export class DatabaseStorage implements IStorage {
     overallScore?: number;
     breakEvenMonths?: number;
     projectedRoi?: number;
-    financialProjections?: any;
+    financialProjections?: FinancialProjections;
     status?: string;
   }): Promise<Idea> {
     const [newIdea] = await db.insert(ideas).values({

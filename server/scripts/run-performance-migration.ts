@@ -1,3 +1,7 @@
+// Load environment variables FIRST before any other imports
+import { config } from 'dotenv';
+config();
+
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { readFileSync } from 'fs';

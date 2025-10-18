@@ -13,6 +13,7 @@ import {
   type Comment,
   type ActivityFeedItem
 } from '@shared/schema';
+import type { Metadata } from '@shared/types';
 
 // Team Management
 export async function createTeam(
@@ -326,7 +327,7 @@ export async function logActivity(params: {
   action: string;
   entityType?: string;
   entityId?: number;
-  details?: any;
+  details?: Metadata;
 }): Promise<ActivityFeedItem> {
   const [activity] = await db.insert(activityFeed).values({
     teamId: params.teamId,

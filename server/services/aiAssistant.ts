@@ -1,4 +1,5 @@
 import { analyzeGaps } from './gemini';
+import type { ActionButton, Metadata } from '@shared/types';
 
 interface ChatContext {
   message: string;
@@ -9,7 +10,7 @@ interface ChatContext {
 interface ChatResponse {
   response: string;
   suggestions?: string[];
-  actions?: Array<{ label: string; action: string; data?: any }>;
+  actions?: ActionButton[];
   sessionId?: string;
 }
 
@@ -134,7 +135,7 @@ function generateSuggestions(intent: string, message: string): string[] {
 }
 
 // Generate action buttons based on context
-function generateActions(intent: string, message: string): Array<{ label: string; action: string; data?: any }> {
+function generateActions(intent: string, message: string): ActionButton[] {
   const actions = [];
   
   switch (intent) {
@@ -145,7 +146,7 @@ function generateActions(intent: string, message: string): Array<{ label: string
         actions.push({
           label: '🔍 Search for gaps',
           action: 'search',
-          data: searchTerms
+          data: { query: searchTerms }
         });
       }
       actions.push({
@@ -160,7 +161,7 @@ function generateActions(intent: string, message: string): Array<{ label: string
         actions.push({
           label: '✅ Validate idea',
           action: 'validate',
-          data: ideaTerms
+          data: { idea: ideaTerms }
         });
       }
       break;
@@ -340,7 +341,7 @@ What specific aspect would you like to explore?`;
 }
 
 // Advanced AI-powered response (when Gemini API is available)
-export async function generateAIResponse(message: string, context: any[]): Promise<string> {
+export async function generateAIResponse(message: string, context: Array<{ role: string; content: string }>): Promise<string> {
   try {
     // This would integrate with Gemini API for more sophisticated responses
     // For now, we'll use the rule-based system above

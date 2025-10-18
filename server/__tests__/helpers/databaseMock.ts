@@ -16,9 +16,9 @@ export function createDatabaseMock() {
     };
     
     // Make all methods return the chainable object
-    Object.keys(chainable).forEach(key => {
-      if (key !== 'then' && typeof chainable[key] === 'function') {
-        chainable[key].mockReturnValue(chainable);
+    Object.keys(chainable).forEach((key: string) => {
+      if (key !== 'then' && typeof (chainable as any)[key] === 'function') {
+        (chainable as any)[key].mockReturnValue(chainable);
       }
     });
     

@@ -30,7 +30,7 @@ export default function ExportModal({ isOpen, results, onClose }: ExportModalPro
   const [customIntro, setCustomIntro] = useState("");
   const [emailRecipient, setEmailRecipient] = useState("");
   const [companyName, setCompanyName] = useState("");
-  const [authorName, setAuthorName] = useState(user?.username || "");
+  const [authorName, setAuthorName] = useState(user?.name || user?.email || "");
   const [theme, setTheme] = useState("professional");
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);

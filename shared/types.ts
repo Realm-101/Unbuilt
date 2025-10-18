@@ -7,6 +7,9 @@
 
 import type { Request, Response, NextFunction } from 'express';
 
+// Re-export User type from schema for convenience
+export type { User } from './schema';
+
 /**
  * Express Route Handler Types
  * These types help avoid implicit 'any' in route handlers
@@ -182,4 +185,151 @@ export interface SuccessResponse<T = any> {
   message?: string;
   timestamp: string;
   requestId?: string;
+}
+
+/**
+ * WebSocket Message Types
+ * Types for real-time collaboration features
+ */
+export interface WebSocketMessage {
+  type: 'join' | 'leave' | 'cursor' | 'selection' | 'state' | 'chat' | 'typing';
+  roomId?: string;
+  userId?: number;
+  data?: unknown;
+}
+
+export interface CursorPosition {
+  x: number;
+  y: number;
+  elementId?: string;
+}
+
+export interface SelectionRange {
+  start: number;
+  end: number;
+  elementId?: string;
+}
+
+export interface ChatMessageData {
+  message: string;
+  timestamp: string;
+  userName?: string;
+}
+
+/**
+ * Search Filter Types
+ */
+export interface SearchFilters {
+  minScore?: number;
+  maxScore?: number;
+  categories?: string[];
+  innovationScore?: { min?: number; max?: number };
+  marketSize?: string[];
+  feasibilityScore?: { min?: number; max?: number };
+  marketPotential?: string[];
+  keywords?: string[];
+  sortBy?: 'score' | 'date' | 'relevance' | 'innovation' | 'marketSize' | 'feasibility';
+  sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Query Performance Types
+ */
+export interface QueryParams {
+  [key: string]: string | number | boolean | null | undefined;
+}
+
+/**
+ * Theme Configuration Types
+ */
+export interface ThemeConfig {
+  background: string;
+  primary: string;
+  secondary: string;
+  text: string;
+  accent?: string;
+  lightBg?: string;
+}
+
+/**
+ * Financial Projections Type
+ */
+export type FinancialProjections = 
+  | {
+      revenue?: number[];
+      costs?: number[];
+      profit?: number[];
+      breakEvenMonth?: number;
+      roi?: number;
+      [key: string]: unknown;
+    }
+  | Array<{
+      revenue: number;
+      profit: number;
+      year: number;
+      expenses: number;
+      cashFlow: number;
+      customers?: number;
+      marketShare?: number;
+      [key: string]: unknown;
+    }>;
+
+/**
+ * Metadata Type for flexible data storage
+ */
+export type Metadata = Record<string, unknown>;
+
+/**
+ * Action Button Type for AI Assistant
+ */
+export interface ActionButton {
+  label: string;
+  action: string;
+  data?: Metadata;
+}
+
+/**
+ * Search Result Types
+ */
+export interface SearchResultInput {
+  searchId: number;
+  title: string;
+  description: string;
+  category: string;
+  feasibility: string;
+  marketPotential: string;
+  innovationScore: number;
+  marketSize: string;
+  gapReason: string;
+  isSaved?: boolean;
+  confidenceScore?: number;
+  priority?: string;
+  actionableRecommendations?: string[];
+  competitorAnalysis?: string;
+  industryContext?: string;
+  targetAudience?: string;
+  keyTrends?: string[];
+  // Additional fields for filtering and sorting
+  opportunity?: string;
+  relevanceScore?: number;
+  feasibilityScore?: number;
+}
+
+export interface SearchResultUpdate {
+  title?: string;
+  description?: string;
+  category?: string;
+  feasibility?: string;
+  marketPotential?: string;
+  innovationScore?: number;
+  marketSize?: string;
+  gapReason?: string;
+  isSaved?: boolean;
+  confidenceScore?: number;
+  priority?: string;
+  actionableRecommendations?: string[];
+  competitorAnalysis?: string;
+  industryContext?: string;
+  targetAudience?: string;
+  keyTrends?: string[];
 }

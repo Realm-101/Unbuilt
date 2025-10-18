@@ -1,3 +1,7 @@
+// Load environment variables FIRST before any other imports
+import { config } from 'dotenv';
+config();
+
 import { Pool } from '@neondatabase/serverless';
 import * as fs from 'fs';
 import * as path from 'path';

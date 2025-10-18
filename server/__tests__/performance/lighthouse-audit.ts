@@ -2,9 +2,14 @@
  * Lighthouse Performance Audit Script
  * 
  * Runs Lighthouse audits on key pages and validates performance metrics
+ * 
+ * Note: This requires optional dependencies:
+ * npm install --save-dev lighthouse chrome-launcher
  */
 
+// @ts-ignore - Optional dependency
 import lighthouse from 'lighthouse';
+// @ts-ignore - Optional dependency
 import * as chromeLauncher from 'chrome-launcher';
 import { writeFileSync } from 'fs';
 import { join } from 'path';

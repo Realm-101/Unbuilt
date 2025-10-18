@@ -2,8 +2,12 @@
  * Load Testing Script
  * 
  * Tests application performance under load using autocannon
+ * 
+ * Note: This requires optional dependency:
+ * npm install --save-dev autocannon @types/autocannon
  */
 
+// @ts-ignore - Optional dependency
 import autocannon from 'autocannon';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
@@ -102,7 +106,7 @@ async function runLoadTest(config: LoadTestConfig): Promise<LoadTestResult> {
   return new Promise((resolve, reject) => {
     autocannon.track(instance, { renderProgressBar: true });
 
-    instance.on('done', (result) => {
+    instance.on('done', (result: any) => {
       const requests = result.requests;
       const latency = result.latency;
       const throughput = result.throughput;

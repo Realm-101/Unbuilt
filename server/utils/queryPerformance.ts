@@ -1,4 +1,5 @@
 import { log } from '../vite';
+import type { QueryParams } from '@shared/types';
 
 /**
  * Query Performance Monitoring Utility
@@ -9,7 +10,7 @@ interface QueryMetrics {
   query: string;
   duration: number;
   timestamp: Date;
-  params?: any;
+  params?: QueryParams;
 }
 
 class QueryPerformanceMonitor {
@@ -27,7 +28,7 @@ class QueryPerformanceMonitor {
   /**
    * Log a query execution
    */
-  logQuery(query: string, duration: number, params?: any): void {
+  logQuery(query: string, duration: number, params?: QueryParams): void {
     const metrics: QueryMetrics = {
       query: this.sanitizeQuery(query),
       duration,
@@ -55,7 +56,7 @@ class QueryPerformanceMonitor {
   async measureQuery<T>(
     queryName: string,
     queryFn: () => Promise<T>,
-    params?: any
+    params?: QueryParams
   ): Promise<T> {
     const start = Date.now();
     
@@ -136,12 +137,12 @@ class QueryPerformanceMonitor {
   /**
    * Sanitize query parameters for logging
    */
-  private sanitizeParams(params: any): any {
-    if (typeof params !== 'object') {
+  private sanitizeParams(params: QueryParams): QueryParams {
+    if (typeof params !== 'object' || params === null) {
       return params;
     }
 
-    const sanitized: any = {};
+    const sanitized: QueryParams = {};
     for (const [key, value] of Object.entries(params)) {
       // Hide sensitive fields
       if (key.toLowerCase().includes('password') || 
@@ -161,8 +162,10 @@ export const queryPerformanceMonitor = new QueryPerformanceMonitor();
 
 /**
  * Decorator for measuring query performance
+ * Note: Uses 'any' for decorator target and args due to TypeScript decorator limitations
  */
 export function measureQueryPerformance(queryName: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return function (
     target: any,
     propertyKey: string,
@@ -170,6 +173,7 @@ export function measureQueryPerformance(queryName: string) {
   ) {
     const originalMethod = descriptor.value;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     descriptor.value = async function (...args: any[]) {
       return queryPerformanceMonitor.measureQuery(
         `${target.constructor.name}.${propertyKey}`,

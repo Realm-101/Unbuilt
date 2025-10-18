@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { jwtAuth, optionalJwtAuth } from "./middleware/jwtAuth";
 import { sanitizeInput, validateApiInput } from "./middleware/inputSanitization";
 import { validateQueryResults, validateSearchData } from "./middleware/queryValidation";
+import type { SearchResultInput, SearchFilters } from "@shared/types";
 import { 
   validateApiInput as comprehensiveValidation,
   validateSearch,
@@ -43,7 +44,7 @@ import {
   sendSuccess, 
   sendError 
 } from "./middleware/errorHandler";
-import { analyzeGaps } from "./services/gemini";
+import { analyzeGaps, type GapAnalysisResult } from "./services/gemini";
 import { generateBusinessPlan, generateMarketResearch } from "./services/xai";
 import { generateActionPlan, summarizeActionPlan } from "./services/actionPlanGenerator";
 import {
@@ -77,7 +78,7 @@ const stripe = config.stripeSecretKey ? new Stripe(config.stripeSecretKey, {
 }) : null;
 
 // Apply search filters to gap analysis results
-function applySearchFilters(gaps: any[], filters: any) {
+function applySearchFilters(gaps: GapAnalysisResult[], filters: SearchFilters): GapAnalysisResult[] {
   if (!filters || !gaps) return gaps;
   
   let filteredGaps = [...gaps];
@@ -86,7 +87,7 @@ function applySearchFilters(gaps: any[], filters: any) {
   if (filters.categories && filters.categories.length > 0) {
     filteredGaps = filteredGaps.filter(gap => {
       const gapCategory = gap.category?.toLowerCase() || '';
-      return filters.categories.some((cat: string) => 
+      return filters.categories!.some((cat: string) => 
         gapCategory.includes(cat.toLowerCase())
       );
     });
@@ -96,39 +97,45 @@ function applySearchFilters(gaps: any[], filters: any) {
   if (filters.innovationScore) {
     filteredGaps = filteredGaps.filter(gap => {
       const score = gap.innovationScore || 50;
-      return score >= filters.innovationScore[0] && score <= filters.innovationScore[1];
+      const min = filters.innovationScore!.min ?? 0;
+      const max = filters.innovationScore!.max ?? 100;
+      return score >= min && score <= max;
     });
   }
   
-  // Filter by market size
-  if (filters.marketSize) {
+  // Filter by market size (string values like 'large', 'medium', 'small')
+  if (filters.marketSize && filters.marketSize.length > 0) {
     filteredGaps = filteredGaps.filter(gap => {
-      const size = gap.marketSize || 50;
-      return size >= filters.marketSize[0] && size <= filters.marketSize[1];
+      const size = gap.marketSize?.toLowerCase() || '';
+      return filters.marketSize!.some(s => size.includes(s.toLowerCase()));
     });
   }
   
-  // Filter by feasibility score
+  // Filter by feasibility (string values like 'high', 'medium', 'low')
   if (filters.feasibilityScore) {
     filteredGaps = filteredGaps.filter(gap => {
-      const score = gap.feasibilityScore || 50;
-      return score >= filters.feasibilityScore[0] && score <= filters.feasibilityScore[1];
+      // Convert feasibility string to score for comparison
+      const feasibilityMap: Record<string, number> = { high: 80, medium: 50, low: 20 };
+      const score = feasibilityMap[gap.feasibility] || 50;
+      const min = filters.feasibilityScore!.min ?? 0;
+      const max = filters.feasibilityScore!.max ?? 100;
+      return score >= min && score <= max;
     });
   }
   
-  // Filter by market potential
-  if (filters.marketPotential) {
+  // Filter by market potential (string array)
+  if (filters.marketPotential && filters.marketPotential.length > 0) {
     filteredGaps = filteredGaps.filter(gap => {
       const potential = gap.marketPotential?.toLowerCase() || '';
-      return potential.includes(filters.marketPotential.toLowerCase());
+      return filters.marketPotential!.some(p => potential.includes(p.toLowerCase()));
     });
   }
   
   // Filter by keywords
   if (filters.keywords && filters.keywords.length > 0) {
     filteredGaps = filteredGaps.filter(gap => {
-      const gapText = `${gap.title} ${gap.description} ${gap.opportunity}`.toLowerCase();
-      return filters.keywords.some((keyword: string) => 
+      const gapText = `${gap.title} ${gap.description} ${gap.gapReason}`.toLowerCase();
+      return filters.keywords!.some((keyword: string) => 
         gapText.includes(keyword.toLowerCase())
       );
     });
@@ -137,7 +144,7 @@ function applySearchFilters(gaps: any[], filters: any) {
   // Sort results
   if (filters.sortBy) {
     filteredGaps.sort((a, b) => {
-      let aVal, bVal;
+      let aVal: number, bVal: number;
       
       switch (filters.sortBy) {
         case 'innovation':
@@ -145,17 +152,21 @@ function applySearchFilters(gaps: any[], filters: any) {
           bVal = b.innovationScore || 0;
           break;
         case 'marketSize':
-          aVal = a.marketSize || 0;
-          bVal = b.marketSize || 0;
+          // Convert string to numeric for sorting
+          const sizeMap: Record<string, number> = { large: 3, medium: 2, small: 1 };
+          aVal = sizeMap[a.marketSize?.toLowerCase() || 'medium'] || 2;
+          bVal = sizeMap[b.marketSize?.toLowerCase() || 'medium'] || 2;
           break;
         case 'feasibility':
-          aVal = a.feasibilityScore || 0;
-          bVal = b.feasibilityScore || 0;
+          const feasMap: Record<string, number> = { high: 3, medium: 2, low: 1 };
+          aVal = feasMap[a.feasibility] || 2;
+          bVal = feasMap[b.feasibility] || 2;
           break;
         case 'relevance':
+        case 'score':
         default:
-          aVal = a.relevanceScore || 0;
-          bVal = b.relevanceScore || 0;
+          aVal = a.confidenceScore || 0;
+          bVal = b.confidenceScore || 0;
       }
       
       return filters.sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
@@ -237,8 +248,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     );
     
     // Check cache first
-    const cachedGaps = await cacheService.get<any[]>(cacheKey);
-    let gaps: any[];
+    const cachedGaps = await cacheService.get<GapAnalysisResult[]>(cacheKey);
+    let gaps: GapAnalysisResult[];
     let cacheHit = false;
     
     if (cachedGaps) {
@@ -655,7 +666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: idea.description,
         targetMarket: idea.targetMarket,
         businessModel: idea.businessModel,
-        category: idea.category as any,
+        category: idea.category,
         initialInvestment: idea.initialInvestment || 0,
         monthlyRevenue: idea.monthlyRevenue || 0,
         monthlyExpenses: idea.monthlyExpenses || 0,
@@ -778,15 +789,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const invoice = subscription.latest_invoice as Stripe.Invoice;
-      const paymentIntent = (invoice as any).payment_intent as Stripe.PaymentIntent;
+      // Stripe's Invoice type doesn't include payment_intent in the type definition when expanded
+      // but it's present at runtime when the invoice is expanded. This is a known Stripe SDK limitation.
+      const paymentIntent = (invoice as unknown as { payment_intent: Stripe.PaymentIntent }).payment_intent;
 
       res.json({
         subscriptionId: subscription.id,
         clientSecret: paymentIntent.client_secret,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Subscription creation error:', error);
-      res.status(400).json({ error: error.message });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      res.status(400).json({ error: errorMessage });
     }
   });
 
@@ -848,7 +862,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         status: subscription.status,
         plan: user.plan ?? 'free',
-        currentPeriodEnd: (subscription as any).current_period_end,
+        // Stripe SDK returns current_period_end as a number (Unix timestamp)
+        currentPeriodEnd: 'current_period_end' in subscription ? subscription.current_period_end : undefined,
       });
     } catch (error) {
       console.error('Subscription status error:', error);

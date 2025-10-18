@@ -79,7 +79,7 @@ class CacheService {
   /**
    * Set a value in cache with TTL
    */
-  async set(key: string, value: any, ttl?: number): Promise<boolean> {
+  async set(key: string, value: unknown, ttl?: number): Promise<boolean> {
     if (!this.isConnected || !this.client) {
       log('Redis: Not connected, skipping cache set', 'warn');
       return false;

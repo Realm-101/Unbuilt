@@ -1,5 +1,6 @@
 import pptxgen from 'pptxgenjs';
 import { SearchResult } from '@shared/schema';
+import type { ThemeConfig } from '@shared/types';
 
 export interface PPTXOptions {
   theme?: 'professional' | 'modern' | 'minimal';
@@ -72,7 +73,7 @@ export class PPTXGenerator {
     return themes[theme as keyof typeof themes] || themes.professional;
   }
 
-  private addTitleSlide(pptx: pptxgen, theme: any, options: PPTXOptions) {
+  private addTitleSlide(pptx: pptxgen, theme: ThemeConfig, options: PPTXOptions) {
     const slide = pptx.addSlide();
     
     // Background gradient
@@ -152,7 +153,7 @@ export class PPTXGenerator {
     }
   }
 
-  private addExecutiveSummarySlide(pptx: pptxgen, results: SearchResult[], theme: any) {
+  private addExecutiveSummarySlide(pptx: pptxgen, results: SearchResult[], theme: ThemeConfig) {
     const slide = pptx.addSlide();
     slide.background = { fill: theme.background };
     
@@ -213,7 +214,7 @@ export class PPTXGenerator {
     });
   }
 
-  private addKeyMetricsSlide(pptx: pptxgen, results: SearchResult[], theme: any) {
+  private addKeyMetricsSlide(pptx: pptxgen, results: SearchResult[], theme: ThemeConfig) {
     const slide = pptx.addSlide();
     slide.background = { fill: theme.background };
     
@@ -270,7 +271,7 @@ export class PPTXGenerator {
     });
   }
 
-  private addOpportunitySlide(pptx: pptxgen, result: SearchResult, index: number, theme: any) {
+  private addOpportunitySlide(pptx: pptxgen, result: SearchResult, index: number, theme: ThemeConfig) {
     const slide = pptx.addSlide();
     slide.background = { fill: theme.background };
     
@@ -382,7 +383,7 @@ export class PPTXGenerator {
     });
   }
 
-  private addCategoryBreakdownSlide(pptx: pptxgen, results: SearchResult[], theme: any) {
+  private addCategoryBreakdownSlide(pptx: pptxgen, results: SearchResult[], theme: ThemeConfig) {
     const slide = pptx.addSlide();
     slide.background = { fill: theme.background };
     
@@ -422,7 +423,7 @@ export class PPTXGenerator {
     });
   }
 
-  private addCallToActionSlide(pptx: pptxgen, theme: any, options: PPTXOptions) {
+  private addCallToActionSlide(pptx: pptxgen, theme: ThemeConfig, options: PPTXOptions) {
     const slide = pptx.addSlide();
     
     // Full background with gradient effect
@@ -489,7 +490,9 @@ export class PPTXGenerator {
     });
   }
 
-  private addSlideHeader(slide: any, title: string, theme: any) {
+  // Note: slide parameter uses 'any' because pptxgenjs doesn't export proper Slide type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private addSlideHeader(slide: any, title: string, theme: ThemeConfig) {
     // Header bar
     slide.addShape('rect' as any, {
       x: 0,

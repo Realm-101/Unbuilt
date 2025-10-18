@@ -74,11 +74,37 @@ export class TestMockFactory implements MockFactory {
     const defaultUser: User = {
       id: this.mockCounter,
       email: `test-${this.mockCounter}@example.com`,
-      username: `testuser${this.mockCounter}`,
+      name: `testuser${this.mockCounter}`,
       password: '$2b$10$hashedpassword', // Mock hashed password
-      role: 'USER',
-      isDemo: false,
-      createdAt: new Date(),
+      plan: 'free',
+      searchCount: 0,
+      lastResetDate: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      subscriptionTier: 'free',
+      subscriptionStatus: 'inactive',
+      subscriptionPeriodEnd: null,
+      trialUsed: false,
+      trialExpiration: null,
+      preferences: {},
+      isActive: true,
+      avatar: null,
+      provider: 'local',
+      providerId: null,
+      firstName: null,
+      lastName: null,
+      profileImageUrl: null,
+      failedLoginAttempts: 0,
+      lastFailedLogin: null,
+      accountLocked: false,
+      lockoutExpires: null,
+      analyticsOptOut: false,
+      lastPasswordChange: new Date().toISOString(),
+      passwordExpiryWarningSent: false,
+      forcePasswordChange: false,
+      passwordStrengthScore: 0,
       ...overrides,
     };
 
@@ -103,9 +129,14 @@ export class TestMockFactory implements MockFactory {
       ip: '127.0.0.1',
       socket: { remoteAddress: '127.0.0.1' } as any,
       connection: { remoteAddress: '127.0.0.1' } as any,
-      get: vi.fn((header: string) => {
-        return mockReq.headers?.[header.toLowerCase()];
-      }),
+      get: ((header: string) => {
+        if (header === 'set-cookie') {
+          const value = mockReq.headers?.[header.toLowerCase()];
+          return Array.isArray(value) ? value : undefined;
+        }
+        const value = mockReq.headers?.[header.toLowerCase()];
+        return Array.isArray(value) ? value[0] : value;
+      }) as any,
       ...overrides,
     };
 
@@ -153,12 +184,12 @@ export class TestMockFactory implements MockFactory {
    */
   resetAllMocks(): void {
     this.mocks.forEach((mock) => {
-      if (typeof mock === 'function' && mock.mockReset) {
-        mock.mockReset();
+      if (typeof mock === 'function' && 'mockReset' in mock) {
+        (mock as any).mockReset();
       } else if (typeof mock === 'object') {
         Object.values(mock).forEach((value) => {
-          if (typeof value === 'function' && value.mockReset) {
-            value.mockReset();
+          if (typeof value === 'function' && 'mockReset' in value) {
+            (value as any).mockReset();
           }
         });
       }

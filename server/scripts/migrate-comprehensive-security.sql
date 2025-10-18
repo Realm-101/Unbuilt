@@ -394,12 +394,12 @@ COMMENT ON COLUMN users.password_strength_score IS 'Calculated strength score of
 DO $$
 DECLARE
     missing_tables TEXT[] := ARRAY[]::TEXT[];
-    table_name TEXT;
+    tbl_name TEXT;
 BEGIN
     -- Check for required tables
-    FOR table_name IN SELECT unnest(ARRAY['jwt_tokens', 'security_audit_logs', 'security_alerts', 'password_history']) LOOP
-        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = table_name) THEN
-            missing_tables := array_append(missing_tables, table_name);
+    FOR tbl_name IN SELECT unnest(ARRAY['jwt_tokens', 'security_audit_logs', 'security_alerts', 'password_history']) LOOP
+        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE information_schema.tables.table_name = tbl_name) THEN
+            missing_tables := array_append(missing_tables, tbl_name);
         END IF;
     END LOOP;
     

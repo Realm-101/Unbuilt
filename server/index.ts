@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { CollaborationServer } from "./websocket";
@@ -12,6 +13,16 @@ import { httpsEnforcementMiddleware, secureCookieMiddleware, sessionSecurityMidd
 import { cacheService } from "./services/cache";
 
 const app = express();
+
+// CORS configuration - must be before other middleware
+const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:8000';
+app.use(cors({
+  origin: corsOrigin,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Set-Cookie']
+}));
 
 // Apply security middleware early in the stack
 app.use(httpsEnforcementMiddleware);

@@ -21,8 +21,19 @@ import {
   sendSuccess
 } from '../middleware/errorHandler';
 import { trackSignupEvent } from '../middleware/trackingMiddleware';
+import { requireAuth } from 'server/middleware/auth';
 
 const router = Router();
+
+// Helper function to get secure cookie options
+function getCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: (process.env.NODE_ENV === 'production' ? 'strict' : 'lax') as 'strict' | 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  };
+}
 
 // Helper function to get client IP address
 function getClientIp(req: any): string {
@@ -83,13 +94,10 @@ router.post('/login', loginRateLimit, validateLogin, sanitizeInput, validateAuth
     ipAddress
   );
 
-  // Set refresh token as httpOnly cookie
-  res.cookie('refreshToken', sessionResult.refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-  });
+  // Set cookies for authentication
+  const cookieOptions = getCookieOptions();
+  res.cookie('sessionId', sessionResult.sessionId, cookieOptions);
+  res.cookie('refreshToken', sessionResult.refreshToken, cookieOptions);
 
   sendSuccess(res, {
     accessToken: sessionResult.accessToken,
@@ -140,13 +148,10 @@ router.post('/register', registerRateLimit, validateRegister, sanitizeInput, val
     registerIpAddress
   );
 
-  // Set refresh token as httpOnly cookie
-  res.cookie('refreshToken', sessionResult.refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-  });
+  // Set cookies for authentication
+  const cookieOptions = getCookieOptions();
+  res.cookie('sessionId', sessionResult.sessionId, cookieOptions);
+  res.cookie('refreshToken', sessionResult.refreshToken, cookieOptions);
 
   sendSuccess(res, {
     accessToken: sessionResult.accessToken,
@@ -181,12 +186,8 @@ router.post('/refresh', authRateLimit, sanitizeInput, validateSensitiveOperation
   }
 
   // Set new refresh token as httpOnly cookie
-  res.cookie('refreshToken', tokens.refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-  });
+  const cookieOptions = getCookieOptions();
+  res.cookie('refreshToken', tokens.refreshToken, cookieOptions);
 
   sendSuccess(res, {
     accessToken: tokens.accessToken,
@@ -256,9 +257,9 @@ router.get('/me', apiRateLimit, jwtAuth, validateUserData, asyncHandler(async (r
 
 /**
  * GET /api/auth/user
- * Compatibility endpoint for client - redirects to /me
+ * Compatibility endpoint for client - uses session-based auth
  */
-router.get('/user', apiRateLimit, jwtAuth, validateUserData, asyncHandler(async (req: Request, res: Response) => {
+router.get('/user', apiRateLimit, requireAuth, validateUserData, asyncHandler(async (req: Request, res: Response) => {
   const user = await authService.getUserById(req.user!.id);
   if (!user) {
     throw AppError.createNotFoundError('User account not found', 'USER_NOT_FOUND');

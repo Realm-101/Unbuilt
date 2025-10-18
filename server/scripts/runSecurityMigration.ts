@@ -8,9 +8,13 @@
  */
 
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { db } from '../db.js';
 import { sql } from 'drizzle-orm';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 interface MigrationResult {
   success: boolean;
@@ -259,7 +263,8 @@ export async function checkMigrationStatus(): Promise<boolean> {
 }
 
 // Run migration if this script is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isMainModule) {
   runSecurityMigration().catch((error) => {
     console.error('💥 Migration failed:', error);
     process.exit(1);

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User, LoginData, RegisterData } from "@shared/schema";
 
 interface AuthState {
@@ -26,8 +26,10 @@ export const useAuth = create<AuthState>()(
           const response = await apiRequest("POST", "/api/auth/login", data);
           const result = await response.json();
           
-          if (result.success && result.user) {
-            set({ user: result.user, loading: false });
+          if (result.success && result.data?.user) {
+            set({ user: result.data.user, loading: false });
+            // Invalidate the auth query to trigger a refetch
+            queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
           } else {
             throw new Error("Login failed");
           }
@@ -43,8 +45,10 @@ export const useAuth = create<AuthState>()(
           const response = await apiRequest("POST", "/api/auth/register", data);
           const result = await response.json();
           
-          if (result.success && result.user) {
-            set({ user: result.user, loading: false });
+          if (result.success && result.data?.user) {
+            set({ user: result.data.user, loading: false });
+            // Invalidate the auth query to trigger a refetch
+            queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
           } else {
             throw new Error("Registration failed");
           }

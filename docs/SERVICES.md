@@ -1858,6 +1858,723 @@ aiCache.set(query, results, 3600); // Cache for 1 hour
 
 ---
 
+## Cache Service
+
+**File:** `server/services/cache.ts`  
+**Status:** ✅ Active  
+**Version:** 1.0  
+**Last Updated:** October 2025
+
+### Overview
+
+The Cache Service provides Redis-based caching functionality for search results, user data, and other frequently accessed information. It improves application performance by reducing database queries and API calls.
+
+### Purpose
+
+- Cache search results to reduce AI API calls
+- Store rate limiting data
+- Cache user session data
+- Improve application response times
+- Reduce database load
+
+### API Reference
+
+#### `connect(): Promise<void>`
+
+Initializes Redis connection with automatic reconnection strategy.
+
+**Example:**
+```typescript
+import { cacheService } from './services/cache';
+
+await cacheService.connect();
+```
+
+#### `set(key: string, value: any, ttl?: number): Promise<boolean>`
+
+Stores a value in cache with optional TTL (time-to-live).
+
+**Parameters:**
+- `key` (string) - Cache key
+- `value` (any) - Value to cache (will be JSON serialized)
+- `ttl` (number, optional) - Time-to-live in seconds (default: 3600)
+
+**Returns:** `Promise<boolean>` - Success status
+
+**Example:**
+```typescript
+const success = await cacheService.set('search:123', searchResults, 1800);
+```
+
+#### `get<T>(key: string): Promise<T | null>`
+
+Retrieves a value from cache.
+
+**Parameters:**
+- `key` (string) - Cache key
+
+**Returns:** `Promise<T | null>` - Cached value or null if not found
+
+**Example:**
+```typescript
+const results = await cacheService.get<SearchResult[]>('search:123');
+if (results) {
+  return results; // Cache hit
+}
+```
+
+#### `delete(key: string): Promise<boolean>`
+
+Deletes a specific key from cache.
+
+#### `deletePattern(pattern: string): Promise<number>`
+
+Deletes all keys matching a pattern.
+
+**Example:**
+```typescript
+// Delete all search caches for a user
+await cacheService.deletePattern('gapfinder:search:user:123:*');
+```
+
+#### `exists(key: string): Promise<boolean>`
+
+Checks if a key exists in cache.
+
+#### `isAvailable(): boolean`
+
+Checks if Redis connection is active.
+
+### Configuration
+
+#### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `REDIS_URL` | Optional | Redis connection URL (default: redis://localhost:6379) |
+
+**Setup:**
+```bash
+# Add to .env file
+REDIS_URL=redis://localhost:6379
+```
+
+### Cache Namespaces
+
+Predefined namespaces for organizing cache keys:
+
+```typescript
+export const CacheNamespaces = {
+  SEARCH_RESULTS: 'search',
+  USER_DATA: 'user',
+  ANALYTICS: 'analytics',
+  RATE_LIMIT: 'ratelimit',
+};
+```
+
+### Cache TTL Presets
+
+```typescript
+export const CacheTTL = {
+  SHORT: 300,      // 5 minutes
+  MEDIUM: 1800,    // 30 minutes
+  LONG: 3600,      // 1 hour
+  VERY_LONG: 86400 // 24 hours
+};
+```
+
+### Usage Example
+
+```typescript
+import { cacheService, CacheNamespaces, CacheTTL } from './services/cache';
+
+// Generate namespaced key
+const cacheKey = cacheService.generateKey(
+  CacheNamespaces.SEARCH_RESULTS,
+  `user:${userId}:query:${queryHash}`
+);
+
+// Try to get from cache
+const cached = await cacheService.get<SearchResult[]>(cacheKey);
+if (cached) {
+  return cached;
+}
+
+// Fetch fresh data
+const results = await performSearch(query);
+
+// Store in cache
+await cacheService.set(cacheKey, results, CacheTTL.LONG);
+
+return results;
+```
+
+### Integration Points
+
+- **server/index.ts** - Initializes cache on startup
+- **Search routes** - Caches search results
+- **Rate limiting** - Stores rate limit counters
+- **Session management** - Caches session data
+
+### Error Handling
+
+The service is designed to fail gracefully:
+- If Redis is unavailable, operations return false/null
+- Application continues to work without cache
+- Errors are logged but don't crash the app
+
+### Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| redis | ^4.6.0 | Redis client for Node.js |
+
+---
+
+## Analytics Service
+
+**File:** `server/services/analytics.ts`  
+**Status:** ✅ Active  
+**Version:** 1.0  
+**Last Updated:** October 2025
+
+### Overview
+
+The Analytics Service tracks user behavior and feature usage for data-driven product decisions. It respects user privacy with opt-out support and automatic data anonymization.
+
+### Purpose
+
+- Track user behavior and feature usage
+- Measure conversion rates
+- Identify popular features
+- Support data-driven product decisions
+- Monitor application health
+
+### API Reference
+
+#### `trackEvent(event: AnalyticsEvent): Promise<void>`
+
+Tracks a generic analytics event.
+
+**Parameters:**
+```typescript
+interface AnalyticsEvent {
+  eventType: string;
+  userId?: number;
+  metadata?: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
+}
+```
+
+**Example:**
+```typescript
+await analyticsService.trackEvent({
+  eventType: 'feature_usage',
+  userId: 123,
+  metadata: { feature: 'export', action: 'pdf_download' }
+});
+```
+
+#### `trackSearch(userId: number | undefined, query: string, resultsCount: number): Promise<void>`
+
+Tracks a search query.
+
+#### `trackExport(userId: number | undefined, format: string, searchId: number): Promise<void>`
+
+Tracks an export action.
+
+#### `trackPageView(userId: number | undefined, page: string, referrer?: string): Promise<void>`
+
+Tracks a page view.
+
+#### `trackFeatureUsage(userId: number | undefined, feature: string, action: string): Promise<void>`
+
+Tracks feature usage.
+
+#### `trackSignup(userId: number, provider: string): Promise<void>`
+
+Tracks user signup events.
+
+#### `trackSubscription(userId: number, action: string, tier: string): Promise<void>`
+
+Tracks subscription events (created, updated, cancelled).
+
+#### `getMetrics(startDate: Date, endDate: Date): Promise<AnalyticsMetrics>`
+
+Retrieves aggregated metrics for a date range.
+
+**Returns:**
+```typescript
+interface AnalyticsMetrics {
+  totalSearches: number;
+  totalExports: number;
+  totalPageViews: number;
+  activeUsers: number;
+  popularSearches: Array<{ query: string; count: number }>;
+  exportsByFormat: Record<string, number>;
+  conversionRate: number;
+}
+```
+
+**Example:**
+```typescript
+const startDate = new Date('2025-10-01');
+const endDate = new Date('2025-10-31');
+const metrics = await analyticsService.getMetrics(startDate, endDate);
+
+console.log(`Active users: ${metrics.activeUsers}`);
+console.log(`Conversion rate: ${metrics.conversionRate}%`);
+```
+
+### Privacy Features
+
+1. **Opt-Out Support** - Users can opt out of analytics tracking
+2. **Data Anonymization** - Sensitive fields are automatically removed
+3. **No PII Storage** - Email, passwords, tokens are never stored
+4. **Graceful Failures** - Analytics failures don't break the app
+
+### Integration Points
+
+- **server/routes/analyticsAdmin.ts** - Admin analytics dashboard
+- **server/middleware/trackingMiddleware.ts** - Automatic page view tracking
+- **Search routes** - Track search queries
+- **Export routes** - Track export actions
+
+### Usage Example
+
+```typescript
+import { analyticsService } from './services/analytics';
+
+// Track a search
+await analyticsService.trackSearch(req.user?.id, query, results.length);
+
+// Track an export
+await analyticsService.trackExport(req.user?.id, 'pdf', searchId);
+
+// Get metrics for dashboard
+const metrics = await analyticsService.getMetrics(
+  new Date('2025-10-01'),
+  new Date('2025-10-31')
+);
+```
+
+### Data Retention
+
+The service includes automatic cleanup:
+
+```typescript
+// Clean up data older than 90 days
+await analyticsService.cleanupOldData(90);
+```
+
+### Dependencies
+
+- **Database** - Uses `analyticsEvents` table
+- **Drizzle ORM** - For database queries
+
+---
+
+## Subscription Manager Service
+
+**File:** `server/services/subscriptionManager.ts`  
+**Status:** ✅ Active  
+**Version:** 1.0  
+**Last Updated:** October 2025
+
+### Overview
+
+The Subscription Manager Service handles subscription tier management, usage limits, and feature access control for different subscription plans.
+
+### Purpose
+
+- Manage subscription tiers (free, pro, business, enterprise)
+- Enforce usage limits per tier
+- Check feature access permissions
+- Track usage counts
+- Handle subscription lifecycle
+
+### Subscription Tiers
+
+```typescript
+export const SUBSCRIPTION_LIMITS = {
+  free: {
+    searches: 5,
+    exports: 3,
+    aiAnalysis: false,
+    advancedExports: false,
+    collaboration: false,
+    prioritySupport: false,
+  },
+  pro: {
+    searches: 100,
+    exports: 50,
+    aiAnalysis: true,
+    advancedExports: true,
+    collaboration: false,
+    prioritySupport: false,
+  },
+  business: {
+    searches: 500,
+    exports: 200,
+    aiAnalysis: true,
+    advancedExports: true,
+    collaboration: true,
+    prioritySupport: true,
+  },
+  enterprise: {
+    searches: -1, // unlimited
+    exports: -1, // unlimited
+    aiAnalysis: true,
+    advancedExports: true,
+    collaboration: true,
+    prioritySupport: true,
+  },
+};
+```
+
+### API Reference
+
+#### `getUserSubscriptionTier(userId: number): Promise<SubscriptionTier>`
+
+Gets the user's current subscription tier.
+
+**Returns:** `'free' | 'pro' | 'business' | 'enterprise'`
+
+#### `getUserLimits(userId: number): Promise<SubscriptionLimits>`
+
+Gets the usage limits for a user's subscription tier.
+
+#### `canPerformAction(userId: number, action: string): Promise<{ allowed: boolean; reason?: string }>`
+
+Checks if a user can perform an action based on their subscription.
+
+**Actions:**
+- `'search'` - Perform a search
+- `'export'` - Export results
+- `'aiAnalysis'` - Use AI analysis features
+- `'advancedExports'` - Use PDF/Excel/PPTX exports
+- `'collaboration'` - Use collaboration features
+
+**Example:**
+```typescript
+const { allowed, reason } = await canPerformAction(userId, 'aiAnalysis');
+
+if (!allowed) {
+  return res.status(403).json({ 
+    error: reason || 'Feature not available on your plan' 
+  });
+}
+```
+
+#### `incrementSearchCount(userId: number): Promise<void>`
+
+Increments the user's search count (resets monthly).
+
+#### `updateSubscription(userId: number, tier: SubscriptionTier, status: string, periodEnd?: Date): Promise<void>`
+
+Updates a user's subscription.
+
+#### `cancelSubscription(userId: number): Promise<void>`
+
+Cancels a subscription (downgrades to free).
+
+### Usage Example
+
+```typescript
+import { canPerformAction, incrementSearchCount } from './services/subscriptionManager';
+
+// Check if user can search
+const { allowed, reason } = await canPerformAction(req.user.id, 'search');
+
+if (!allowed) {
+  return res.status(403).json({ error: reason });
+}
+
+// Perform search
+const results = await performSearch(query);
+
+// Increment search count
+await incrementSearchCount(req.user.id);
+
+return res.json({ results });
+```
+
+### Integration Points
+
+- **Stripe integration** - Handles subscription webhooks
+- **Search routes** - Enforces search limits
+- **Export routes** - Checks export permissions
+- **Feature gates** - Controls feature access
+
+### Testing
+
+Comprehensive unit tests available at:
+`server/services/__tests__/subscriptionManager.test.ts`
+
+---
+
+## Export Service
+
+**File:** `server/services/exportService.ts`  
+**Status:** ✅ Active  
+**Version:** 1.0  
+**Last Updated:** October 2025
+
+### Overview
+
+The Export Service orchestrates the generation of market gap analysis reports in multiple formats (PDF, Excel, PowerPoint, JSON). It provides progress tracking and optional email delivery.
+
+### Purpose
+
+- Unified export orchestration
+- Support multiple export formats
+- Track export progress
+- Optional email delivery
+- Handle large exports gracefully
+
+### Supported Formats
+
+1. **PDF** - Professional HTML reports (via Puppeteer)
+2. **Excel** - Multi-sheet workbooks with charts
+3. **PowerPoint** - Presentation slides
+4. **JSON** - Raw data export
+
+### API Reference
+
+#### `exportResults(results: SearchResult[], options: ExportOptions, exportId: string): Promise<Buffer>`
+
+Generates an export in the specified format.
+
+**Parameters:**
+```typescript
+interface ExportOptions {
+  format: 'pdf' | 'excel' | 'pptx' | 'json';
+  emailTo?: string;
+  customization?: {
+    companyName?: string;
+    authorName?: string;
+    theme?: string;
+    includeCharts?: boolean;
+    includeFormulas?: boolean;
+  };
+}
+```
+
+**Returns:** `Promise<Buffer>` - Export file as buffer
+
+**Example:**
+```typescript
+import { exportService } from './services/exportService';
+
+const exportId = `export_${Date.now()}`;
+const buffer = await exportService.exportResults(
+  searchResults,
+  {
+    format: 'pdf',
+    customization: {
+      companyName: 'Acme Corp',
+      authorName: 'Jane Smith'
+    }
+  },
+  exportId
+);
+
+res.setHeader('Content-Type', 'application/pdf');
+res.send(buffer);
+```
+
+#### `getProgress(exportId: string): ExportProgress | undefined`
+
+Gets the current progress of an export.
+
+**Returns:**
+```typescript
+interface ExportProgress {
+  status: 'pending' | 'processing' | 'complete' | 'error';
+  progress: number; // 0-100
+  message: string;
+  downloadUrl?: string;
+  error?: string;
+}
+```
+
+### Progress Tracking
+
+The service provides real-time progress updates:
+
+```typescript
+// Client polls for progress
+const progress = exportService.getProgress(exportId);
+console.log(`${progress.message} - ${progress.progress}%`);
+```
+
+### Integration Points
+
+- **PDF Generator** - HTML to PDF conversion
+- **Excel Generator** - Workbook creation
+- **PPTX Generator** - Presentation creation
+- **Email Service** - Optional email delivery
+
+### Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| puppeteer | ^21.0.0 | PDF rendering |
+| exceljs | ^4.3.0 | Excel generation |
+| pptxgenjs | ^3.12.0 | PowerPoint generation |
+| nodemailer | ^6.9.0 | Email delivery (optional) |
+
+---
+
+## Excel Generator Service
+
+**File:** `server/services/excel-generator.ts`  
+**Status:** ✅ Active  
+**Version:** 1.0  
+**Last Updated:** October 2025
+
+### Overview
+
+The Excel Generator Service creates professional multi-sheet Excel workbooks from market gap analysis results with charts, formulas, and color-coded metrics.
+
+### Purpose
+
+- Generate Excel workbooks with multiple sheets
+- Include summary statistics and metrics
+- Create category analysis breakdowns
+- Add color-coded visualizations
+- Support formulas and charts
+
+### Workbook Structure
+
+1. **Summary Sheet** - Key metrics and category breakdown
+2. **Opportunities Sheet** - Detailed opportunity listing with filters
+3. **Category Analysis Sheet** - Grouped by category with aggregations
+4. **Detailed Metrics Sheet** - Distribution charts and statistics
+
+### API Reference
+
+#### `generateWorkbook(results: SearchResult[], options: ExcelOptions): Promise<ExcelJS.Workbook>`
+
+Generates a complete Excel workbook.
+
+**Parameters:**
+```typescript
+interface ExcelOptions {
+  includeCharts?: boolean;
+  includeFormulas?: boolean;
+  companyName?: string;
+  authorName?: string;
+}
+```
+
+**Example:**
+```typescript
+import { excelGenerator } from './services/excel-generator';
+
+const workbook = await excelGenerator.generateWorkbook(results, {
+  includeCharts: true,
+  includeFormulas: true,
+  companyName: 'Acme Corp',
+  authorName: 'Jane Smith'
+});
+
+const buffer = await workbook.xlsx.writeBuffer();
+res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+res.send(buffer);
+```
+
+### Features
+
+- **Color Coding** - Feasibility and potential levels
+- **Auto Filters** - Sortable and filterable columns
+- **Frozen Headers** - Header row stays visible
+- **Formulas** - Automatic calculations
+- **Professional Styling** - Branded colors and fonts
+
+### Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| exceljs | ^4.3.0 | Excel workbook generation |
+
+---
+
+## PPTX Generator Service
+
+**File:** `server/services/pptx-generator.ts`  
+**Status:** ✅ Active  
+**Version:** 1.0  
+**Last Updated:** October 2025
+
+### Overview
+
+The PPTX Generator Service creates professional PowerPoint presentations from market gap analysis results with multiple themes and chart visualizations.
+
+### Purpose
+
+- Generate PowerPoint presentations
+- Support multiple themes (professional, modern, minimal)
+- Create visually appealing slides
+- Include charts and metrics
+- Highlight top opportunities
+
+### Presentation Structure
+
+1. **Title Slide** - Branded cover page
+2. **Executive Summary** - Key findings
+3. **Key Metrics** - Statistics cards
+4. **Top Opportunities** - Individual slides for top 5 opportunities
+5. **Category Breakdown** - Bar chart of categories
+6. **Call to Action** - Closing slide
+
+### API Reference
+
+#### `generatePresentation(results: SearchResult[], options: PPTXOptions): Promise<pptxgen>`
+
+Generates a PowerPoint presentation.
+
+**Parameters:**
+```typescript
+interface PPTXOptions {
+  theme?: 'professional' | 'modern' | 'minimal';
+  includeCharts?: boolean;
+  companyName?: string;
+  authorName?: string;
+}
+```
+
+**Example:**
+```typescript
+import { pptxGenerator } from './services/pptx-generator';
+
+const presentation = await pptxGenerator.generatePresentation(results, {
+  theme: 'professional',
+  includeCharts: true,
+  companyName: 'Acme Corp',
+  authorName: 'Jane Smith'
+});
+
+const buffer = await presentation.write({ outputType: 'nodebuffer' });
+res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+res.send(buffer);
+```
+
+### Themes
+
+- **Professional** - Orange/blue corporate theme
+- **Modern** - Purple/cyan contemporary theme
+- **Minimal** - Black/gray minimalist theme
+
+### Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| pptxgenjs | ^3.12.0 | PowerPoint generation |
+
+---
+
 ## Service Status Overview
 
 | Service | Status | File | Purpose |
@@ -1874,6 +2591,8 @@ aiCache.set(query, results, 3600); // Cache for 1 hour
 | Financial Modeling | ✅ Active | `server/services/financialModeling.ts` | Financial projections and analysis |
 | Collaboration | ✅ Active | `server/services/collaboration.ts` | Team collaboration features |
 | AI Assistant | ✅ Active | `server/services/aiAssistant.ts` | Interactive AI chat assistant |
+| Subscription Manager | ✅ Active | `server/services/subscriptionManager.ts` | Subscription tier management and limits |
+| Analytics | ✅ Active | `server/services/analytics.ts` | User behavior and feature usage tracking |
 | **Security Services** |
 | Session Manager | ✅ Active | `server/services/sessionManager.ts` | Session lifecycle and device tracking |
 | Security Logger | ✅ Active | `server/services/securityLogger.ts` | Security event logging and auditing |
@@ -1883,8 +2602,12 @@ aiCache.set(query, results, 3600); // Cache for 1 hour
 | Account Lockout | ✅ Active | `server/services/accountLockout.ts` | Brute force protection |
 | Security Event Handler | ✅ Active | `server/services/securityEventHandler.ts` | Security event processing |
 | CAPTCHA Service | ✅ Active | `server/services/captchaService.ts` | Bot protection and verification |
-| **Utility Services** |
+| **Export & Utility Services** |
+| Export Service | ✅ Active | `server/services/exportService.ts` | Unified export orchestration |
 | PDF Generator | ✅ Active | `server/services/pdf-generator.ts` | Report export (HTML/PDF) |
+| Excel Generator | ✅ Active | `server/services/excel-generator.ts` | Excel workbook generation |
+| PPTX Generator | ✅ Active | `server/services/pptx-generator.ts` | PowerPoint presentation generation |
+| Cache Service | ✅ Active | `server/services/cache.ts` | Redis-based caching layer |
 | Token Cleanup | ✅ Active | `server/services/tokenCleanup.ts` | Expired token cleanup |
 | Scheduled Tasks | ✅ Active | `server/services/scheduledTasks.ts` | Background task scheduling |
 | Demo User | ✅ Active | `server/services/demoUser.ts` | Demo account management |

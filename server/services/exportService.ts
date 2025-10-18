@@ -3,6 +3,7 @@ import { pdfGenerator, PDFOptions } from './pdf-generator';
 import { excelGenerator, ExcelOptions } from './excel-generator';
 import { pptxGenerator, PPTXOptions } from './pptx-generator';
 import puppeteer from 'puppeteer';
+// @ts-ignore - Optional dependency for email functionality
 import nodemailer from 'nodemailer';
 
 export type ExportFormat = 'pdf' | 'excel' | 'pptx' | 'json';

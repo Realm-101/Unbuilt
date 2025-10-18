@@ -133,7 +133,7 @@ export async function createTestUsers(
     const user = await createTestUser(db, {
       ...baseOverrides,
       email: `test-${i}@example.com`,
-      username: `testuser${i}`,
+      name: `testuser${i}`,
     });
     users.push(user);
   }
@@ -153,7 +153,7 @@ export async function createTestAdmin(
   overrides?: Partial<User>
 ): Promise<User> {
   return createTestUser(db, {
-    role: 'ADMIN',
+    plan: 'enterprise', // Admin users typically have enterprise plan
     ...overrides,
   });
 }
@@ -170,7 +170,8 @@ export async function createTestDemoUser(
   overrides?: Partial<User>
 ): Promise<User> {
   return createTestUser(db, {
-    isDemo: true,
+    email: 'demo@example.com',
+    name: 'Demo User',
     ...overrides,
   });
 }
