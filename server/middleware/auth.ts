@@ -29,19 +29,47 @@ declare global {
  */
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const sessionId = req.cookies.sessionId;
+  const refreshToken = req.cookies.refreshToken;
   
-  if (!sessionId) {
-    return res.status(401).json({ error: 'Authentication required' });
+  // Debug logging
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[requireAuth] Cookies:', req.cookies);
+    console.log('[requireAuth] SessionId:', sessionId);
+    console.log('[requireAuth] RefreshToken:', refreshToken ? 'present' : 'missing');
   }
   
-  const user = await authService.getSessionUser(sessionId);
-  
-  if (!user) {
-    return res.status(401).json({ error: 'Invalid session' });
+  if (!sessionId && !refreshToken) {
+    return res.status(401).json({ error: 'Authentication required', debug: { hasCookies: !!req.headers.cookie } });
   }
   
-  req.user = user;
-  next();
+  // Try JWT-based session first (new system)
+  if (refreshToken) {
+    try {
+      const { jwtService } = await import('../jwt');
+      const payload = await jwtService.validateToken(refreshToken, 'refresh');
+      
+      if (payload && payload.sub) {
+        const user = await authService.getUserById(parseInt(payload.sub));
+        if (user) {
+          req.user = user;
+          return next();
+        }
+      }
+    } catch (error) {
+      console.log('[requireAuth] JWT validation failed:', error);
+    }
+  }
+  
+  // Fallback to database session (old system)
+  if (sessionId) {
+    const user = await authService.getSessionUser(sessionId);
+    if (user) {
+      req.user = user;
+      return next();
+    }
+  }
+  
+  return res.status(401).json({ error: 'Invalid session', debug: { sessionId, hasRefreshToken: !!refreshToken } });
 }
 
 /**

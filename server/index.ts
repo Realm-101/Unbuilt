@@ -17,11 +17,28 @@ const app = express();
 // CORS configuration - must be before other middleware
 const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:8000';
 app.use(cors({
-  origin: corsOrigin,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Allow configured origin
+    if (origin === corsOrigin || origin === 'http://localhost:8000') {
+      return callback(null, true);
+    }
+    
+    // In development, allow any localhost
+    if (process.env.NODE_ENV === 'development' && origin.includes('localhost')) {
+      return callback(null, true);
+    }
+    
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Set-Cookie']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
+  exposedHeaders: ['Set-Cookie'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 // Apply security middleware early in the stack
@@ -67,6 +84,18 @@ app.use((req, res, next) => {
 // Add health check endpoint for Replit
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
+// Debug endpoint to check cookies
+app.get('/api/debug/cookies', (req, res) => {
+  res.json({
+    cookies: req.cookies,
+    headers: {
+      cookie: req.headers.cookie,
+      origin: req.headers.origin,
+      referer: req.headers.referer
+    }
+  });
 });
 
 (async () => {

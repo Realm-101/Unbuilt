@@ -99,6 +99,15 @@ router.post('/login', loginRateLimit, validateLogin, sanitizeInput, validateAuth
   res.cookie('sessionId', sessionResult.sessionId, cookieOptions);
   res.cookie('refreshToken', sessionResult.refreshToken, cookieOptions);
 
+  // Debug logging
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Login] Setting cookies:', {
+      sessionId: sessionResult.sessionId,
+      cookieOptions,
+      userId: user.id
+    });
+  }
+
   sendSuccess(res, {
     accessToken: sessionResult.accessToken,
     expiresIn: 15 * 60, // 15 minutes
