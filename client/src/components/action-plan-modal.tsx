@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { X, Lightbulb, Target, Users, DollarSign, Calendar, CheckCircle, ExternalLink, TrendingUp, ArrowRight } from "lucide-react";
+import { X, Lightbulb, Target, Users, DollarSign, Calendar, CheckCircle, ExternalLink, TrendingUp, ArrowRight, Download, FileText, Presentation, FileSpreadsheet, FileJson } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 import type { SearchResult } from "@shared/schema";
 
 interface ActionPlanModalProps {
@@ -14,8 +19,117 @@ interface ActionPlanModalProps {
 
 export default function ActionPlanModal({ isOpen, result, onClose }: ActionPlanModalProps) {
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [activeTab, setActiveTab] = useState("analysis");
+  const [selectedPages, setSelectedPages] = useState<string[]>(["analysis", "roadmap", "research", "resources", "funding"]);
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
 
   if (!isOpen || !result) return null;
+
+  const isPro = user?.plan === 'pro' || user?.plan === 'enterprise';
+
+  const exportFormats = [
+    { id: "pdf", name: "PDF Report", icon: FileText, premium: false },
+    { id: "excel", name: "Excel", icon: FileSpreadsheet, premium: false },
+    { id: "pptx", name: "PowerPoint", icon: Presentation, premium: true },
+    { id: "json", name: "JSON", icon: FileJson, premium: false }
+  ];
+
+  const pages = [
+    { id: "analysis", name: "Full Analysis" },
+    { id: "roadmap", name: "Development Roadmap" },
+    { id: "research", name: "Market Research" },
+    { id: "resources", name: "Resources" },
+    { id: "funding", name: "Funding Options" }
+  ];
+
+  const togglePageSelection = (pageId: string) => {
+    setSelectedPages(prev => 
+      prev.includes(pageId) 
+        ? prev.filter(id => id !== pageId)
+        : [...prev, pageId]
+    );
+  };
+
+  const handleExport = async (format: string) => {
+    const selectedFormat = exportFormats.find(f => f.id === format);
+    
+    if (!isPro && selectedFormat?.premium) {
+      toast({
+        title: "Pro Feature Required",
+        description: "Upgrade to Pro to export premium formats",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (selectedPages.length === 0) {
+      toast({
+        title: "No Pages Selected",
+        description: "Please select at least one page to export",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsExporting(true);
+
+    try {
+      const response = await apiRequest("POST", "/api/export", {
+        format: format,
+        results: [result],
+        options: {
+          pages: selectedPages,
+          customization: {
+            theme: "professional",
+            includeCharts: true
+          }
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${result.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.${selectedFormat?.id === 'excel' ? 'xlsx' : selectedFormat?.id || 'pdf'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Export Complete",
+        description: `Your ${selectedFormat?.name} has been downloaded`,
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "Failed to generate export. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleMarketResearch = () => {
+    // Store the opportunity data in sessionStorage for the market research page
+    sessionStorage.setItem('marketResearchContext', JSON.stringify({
+      title: result.title,
+      description: result.description,
+      category: result.category,
+      marketSize: result.marketSize,
+      industryContext: result.industryContext
+    }));
+    onClose();
+    setLocation('/market-research');
+  };
 
   const toggleStep = (stepIndex: number) => {
     setCompletedSteps(prev => 
@@ -86,9 +200,9 @@ export default function ActionPlanModal({ isOpen, result, onClose }: ActionPlanM
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto w-full neon-flame-border">
-        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6">
+        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6 z-10">
           <div className="flex items-start justify-between">
-            <div>
+            <div className="flex-1">
               <h2 className="text-2xl font-bold text-white mb-2">{result.title}</h2>
               <p className="text-gray-300 mb-4">{result.description}</p>
               <div className="flex items-center space-x-4">
@@ -106,20 +220,86 @@ export default function ActionPlanModal({ isOpen, result, onClose }: ActionPlanM
                 </Badge>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={onClose} className="p-2 text-gray-400 hover:text-white">
-              <X className="w-5 h-5" />
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Export Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={isExporting}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuLabel>Select Pages to Export</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {pages.map(page => (
+                    <DropdownMenuCheckboxItem
+                      key={page.id}
+                      checked={selectedPages.includes(page.id)}
+                      onCheckedChange={() => togglePageSelection(page.id)}
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      {page.name}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Export Format</DropdownMenuLabel>
+                  {exportFormats.map(format => (
+                    <DropdownMenuItem
+                      key={format.id}
+                      onClick={() => handleExport(format.id)}
+                      disabled={format.premium && !isPro}
+                    >
+                      <format.icon className="w-4 h-4 mr-2" />
+                      {format.name}
+                      {format.premium && !isPro && (
+                        <Badge className="ml-auto text-xs bg-yellow-500/20 text-yellow-400">Pro</Badge>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              <Button variant="ghost" size="sm" onClick={onClose} className="p-2 text-gray-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
         </div>
 
         <div className="p-6">
-          <Tabs defaultValue="analysis" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="analysis">Full Analysis</TabsTrigger>
-              <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
-              <TabsTrigger value="research">Research</TabsTrigger>
-              <TabsTrigger value="resources">Resources</TabsTrigger>
-              <TabsTrigger value="funding">Funding</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-5 bg-gray-900/50 p-1">
+              <TabsTrigger 
+                value="analysis"
+                className="data-[state=active]:bg-orange-600 data-[state=active]:text-white"
+              >
+                Full Analysis
+              </TabsTrigger>
+              <TabsTrigger 
+                value="roadmap"
+                className="data-[state=active]:bg-orange-600 data-[state=active]:text-white"
+              >
+                Roadmap
+              </TabsTrigger>
+              <TabsTrigger 
+                value="research"
+                className="data-[state=active]:bg-orange-600 data-[state=active]:text-white"
+              >
+                Research
+              </TabsTrigger>
+              <TabsTrigger 
+                value="resources"
+                className="data-[state=active]:bg-orange-600 data-[state=active]:text-white"
+              >
+                Resources
+              </TabsTrigger>
+              <TabsTrigger 
+                value="funding"
+                className="data-[state=active]:bg-orange-600 data-[state=active]:text-white"
+              >
+                Funding
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="analysis" className="space-y-6">
@@ -424,6 +604,29 @@ export default function ActionPlanModal({ isOpen, result, onClose }: ActionPlanM
             </TabsContent>
 
             <TabsContent value="research" className="space-y-4">
+              {/* AI-Powered Market Research CTA */}
+              <div className="bg-gradient-to-br from-orange-900/30 to-purple-900/30 p-6 rounded-lg border border-orange-500/50">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-semibold text-white mb-2 flex items-center">
+                      <Target className="w-5 h-5 mr-2 text-orange-400" />
+                      AI-Powered Market Research
+                    </h3>
+                    <p className="text-sm text-gray-300">
+                      Get instant, comprehensive market research powered by AI. Analyze competitors, market trends, and customer insights in minutes.
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  onClick={handleMarketResearch}
+                  className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Start Market Research
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+
               <div className="bg-yellow-900/30 p-4 rounded-lg border border-yellow-600/30">
                 <h3 className="font-semibold text-white mb-3">Market Research Strategy</h3>
                 <div className="space-y-3">
