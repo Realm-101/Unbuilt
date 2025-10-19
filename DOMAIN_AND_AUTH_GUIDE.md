@@ -271,7 +271,7 @@ I noticed a few issues:
 DATABASE_URL=postgresql://user:password@host.neon.tech/dbname?sslmode=require
 
 # Should be (from your .env):
-DATABASE_URL=postgresql://neondb_owner:npg_oLQaeU8v4bNM@ep-little-tree-agutidhi.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL=postgresql://your_user:your_password@ep-xxx-xxx.neon.tech/neondb?sslmode=require
 ```
 
 ### **Issue 2: OPENAI_API_KEY has tab character**
