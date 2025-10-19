@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, TrendingUp, BarChart3, Users, CheckCircle, ArrowRight, Star } from "lucide-react";
 import Logo from "@/components/logo";
+import { Squares } from "@/components/ui/squares-background";
 
 export default function Landing() {
   const [, setLocation] = useLocation();
@@ -19,9 +20,22 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen dark flame-bg">
-      {/* Header */}
-      <header className="flame-glass neon-flame-border">
+    <div className="min-h-screen dark relative">
+      {/* Squares Background - Fixed behind all content */}
+      <div className="fixed inset-0 z-0">
+        <Squares
+          direction="diagonal"
+          speed={0.5}
+          squareSize={40}
+          borderColor="#333"
+          hoverFillColor="#222"
+        />
+      </div>
+      
+      {/* Content wrapper with relative positioning */}
+      <div className="relative z-10">
+        {/* Header */}
+        <header className="flame-glass neon-flame-border">
         <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between">
           <Logo size="lg" />
           <div className="flex items-center gap-2 sm:gap-4">
@@ -242,53 +256,54 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="flame-glass border-t neon-flame-border text-white py-8 sm:py-12 px-4">
-        <div className="container mx-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-6 sm:mb-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Logo size="sm" />
+        {/* Footer */}
+        <footer className="flame-glass border-t neon-flame-border text-white py-8 sm:py-12 px-4">
+          <div className="container mx-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-6 sm:mb-8">
+              <div>
+                <div className="flex items-center space-x-2 mb-4">
+                  <Logo size="sm" />
+                </div>
+                <p className="text-gray-400 text-sm">
+                  AI-powered platform for discovering products, services, and solutions that don't exist yet.
+                </p>
               </div>
-              <p className="text-gray-400 text-sm">
-                AI-powered platform for discovering products, services, and solutions that don't exist yet.
+              
+              <div>
+                <h4 className="font-semibold mb-4">Product</h4>
+                <ul className="space-y-2 text-sm text-gray-400">
+                  <li><button onClick={() => setLocation("/about")} className="hover:text-white">About</button></li>
+                  <li><button onClick={() => setLocation("/trending")} className="hover:text-white">Features</button></li>
+                  <li><button onClick={handleGetStarted} className="hover:text-white">Pricing</button></li>
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold mb-4">Company</h4>
+                <ul className="space-y-2 text-sm text-gray-400">
+                  <li><button onClick={() => setLocation("/about")} className="hover:text-white">About Us</button></li>
+                  <li><a href="mailto:support@unbuilt.cloud" className="hover:text-white">Contact</a></li>
+                  <li><a href="mailto:careers@unbuilt.cloud" className="hover:text-white">Careers</a></li>
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold mb-4">Legal</h4>
+                <ul className="space-y-2 text-sm text-gray-400">
+                  <li><button onClick={() => setLocation("/privacy")} className="hover:text-white">Privacy Policy</button></li>
+                  <li><button onClick={() => setLocation("/terms")} className="hover:text-white">Terms of Service</button></li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="border-t border-purple-500/30 pt-8 text-center">
+              <p className="text-gray-300 text-sm drop-shadow-md">
+                © 2025 Unbuilt Technologies. All rights reserved. Business Registration: Pending
               </p>
             </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><button onClick={() => setLocation("/about")} className="hover:text-white">About</button></li>
-                <li><button onClick={() => setLocation("/trending")} className="hover:text-white">Features</button></li>
-                <li><button onClick={handleGetStarted} className="hover:text-white">Pricing</button></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><button onClick={() => setLocation("/about")} className="hover:text-white">About Us</button></li>
-                <li><a href="mailto:support@unbuilt.cloud" className="hover:text-white">Contact</a></li>
-                <li><a href="mailto:careers@unbuilt.cloud" className="hover:text-white">Careers</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><button onClick={() => setLocation("/privacy")} className="hover:text-white">Privacy Policy</button></li>
-                <li><button onClick={() => setLocation("/terms")} className="hover:text-white">Terms of Service</button></li>
-              </ul>
-            </div>
           </div>
-          
-          <div className="border-t border-purple-500/30 pt-8 text-center">
-            <p className="text-gray-300 text-sm drop-shadow-md">
-              © 2025 Unbuilt Technologies. All rights reserved. Business Registration: Pending
-            </p>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
     </div>
   );
 }

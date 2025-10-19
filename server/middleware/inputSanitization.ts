@@ -128,6 +128,15 @@ function validateForInjection(obj: any, path: string = ''): string[] {
  */
 export function sanitizeInput(req: Request, res: Response, next: NextFunction) {
   try {
+    // Skip sanitization for export endpoints as they contain legitimate special characters
+    const skipSanitizationPaths = ['/export', '/email-report'];
+    const currentPath = req.path || req.url;
+    
+    if (skipSanitizationPaths.some(path => currentPath.includes(path))) {
+      console.log(`Skipping sanitization for export endpoint: ${currentPath}`);
+      return next();
+    }
+
     // Sanitize request body
     if (req.body && typeof req.body === 'object') {
       req.body = sanitizeObject(req.body);

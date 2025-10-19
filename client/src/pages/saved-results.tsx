@@ -17,9 +17,11 @@ export default function SavedResults() {
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: savedResults = [], isLoading } = useQuery<SearchResult[]>({
+  const { data: response, isLoading } = useQuery({
     queryKey: ["/api/results/saved"],
   });
+
+  const savedResults = (response?.data || []) as SearchResult[];
 
   const saveResultMutation = useMutation({
     mutationFn: async ({ id, isSaved }: { id: number; isSaved: boolean }) => {
@@ -65,7 +67,7 @@ export default function SavedResults() {
           </p>
         </div>
 
-        {(savedResults as SearchResult[]).length === 0 ? (
+        {savedResults.length === 0 ? (
           <div className="text-center py-8 sm:py-12 px-4">
             <p className="text-base sm:text-lg text-google-gray mb-3 sm:mb-4">No saved results yet</p>
             <p className="text-sm sm:text-base text-google-gray">
@@ -74,7 +76,7 @@ export default function SavedResults() {
           </div>
         ) : (
           <div className="space-y-4 sm:space-y-6">
-            {(savedResults as SearchResult[]).map((result: SearchResult) => (
+            {savedResults.map((result: SearchResult) => (
               <GapCategoryCard
                 key={result.id}
                 result={result}
@@ -101,7 +103,7 @@ export default function SavedResults() {
 
       <ExportModal
         isOpen={exportModalOpen}
-        results={(savedResults as SearchResult[])}
+        results={savedResults}
         onClose={() => setExportModalOpen(false)}
       />
     </Layout>

@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { User, Search, Bookmark, History, TrendingUp, LogOut, Settings, Crown, HelpCircle, Info, FileText, Menu, X, Lightbulb, Activity } from "lucide-react";
 import Logo from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Squares } from "@/components/ui/squares-background";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -20,13 +21,26 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background transition-colors flame-bg">
-      <header className="flame-glass sticky top-0 z-50 neon-flame-border-red">
+    <div className="min-h-screen bg-background transition-colors relative">
+      {/* Squares Background - Fixed behind all content */}
+      <div className="fixed inset-0 z-0">
+        <Squares
+          direction="diagonal"
+          speed={0.5}
+          squareSize={40}
+          borderColor="#333"
+          hoverFillColor="#222"
+        />
+      </div>
+      
+      {/* Content wrapper with relative positioning */}
+      <div className="relative z-10">
+        <header className="flame-glass sticky top-0 z-50 neon-flame-border-red">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+          <div className="flex items-center justify-between h-36">
             {/* Logo Section - Made More Prominent & Properly Positioned */}
             <div className="flex items-center">
-              <Link href="/" className="hover:opacity-80 transition-opacity flex items-center justify-center w-16 h-16">
+              <Link href="/" className="hover:opacity-80 transition-opacity flex items-center justify-center">
                 <Logo size="md" />
               </Link>
             </div>
@@ -241,7 +255,8 @@ export default function Layout({ children }: LayoutProps) {
         )}
       </header>
       
-      {children}
+        {children}
+      </div>
     </div>
   );
 }

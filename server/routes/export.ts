@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { storage } from "../storage";
 import { pdfGenerator, PDFOptions } from "../services/pdf-generator";
+import puppeteer from "puppeteer";
 
 export async function exportResults(req: Request, res: Response) {
   try {
@@ -33,7 +34,7 @@ export async function exportResults(req: Request, res: Response) {
       case 'pdf':
       case 'executive':
       case 'pitch':
-        return exportPdf(validResults, res, format, options);
+        return await exportPdf(validResults, res, format, options);
       case 'excel':
       case 'xlsx':
         return exportExcel(validResults, res, options);
@@ -84,7 +85,7 @@ function exportCsv(results: any[], res: Response) {
   res.send(csv);
 }
 
-function exportPdf(results: any[], res: Response, format: string, options: any) {
+async function exportPdf(results: any[], res: Response, format: string, options: any) {
   // Map format to PDFOptions format type
   const pdfFormat = format === 'executive' ? 'executive' : 
                     format === 'pitch' ? 'pitch' : 'detailed';
@@ -94,17 +95,63 @@ function exportPdf(results: any[], res: Response, format: string, options: any) 
     customTitle: options.customTitle,
     customIntro: options.customIntro,
     includeDetails: options.includeDetails !== false,
-    companyName: options.companyName,
-    authorName: options.authorName
+    companyName: options.customization?.companyName || options.companyName,
+    authorName: options.customization?.authorName || options.authorName
   };
 
   // Generate HTML using the PDF generator
   const html = pdfGenerator.generateHTML(results, pdfOptions);
   
-  // Send HTML as response (can be printed to PDF by browser)
-  res.setHeader('Content-Type', 'text/html');
-  res.setHeader('Content-Disposition', `attachment; filename="${format}-report.html"`);
-  res.send(html);
+  let browser;
+  try {
+    // Launch puppeteer and generate PDF
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ]
+    });
+    
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: '20mm',
+        right: '20mm',
+        bottom: '20mm',
+        left: '20mm'
+      }
+    });
+    
+    console.log(`Generated PDF buffer size: ${pdfBuffer.length} bytes`);
+    
+    // Set headers before sending
+    res.writeHead(200, {
+      'Content-Type': 'application/pdf',
+      'Content-Length': pdfBuffer.length,
+      'Content-Disposition': `attachment; filename="${format}-report.pdf"`,
+      'Cache-Control': 'no-cache'
+    });
+    
+    // Send the buffer directly
+    res.end(pdfBuffer);
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    // Fallback to HTML if PDF generation fails
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', `attachment; filename="${format}-report.html"`);
+    res.send(html);
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
 }
 
 function exportExcel(results: any[], res: Response, options: any) {

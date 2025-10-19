@@ -12,6 +12,7 @@ import { Sparkles, Loader2, Github } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { loginSchema, type LoginData } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
+import { Squares } from "@/components/ui/squares-background";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -37,8 +38,19 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-gray-900 dark:from-gray-900 dark:via-gray-800 dark:to-black flex items-center justify-center p-4">
-      <Card className="w-full max-w-md premium-card hover-glow">
+    <div className="min-h-screen relative flex items-center justify-center p-4">
+      {/* Squares Background */}
+      <div className="fixed inset-0 z-0">
+        <Squares
+          direction="diagonal"
+          speed={0.5}
+          squareSize={40}
+          borderColor="#333"
+          hoverFillColor="#222"
+        />
+      </div>
+      
+      <Card className="w-full max-w-md premium-card hover-glow relative z-10">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center mb-4">
             <Sparkles className="w-8 h-8 text-purple-400 mr-2" />
