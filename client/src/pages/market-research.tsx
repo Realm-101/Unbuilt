@@ -75,14 +75,17 @@ export default function MarketResearchPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [marketData, setMarketData] = useState<MarketData | null>(null);
 
-  // Check for context from action plan modal
+  // Check for context from action plan modal and auto-start research
   React.useEffect(() => {
     const contextData = sessionStorage.getItem('marketResearchContext');
     if (contextData) {
       try {
         const context = JSON.parse(contextData);
-        setSearchQuery(context.title || context.description);
+        const query = context.title || context.description;
+        setSearchQuery(query);
+        
         // Determine industry from category or industryContext
+        let selectedIndustry = 'tech';
         if (context.category) {
           const categoryToIndustry: Record<string, string> = {
             'technology': 'tech',
@@ -90,10 +93,31 @@ export default function MarketResearchPage() {
             'ux': 'tech',
             'business_model': 'b2b'
           };
-          setIndustry(categoryToIndustry[context.category] || 'tech');
+          selectedIndustry = categoryToIndustry[context.category] || 'tech';
+          setIndustry(selectedIndustry);
         }
+        
         // Clear the context after using it
         sessionStorage.removeItem('marketResearchContext');
+        
+        // Auto-start research
+        if (query.trim()) {
+          setIsLoading(true);
+          apiRequest("POST", "/api/market-research", {
+            query: `${query} in ${selectedIndustry} industry market analysis competitors customer segments financial projections`
+          })
+            .then(response => response.json())
+            .then(data => {
+              const structuredData = parseMarketResearch(data);
+              setMarketData(structuredData);
+            })
+            .catch(error => {
+              console.error('Market research failed:', error);
+            })
+            .finally(() => {
+              setIsLoading(false);
+            });
+        }
       } catch (e) {
         console.error('Failed to parse market research context:', e);
       }

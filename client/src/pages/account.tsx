@@ -1,12 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CreditCard, User as UserIcon, Settings } from 'lucide-react';
+import { Loader2, CreditCard, User as UserIcon, Settings, Lock, Edit } from 'lucide-react';
 import { useLocation } from 'wouter';
 import type { User } from '@shared/schema';
+
+interface ProfileData {
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  profileImageUrl?: string;
+  company?: string;
+}
 
 export default function Account() {
   const { user: authUser } = useAuth();
@@ -14,6 +22,28 @@ export default function Account() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    try {
+      const response = await fetch('/api/profile/me', {
+        credentials: 'include',
+      });
+
+      if (!response.ok) return;
+
+      const { data } = await response.json();
+      setProfileData(data);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
 
   const handleManageSubscription = async () => {
     if (!user) return;
@@ -105,22 +135,65 @@ export default function Account() {
         {/* Profile Information */}
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <UserIcon className="h-5 w-5" />
-              <CardTitle>Profile Information</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserIcon className="h-5 w-5" />
+                <CardTitle>Profile Information</CardTitle>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation('/profile-edit')}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Profile
+              </Button>
             </div>
             <CardDescription>Your account details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Profile Picture */}
+            {profileData?.profileImageUrl && (
+              <div className="flex items-center gap-4 pb-4 border-b">
+                <img
+                  src={profileData.profileImageUrl}
+                  alt="Profile"
+                  className="w-16 h-16 rounded-full object-cover"
+                />
+                <div>
+                  <p className="font-medium">{profileData.name || user.email}</p>
+                  <p className="text-sm text-muted-foreground">{user.email}</p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Email</label>
                 <p className="text-lg">{user.email}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Name</label>
-                <p className="text-lg">{user.name || 'Not set'}</p>
+                <label className="text-sm font-medium text-muted-foreground">Display Name</label>
+                <p className="text-lg">{profileData?.name || user.name || 'Not set'}</p>
               </div>
+              {(profileData?.firstName || profileData?.lastName) && (
+                <>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">First Name</label>
+                    <p className="text-lg">{profileData.firstName || 'Not set'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Last Name</label>
+                    <p className="text-lg">{profileData.lastName || 'Not set'}</p>
+                  </div>
+                </>
+              )}
+              {profileData?.company && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Company</label>
+                  <p className="text-lg">{profileData.company}</p>
+                </div>
+              )}
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Member Since</label>
                 <p className="text-lg">{formatDate(user.createdAt)}</p>
@@ -206,6 +279,32 @@ export default function Account() {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Security Settings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Lock className="h-5 w-5" />
+              <CardTitle>Security</CardTitle>
+            </div>
+            <CardDescription>Manage your password and security settings</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => setLocation('/change-password')}
+            >
+              <Lock className="h-4 w-4 mr-2" />
+              Change Password
+            </Button>
+            {user.lastPasswordChange && (
+              <p className="text-xs text-muted-foreground">
+                Last changed: {formatDate(user.lastPasswordChange)}
+              </p>
+            )}
           </CardContent>
         </Card>
 

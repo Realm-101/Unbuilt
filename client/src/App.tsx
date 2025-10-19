@@ -39,6 +39,10 @@ const AIChat = lazy(() => import("@/components/ai-assistant/AIChat").then(m => (
 const OnboardingTour = lazy(() => import("@/components/onboarding/OnboardingTour"));
 const Pricing = lazy(() => import("@/pages/pricing"));
 const Account = lazy(() => import("@/pages/account"));
+const ProfileEdit = lazy(() => import("@/pages/profile-edit"));
+const ChangePassword = lazy(() => import("@/pages/change-password"));
+const ForgotPasswordAuth = lazy(() => import("@/pages/forgot-password"));
+const ResetPasswordAuth = lazy(() => import("@/pages/reset-password"));
 const SubscriptionSuccess = lazy(() => import("@/pages/subscription-success"));
 
 // Loading fallback component
@@ -81,6 +85,8 @@ function Router() {
             <Route path="/documentation" component={Documentation} />
             <Route path="/pricing" component={Pricing} />
             <Route path="/account" component={Account} />
+            <Route path="/profile-edit" component={ProfileEdit} />
+            <Route path="/change-password" component={ChangePassword} />
             <Route path="/profile" component={Profile} />
             <Route path="/subscription/success" component={SubscriptionSuccess} />
             <Route path="/about" component={About} />
@@ -95,6 +101,8 @@ function Router() {
             <Route path="/auth/register" component={Register} />
             <Route path="/auth/forgot-password" component={ForgotPassword} />
             <Route path="/auth/reset-password" component={ResetPassword} />
+            <Route path="/forgot-password" component={ForgotPasswordAuth} />
+            <Route path="/reset-password" component={ResetPasswordAuth} />
             <Route path="/pricing" component={Pricing} />
             <Route path="/about" component={About} />
             <Route path="/help" component={Help} />

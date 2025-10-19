@@ -72,6 +72,8 @@ import analyticsAdminRouter from "./routes/analyticsAdmin";
 import aiAssistantRouter from "./routes/aiAssistant";
 import stripeRouter from "./routes/stripe";
 import searchHistoryRouter from "./routes/searchHistory";
+import profileRouter from "./routes/profile";
+import passwordResetRouter from "./routes/password-reset";
 import { config, configStatus } from "./config";
 import Stripe from "stripe";
 
@@ -230,6 +232,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Search history routes
   app.use('/api/search-history', searchHistoryRouter);
+  
+  // Profile management routes
+  app.use('/api/profile', profileRouter);
+  
+  // Password reset routes
+  app.use('/api/password-reset', passwordResetRouter);
   
   // Privacy and data control routes
   app.use('/api/privacy', privacyRoutes);

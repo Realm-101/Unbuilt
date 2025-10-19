@@ -13,12 +13,14 @@ import { SiGoogle } from "react-icons/si";
 import { registerSchema, type RegisterData } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { Squares } from "@/components/ui/squares-background";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Register() {
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string>("");
   const { register, loading } = useAuth();
-  
+  const { toast } = useToast();
+
   const form = useForm<RegisterData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -51,7 +53,7 @@ export default function Register() {
           hoverFillColor="#222"
         />
       </div>
-      
+
       <Card className="w-full max-w-md premium-card hover-glow relative z-10">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center mb-4">
@@ -63,7 +65,7 @@ export default function Register() {
             Join thousands of innovators discovering market opportunities
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent>
           {/* OAuth Buttons */}
           <div className="space-y-3 mb-6">
@@ -71,42 +73,26 @@ export default function Register() {
               type="button"
               variant="outline"
               className="w-full"
-              onClick={async () => {
-                try {
-                  const response = await fetch('/api/auth/google');
-                  if (response.status === 501) {
-                    const data = await response.json();
-                    setError(data.message || 'Google OAuth not configured. Please contact administrator.');
-                    return;
-                  }
-                  // If successful, redirect to Google OAuth
-                  window.location.href = "/api/auth/google";
-                } catch (error) {
-                  setError('Google registration temporarily unavailable. Please try email registration.');
-                }
+              onClick={() => {
+                toast({
+                  title: "Coming Soon! 🚀",
+                  description: "Google sign up will be available soon. Please use email registration for now.",
+                });
               }}
             >
               <SiGoogle className="w-4 h-4 mr-2" />
               Continue with Google
             </Button>
-            
+
             <Button
               type="button"
               variant="outline"
               className="w-full"
-              onClick={async () => {
-                try {
-                  const response = await fetch('/api/auth/github');
-                  if (response.status === 501) {
-                    const data = await response.json();
-                    setError(data.message || 'GitHub OAuth not configured. Please contact administrator.');
-                    return;
-                  }
-                  // If successful, redirect to GitHub OAuth
-                  window.location.href = "/api/auth/github";
-                } catch (error) {
-                  setError('GitHub registration temporarily unavailable. Please try email registration.');
-                }
+              onClick={() => {
+                toast({
+                  title: "Coming Soon! 🚀",
+                  description: "GitHub sign up will be available soon. Please use email registration for now.",
+                });
               }}
             >
               <Github className="w-4 h-4 mr-2" />
@@ -141,7 +127,7 @@ export default function Register() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="email"
@@ -159,7 +145,7 @@ export default function Register() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="password"
@@ -177,7 +163,7 @@ export default function Register() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="confirmPassword"
@@ -195,15 +181,15 @@ export default function Register() {
                   </FormItem>
                 )}
               />
-              
+
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              
-              <Button 
-                type="submit" 
+
+              <Button
+                type="submit"
                 className="w-full btn-premium"
                 disabled={loading}
               >
@@ -212,7 +198,7 @@ export default function Register() {
               </Button>
             </form>
           </Form>
-          
+
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
               Already have an account?{" "}
