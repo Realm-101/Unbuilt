@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: unbuilt
+    runtime: node
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      # Database
+      - key: DATABASE_URL
+        sync: false
+      # Authentication
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+      # AI Services
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      # Application
+      - key: VITE_API_URL
+        value: https://unbuilt.onrender.com
+    healthCheckPath: /api/health
