@@ -87,7 +87,7 @@ VITE_API_URL=https://your-app-name.onrender.com
 CORS_ORIGIN=https://your-app-name.onrender.com
 
 # Database (from Neon)
-DATABASE_URL=postgresql://neondb_owner:npg_oLQaeU8v4bNM@ep-little-tree-agutidhi.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL=postgresql://your_user:your_password@ep-xxx-xxx.neon.tech/neondb?sslmode=require
 
 # JWT Secrets (GENERATE NEW ONES!)
 JWT_ACCESS_SECRET=<generate with: openssl rand -base64 32>
