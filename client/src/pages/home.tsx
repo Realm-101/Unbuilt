@@ -88,12 +88,8 @@ export default function Home() {
 
   return (
     <Layout>
-      <div className="relative bg-gray-900 min-h-screen">
-        {/* Background Effects - Fixed positioning */}
-        <div className="fixed inset-0 bg-gradient-to-br from-purple-900/15 via-pink-900/15 to-orange-900/15 pointer-events-none z-0" />
-        <div className="fixed inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(168,85,247,0.08),transparent_50%)] pointer-events-none z-0" />
-        
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12 z-10">
+      <div className="relative min-h-screen">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
           {/* Hero Section */}
           <div className="text-center mb-6 sm:mb-8 lg:mb-12">
             <div className="animate-float mb-6 sm:mb-8">

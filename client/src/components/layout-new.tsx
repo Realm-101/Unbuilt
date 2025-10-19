@@ -21,6 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Squares } from "@/components/ui/squares-background";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -75,11 +76,24 @@ export default function Layout({ children }: LayoutProps) {
   const isProUser = typedUser?.plan === 'pro' || typedUser?.plan === 'enterprise';
 
   return (
-    <div className="min-h-screen bg-background transition-colors">
-      {/* Simplified Header */}
-      <header className="sticky top-0 z-50 bg-gray-900/95 backdrop-blur-md border-b border-gray-800">
+    <div className="min-h-screen bg-background transition-colors relative">
+      {/* Squares Background - Fixed behind all content */}
+      <div className="fixed inset-0 z-0">
+        <Squares
+          direction="diagonal"
+          speed={0.5}
+          squareSize={40}
+          borderColor="#333"
+          hoverFillColor="#222"
+        />
+      </div>
+      
+      {/* Content wrapper with relative positioning */}
+      <div className="relative z-10">
+        {/* Simplified Header */}
+        <header className="sticky top-0 z-50 bg-gray-900/95 backdrop-blur-md border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-28">
             {/* Left: Logo */}
             <div className="flex items-center gap-8">
               <button 
@@ -345,9 +359,10 @@ export default function Layout({ children }: LayoutProps) {
         )}
       </header>
       
-      <main className="flex-1">
-        {children}
-      </main>
+        <main className="flex-1">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

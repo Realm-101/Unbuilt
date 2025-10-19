@@ -11,26 +11,21 @@ import { envValidator } from "./config/envValidator";
 import { securityHeadersMiddleware } from "./middleware/securityHeaders";
 import { httpsEnforcementMiddleware, secureCookieMiddleware, sessionSecurityMiddleware } from "./middleware/httpsEnforcement";
 import { cacheService } from "./services/cache";
+import { getCorsConfig, isOriginAllowed } from "./config/cors";
 
 const app = express();
 
-// CORS configuration - must be before other middleware
-const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:8000';
+// CORS configuration - supports multiple domains
+const corsConfig = getCorsConfig();
+log(`CORS: Allowed origins: ${corsConfig.allowedOrigins.join(', ')}`, 'info');
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Allow configured origin
-    if (origin === corsOrigin || origin === 'http://localhost:8000') {
+    if (isOriginAllowed(origin, corsConfig)) {
       return callback(null, true);
     }
     
-    // In development, allow any localhost
-    if (process.env.NODE_ENV === 'development' && origin.includes('localhost')) {
-      return callback(null, true);
-    }
-    
+    log(`CORS: Blocked origin: ${origin}`, 'warn');
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,

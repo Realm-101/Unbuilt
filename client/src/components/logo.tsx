@@ -1,12 +1,13 @@
 import React from 'react';
 import logoImage from '@assets/Unbuilt_1753129411859.png';
 import logoSvg from '@assets/unbuilt-transparent.svg';
+import logoGif from '@assets/logo.gif';
 
 import Unbuilt2 from "@assets/Unbuilt2.png";
 
 import UNBUILT from "@assets/Unbuilt.png";
 
-// Using SVG logo for true transparency
+// Using animated GIF logo for header (transparent background)
 
 interface LogoProps {
   className?: string;
@@ -22,21 +23,21 @@ export default function Logo({
   showText = false 
 }: LogoProps) {
   const sizeClasses = {
-    sm: 'w-24 h-24',
-    md: 'w-32 h-32',
-    lg: 'w-40 h-40',
-    xl: 'w-48 h-48'
+    sm: 'w-32 h-32',
+    md: 'w-40 h-40',
+    lg: 'w-48 h-48',
+    xl: 'w-56 h-56'
   };
 
   return (
     <div className={`flex items-center ${className}`}>
-      {/* Logo Image - No text needed since it's a text logo */}
+      {/* Animated Logo GIF - Transparent Background */}
       <div className={`${sizeClasses[size]} relative flex-shrink-0 logo-container`}>
         <img 
-          src={UNBUILT} 
+          src={logoGif} 
           alt="Unbuilt - Discover Market Opportunities"
           className="w-full h-full object-contain"
-          key="unbuilt-logo-svg"
+          key="unbuilt-logo-gif"
         />
       </div>
     </div>

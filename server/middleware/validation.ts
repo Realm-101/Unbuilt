@@ -204,6 +204,15 @@ export const aiRateLimit = createRateLimit(10, 60 * 1000); // 10 AI requests per
  */
 export function validateApiInput(req: Request, res: Response, next: NextFunction) {
   try {
+    // Skip validation for export endpoints as they contain legitimate special characters
+    const skipValidationPaths = ['/export', '/email-report'];
+    const currentPath = req.path || req.url;
+    
+    if (skipValidationPaths.some(path => currentPath.includes(path))) {
+      console.log(`Skipping validation for export endpoint: ${currentPath}`);
+      return next();
+    }
+
     // Apply general sanitization to all inputs
     if (req.body && typeof req.body === 'object') {
       req.body = sanitizeInput(req.body);
