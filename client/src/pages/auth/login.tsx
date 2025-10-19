@@ -13,11 +13,13 @@ import { SiGoogle } from "react-icons/si";
 import { loginSchema, type LoginData } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { Squares } from "@/components/ui/squares-background";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string>("");
   const { login, loading } = useAuth();
+  const { toast } = useToast();
   
   const form = useForm<LoginData>({
     resolver: zodResolver(loginSchema),
@@ -69,19 +71,11 @@ export default function Login() {
               type="button"
               variant="outline"
               className="w-full"
-              onClick={async () => {
-                try {
-                  const response = await fetch('/api/auth/google');
-                  if (response.status === 501) {
-                    const data = await response.json();
-                    setError(data.message || 'Google OAuth not configured. Please contact administrator.');
-                    return;
-                  }
-                  // If successful, redirect to Google OAuth
-                  window.location.href = "/api/auth/google";
-                } catch (error) {
-                  setError('Google login temporarily unavailable. Please try email login.');
-                }
+              onClick={() => {
+                toast({
+                  title: "Coming Soon! 🚀",
+                  description: "Google login will be available soon. Please use email login for now.",
+                });
               }}
             >
               <SiGoogle className="w-4 h-4 mr-2" />
@@ -92,19 +86,11 @@ export default function Login() {
               type="button"
               variant="outline"
               className="w-full"
-              onClick={async () => {
-                try {
-                  const response = await fetch('/api/auth/github');
-                  if (response.status === 501) {
-                    const data = await response.json();
-                    setError(data.message || 'GitHub OAuth not configured. Please contact administrator.');
-                    return;
-                  }
-                  // If successful, redirect to GitHub OAuth
-                  window.location.href = "/api/auth/github";
-                } catch (error) {
-                  setError('GitHub login temporarily unavailable. Please try email login.');
-                }
+              onClick={() => {
+                toast({
+                  title: "Coming Soon! 🚀",
+                  description: "GitHub login will be available soon. Please use email login for now.",
+                });
               }}
             >
               <Github className="w-4 h-4 mr-2" />

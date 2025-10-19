@@ -2,6 +2,22 @@ import { Request, Response } from "express";
 import { storage } from "../storage";
 import { pdfGenerator, PDFOptions } from "../services/pdf-generator";
 import puppeteer from "puppeteer";
+import * as fs from "fs";
+import * as path from "path";
+
+// Load and convert logo to base64 data URI for embedding in PDFs
+function getLogoDataURI(): string {
+  try {
+    const logoPath = path.join(process.cwd(), 'attached_assets', 'logo.gif');
+    const logoBuffer = fs.readFileSync(logoPath);
+    const base64Logo = logoBuffer.toString('base64');
+    return `data:image/gif;base64,${base64Logo}`;
+  } catch (error) {
+    console.error('Failed to load logo:', error);
+    // Return a simple SVG placeholder if logo fails to load
+    return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjQwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjx0ZXh0IHg9IjEwIiB5PSIyNSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjIwIiBmaWxsPSIjN2MzYWVkIj5VbmJ1aWx0PC90ZXh0Pjwvc3ZnPg==';
+  }
+}
 
 export async function exportResults(req: Request, res: Response) {
   try {
