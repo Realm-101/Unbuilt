@@ -21,7 +21,7 @@ export default function SavedResults() {
     queryKey: ["/api/results/saved"],
   });
 
-  const savedResults = (response?.data || []) as SearchResult[];
+  const savedResults = (response as any)?.data || [] as SearchResult[];
 
   const saveResultMutation = useMutation({
     mutationFn: async ({ id, isSaved }: { id: number; isSaved: boolean }) => {

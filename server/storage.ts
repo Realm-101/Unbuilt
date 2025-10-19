@@ -11,7 +11,7 @@ import {
 } from "@shared/schema";
 import type { SearchResultInput, SearchResultUpdate, FinancialProjections } from "@shared/types";
 import { db } from "./db";
-import { eq, like, desc, count } from "drizzle-orm";
+import { eq, like, desc, count, and } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -140,11 +140,12 @@ export class DatabaseStorage implements IStorage {
         actionableRecommendations: searchResults.actionableRecommendations,
         industryContext: searchResults.industryContext,
         competitorAnalysis: searchResults.competitorAnalysis,
+        targetAudience: searchResults.targetAudience,
+        keyTrends: searchResults.keyTrends,
       })
       .from(searchResults)
       .innerJoin(searches, eq(searchResults.searchId, searches.id))
-      .where(eq(searches.userId, parseInt(userId)))
-      .where(eq(searchResults.isSaved, true))
+      .where(and(eq(searches.userId, parseInt(userId)), eq(searchResults.isSaved, true)))
       .orderBy(desc(searchResults.id));
     
     return results;

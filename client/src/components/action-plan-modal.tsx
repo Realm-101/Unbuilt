@@ -325,7 +325,6 @@ export default function ActionPlanModal({ isOpen, result, onClose }: ActionPlanM
                 </div>
               </div>
 
-              {/* Detailed Scores Explanation */}
               <div className="space-y-4">
                 <h3 className="text-xl font-semibold text-white flex items-center">
                   <Target className="w-5 h-5 mr-2 text-orange-400" />
