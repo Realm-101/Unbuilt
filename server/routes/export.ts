@@ -85,22 +85,384 @@ function exportCsv(results: any[], res: Response) {
   res.send(csv);
 }
 
-async function exportPdf(results: any[], res: Response, format: string, options: any) {
-  // Map format to PDFOptions format type
-  const pdfFormat = format === 'executive' ? 'executive' : 
-                    format === 'pitch' ? 'pitch' : 'detailed';
+function generatePageSpecificHTML(result: any, selectedPages: string[], options: any): string {
+  const companyName = options.customization?.companyName || 'Market Analysis';
+  const authorName = options.customization?.authorName || 'Research Team';
+  const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   
-  const pdfOptions: PDFOptions = {
-    format: pdfFormat,
-    customTitle: options.customTitle,
-    customIntro: options.customIntro,
-    includeDetails: options.includeDetails !== false,
-    companyName: options.customization?.companyName || options.companyName,
-    authorName: options.customization?.authorName || options.authorName
-  };
+  let html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${result.title} - Analysis Report</title>
+  <style>
+    @page { size: A4; margin: 20mm; }
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #1f2937;
+      margin: 0;
+      padding: 0;
+    }
+    .header {
+      background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%);
+      color: white;
+      padding: 40px;
+      margin-bottom: 30px;
+      border-radius: 8px;
+    }
+    .header h1 { margin: 0 0 10px 0; font-size: 32px; }
+    .header .meta { opacity: 0.9; font-size: 14px; }
+    .section {
+      margin-bottom: 40px;
+      page-break-inside: avoid;
+    }
+    .section h2 {
+      color: #7c3aed;
+      font-size: 24px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 3px solid #ec4899;
+    }
+    .section h3 {
+      color: #1f2937;
+      font-size: 18px;
+      margin: 20px 0 10px 0;
+    }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin: 20px 0;
+    }
+    .metric-card {
+      background: #f3f4f6;
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #7c3aed;
+    }
+    .metric-label {
+      font-size: 12px;
+      color: #6b7280;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    .metric-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1f2937;
+    }
+    .info-box {
+      background: #f9fafb;
+      border-left: 4px solid #3b82f6;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    .recommendation {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .phase {
+      background: #f3f4f6;
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 8px;
+      border-left: 4px solid #10b981;
+    }
+    .phase h4 {
+      margin: 0 0 15px 0;
+      color: #059669;
+    }
+    .phase ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .phase li {
+      margin: 8px 0;
+    }
+    .footer {
+      margin-top: 50px;
+      padding-top: 20px;
+      border-top: 2px solid #e5e7eb;
+      text-align: center;
+      color: #6b7280;
+      font-size: 12px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-right: 8px;
+    }
+    .badge-high { background: #d1fae5; color: #065f46; }
+    .badge-medium { background: #fef3c7; color: #92400e; }
+    .badge-low { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${result.title}</h1>
+    <div class="meta">
+      ${companyName} | ${authorName} | ${date}
+    </div>
+  </div>
+`;
 
-  // Generate HTML using the PDF generator
-  const html = pdfGenerator.generateHTML(results, pdfOptions);
+  // Analysis Page
+  if (selectedPages.includes('analysis')) {
+    html += `
+  <div class="section">
+    <h2>Full Analysis</h2>
+    
+    <h3>Opportunity Overview</h3>
+    <p>${result.description}</p>
+    
+    <div class="info-box">
+      <strong>Why This Gap Exists:</strong><br>
+      ${result.gapReason}
+    </div>
+    
+    ${result.industryContext ? `
+    <div class="info-box">
+      <strong>Industry Context:</strong><br>
+      ${result.industryContext}
+    </div>
+    ` : ''}
+    
+    <h3>Detailed Score Analysis</h3>
+    
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-label">Innovation Score</div>
+        <div class="metric-value">${result.innovationScore}/10</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Feasibility</div>
+        <div class="metric-value">${result.feasibility}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Market Potential</div>
+        <div class="metric-value">${result.marketPotential}</div>
+      </div>
+    </div>
+    
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-label">Market Size</div>
+        <div class="metric-value">${result.marketSize}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Confidence</div>
+        <div class="metric-value">${result.confidenceScore || 75}%</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Priority</div>
+        <div class="metric-value">${result.priority || 'Medium'}</div>
+      </div>
+    </div>
+    
+    ${result.competitorAnalysis ? `
+    <h3>Competitive Landscape</h3>
+    <p>${result.competitorAnalysis}</p>
+    ` : ''}
+    
+    ${result.actionableRecommendations && result.actionableRecommendations.length > 0 ? `
+    <h3>Key Recommendations</h3>
+    ${result.actionableRecommendations.map((rec: string, i: number) => `
+      <div class="recommendation">
+        <strong>${i + 1}.</strong> ${rec}
+      </div>
+    `).join('')}
+    ` : ''}
+  </div>
+`;
+  }
+
+  // Roadmap Page
+  if (selectedPages.includes('roadmap')) {
+    html += `
+  <div class="section">
+    <h2>Development Roadmap</h2>
+    
+    <div class="phase">
+      <h4>Phase 1: Validation (0-2 months)</h4>
+      <ul>
+        <li>Research existing solutions and competitors</li>
+        <li>Interview 5-10 potential customers</li>
+        <li>Create basic prototype or mockup</li>
+        <li>Test core assumptions with target market</li>
+        <li>Validate pricing and business model</li>
+      </ul>
+    </div>
+    
+    <div class="phase">
+      <h4>Phase 2: Development (2-4 months)</h4>
+      <ul>
+        <li>Define minimum viable product (MVP) scope</li>
+        <li>Create technical architecture plan</li>
+        <li>Build MVP with core features</li>
+        <li>Set up basic infrastructure and hosting</li>
+        <li>Implement user feedback system</li>
+      </ul>
+    </div>
+    
+    <div class="phase">
+      <h4>Phase 3: Launch (4-6 months)</h4>
+      <ul>
+        <li>Create landing page and marketing materials</li>
+        <li>Build social media presence</li>
+        <li>Reach out to early adopters</li>
+        <li>Launch beta with limited users</li>
+        <li>Iterate based on user feedback</li>
+      </ul>
+    </div>
+    
+    <div class="phase">
+      <h4>Phase 4: Scale (6+ months)</h4>
+      <ul>
+        <li>Analyze user data and behavior patterns</li>
+        <li>Implement advanced features</li>
+        <li>Build sales and marketing processes</li>
+        <li>Seek funding or investment if needed</li>
+        <li>Scale infrastructure for growth</li>
+      </ul>
+    </div>
+  </div>
+`;
+  }
+
+  // Research Page
+  if (selectedPages.includes('research')) {
+    html += `
+  <div class="section">
+    <h2>Market Research Strategy</h2>
+    
+    <h3>Target Customer Analysis</h3>
+    <p>Identify and interview potential users. Create customer personas and understand pain points.</p>
+    
+    <h3>Competitive Analysis</h3>
+    <p>Research existing solutions, their pricing, features, and customer feedback.</p>
+    
+    <h3>Market Size Validation</h3>
+    <p>Validate the ${result.marketSize} market size estimate through industry reports and surveys.</p>
+    
+    <div class="info-box">
+      <strong>Why This Gap Exists:</strong><br>
+      ${result.gapReason}
+    </div>
+  </div>
+`;
+  }
+
+  // Resources Page
+  if (selectedPages.includes('resources')) {
+    html += `
+  <div class="section">
+    <h2>Resources</h2>
+    
+    <h3>Lean Startup Canvas</h3>
+    <p>Plan your business model - https://leanstack.com/lean-canvas</p>
+    
+    <h3>Customer Development</h3>
+    <p>Validate your idea with customers - https://customerdevlabs.com/</p>
+    
+    <h3>No-Code Tools</h3>
+    <p>Build MVPs without coding - https://nocode.tech/</p>
+    
+    <h3>Y Combinator Startup School</h3>
+    <p>Free online startup course - https://startupschool.org/</p>
+    
+    <h3>Product Hunt</h3>
+    <p>Launch and discover new products - https://producthunt.com/</p>
+  </div>
+`;
+  }
+
+  // Funding Page
+  if (selectedPages.includes('funding')) {
+    const timelineEstimate = result.feasibility === 'high' ? '3-6 months to market' :
+                            result.feasibility === 'medium' ? '6-12 months to market' : '12+ months to market';
+    const investmentEstimate = result.feasibility === 'high' ? '$5K-$25K' :
+                              result.feasibility === 'medium' ? '$25K-$100K' : '$100K+';
+    
+    html += `
+  <div class="section">
+    <h2>Funding Options</h2>
+    
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-label">Time to Market</div>
+        <div class="metric-value">${timelineEstimate}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Initial Investment</div>
+        <div class="metric-value">${investmentEstimate}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Market Size</div>
+        <div class="metric-value">${result.marketSize}</div>
+      </div>
+    </div>
+    
+    <h3>Bootstrap Funding</h3>
+    <p>Self-fund with personal savings or revenue. Best for high feasibility projects with low initial costs.</p>
+    
+    <h3>Angel Investors</h3>
+    <p>Individual investors providing $25K-$100K. Best for proven concept with early traction.</p>
+    
+    <h3>Venture Capital</h3>
+    <p>Professional investors providing $500K+. Best for high-growth potential with large market.</p>
+    
+    <h3>Crowdfunding</h3>
+    <p>Public funding through platforms like Kickstarter. Best for consumer products with broad appeal.</p>
+  </div>
+`;
+  }
+
+  html += `
+  <div class="footer">
+    <p>Generated by ${companyName} | ${date}</p>
+    <p>This report is confidential and intended for internal use only.</p>
+  </div>
+</body>
+</html>`;
+
+  return html;
+}
+
+async function exportPdf(results: any[], res: Response, format: string, options: any) {
+  // Check if this is a single-result page-specific export
+  const selectedPages = options.pages || [];
+  const isSingleResult = results.length === 1;
+  
+  let html: string;
+  
+  if (isSingleResult && selectedPages.length > 0) {
+    // Generate page-specific HTML for single result
+    html = generatePageSpecificHTML(results[0], selectedPages, options);
+  } else {
+    // Use existing PDF generator for multi-result exports
+    const pdfFormat = format === 'executive' ? 'executive' : 
+                      format === 'pitch' ? 'pitch' : 'detailed';
+    
+    const pdfOptions: PDFOptions = {
+      format: pdfFormat,
+      customTitle: options.customTitle,
+      customIntro: options.customIntro,
+      includeDetails: options.includeDetails !== false,
+      companyName: options.customization?.companyName || options.companyName,
+      authorName: options.customization?.authorName || options.authorName
+    };
+
+    html = pdfGenerator.generateHTML(results, pdfOptions);
+  }
   
   let browser;
   try {

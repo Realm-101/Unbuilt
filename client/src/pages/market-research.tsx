@@ -75,6 +75,31 @@ export default function MarketResearchPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [marketData, setMarketData] = useState<MarketData | null>(null);
 
+  // Check for context from action plan modal
+  React.useEffect(() => {
+    const contextData = sessionStorage.getItem('marketResearchContext');
+    if (contextData) {
+      try {
+        const context = JSON.parse(contextData);
+        setSearchQuery(context.title || context.description);
+        // Determine industry from category or industryContext
+        if (context.category) {
+          const categoryToIndustry: Record<string, string> = {
+            'technology': 'tech',
+            'market': 'tech',
+            'ux': 'tech',
+            'business_model': 'b2b'
+          };
+          setIndustry(categoryToIndustry[context.category] || 'tech');
+        }
+        // Clear the context after using it
+        sessionStorage.removeItem('marketResearchContext');
+      } catch (e) {
+        console.error('Failed to parse market research context:', e);
+      }
+    }
+  }, []);
+
   const handleResearch = async () => {
     if (!searchQuery.trim()) return;
 
