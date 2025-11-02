@@ -10,15 +10,7 @@ build/
 
 # Environment variables - ALL secrets and credentials
 .env
-.env.local
-.env.*.local
-.env.development
-.env.development.local
-.env.test.local
-.env.production
-.env.production.local
-.env.staging
-.env.staging.local
+.env.*
 
 # Keep example/template files (these should NOT contain real secrets)
 !.env.example
