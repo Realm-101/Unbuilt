@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
 import { AppError, ErrorType, errorHandler } from '../errorHandler';
 
+// TODO: Re-enable these tests after fixing error handler implementation
+// These tests require updates to match the current error handler behavior
 describe.skip('Error Handling Security Tests', () => {
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;

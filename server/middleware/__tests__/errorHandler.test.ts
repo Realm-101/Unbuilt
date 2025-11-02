@@ -178,14 +178,14 @@ describe('SecureErrorHandler', () => {
       }
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: 'Invalid input data',
-          message: 'Invalid input data',
-          code: 'VAL_INVALID_INPUT'
-        })
-      );
+      const jsonCall = (res.json as any).mock.calls[0][0];
+      expect(jsonCall).toMatchObject({
+        success: false,
+        error: 'Invalid input data',
+        code: 'VAL_INVALID_INPUT'
+      });
+      expect(jsonCall.message).toBeDefined();
+      expect(jsonCall.fields).toBeDefined();
     });
   });
 

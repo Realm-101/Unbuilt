@@ -284,3 +284,169 @@ export function createTestRequestId(): string {
  * @param ms - Milliseconds to sleep
  */
 export const sleep = wait;
+
+/**
+ * Configure a mock database with chained query results
+ * Works with already-mocked database objects from vi.mock()
+ * 
+ * @param db - Mock database instance (from vi.mock())
+ * @param config - Configuration for different query types
+ * 
+ * @example
+ * ```typescript
+ * // In test file with vi.mock('../../../db', () => ({ db: {...} }))
+ * const { db } = await import('../../../db');
+ * configureMockDbChain(db as any, {
+ *   select: {
+ *     result: [mockUser],
+ *     multipleResults: [[mockSearch], [mockResults]]
+ *   }
+ * });
+ * ```
+ */
+export function configureMockDbChain(
+  db: any,
+  config: {
+    select?: {
+      result: any[];
+      chain?: string[];
+      multipleResults?: any[][];
+    };
+    insert?: {
+      result: any[];
+    };
+    update?: {
+      result: any[];
+    };
+    delete?: {
+      result: any[];
+    };
+  }
+): void {
+  if (config.select) {
+    const { result, multipleResults } = config.select;
+    
+    if (multipleResults) {
+      // Support multiple sequential calls with different results
+      let callIndex = 0;
+      
+      // Reset the mock if it exists
+      if (db.select?.mockReset) {
+        (db.select as any).mockReset();
+      }
+      
+      // Configure for multiple results
+      // Use direct cast instead of vi.mocked() for already-mocked objects
+      (db.select as any).mockImplementation(() => ({
+        from: vi.fn().mockImplementation(() => ({
+          where: vi.fn().mockImplementation(() => {
+            const orderByMock = vi.fn().mockImplementation(() => {
+              const currentResult = multipleResults[callIndex] || result;
+              callIndex++;
+              // Return both a Promise (for terminal calls) and an object with limit
+              const resultPromise = Promise.resolve(currentResult);
+              (resultPromise as any).limit = vi.fn().mockResolvedValue(currentResult);
+              return resultPromise;
+            });
+            
+            const limitMock = vi.fn().mockImplementation(() => {
+              const currentResult = multipleResults[callIndex] || result;
+              callIndex++;
+              return Promise.resolve(currentResult);
+            });
+            
+            return {
+              orderBy: orderByMock,
+              limit: limitMock,
+            };
+          }),
+          orderBy: vi.fn().mockImplementation(() => {
+            const currentResult = multipleResults[callIndex] || result;
+            callIndex++;
+            const resultPromise = Promise.resolve(currentResult);
+            (resultPromise as any).limit = vi.fn().mockResolvedValue(currentResult);
+            return resultPromise;
+          }),
+          limit: vi.fn().mockImplementation(() => {
+            const currentResult = multipleResults[callIndex] || result;
+            callIndex++;
+            return Promise.resolve(currentResult);
+          }),
+        })),
+      }));
+    } else {
+      // Single result for all calls
+      if (db.select?.mockReset) {
+        (db.select as any).mockReset();
+      }
+      
+      // Use direct cast instead of vi.mocked() for already-mocked objects
+      (db.select as any).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockImplementation(() => {
+              const resultPromise = Promise.resolve(result);
+              (resultPromise as any).limit = vi.fn().mockResolvedValue(result);
+              return resultPromise;
+            }),
+            limit: vi.fn().mockResolvedValue(result),
+          }),
+          orderBy: vi.fn().mockImplementation(() => {
+            const resultPromise = Promise.resolve(result);
+            (resultPromise as any).limit = vi.fn().mockResolvedValue(result);
+            return resultPromise;
+          }),
+          limit: vi.fn().mockResolvedValue(result),
+        }),
+      });
+    }
+  }
+  
+  if (config.insert) {
+    if (db.insert?.mockReset) {
+      (db.insert as any).mockReset();
+    }
+    (db.insert as any).mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue(config.insert.result),
+      }),
+    });
+  }
+  
+  if (config.update) {
+    if (db.update?.mockReset) {
+      (db.update as any).mockReset();
+    }
+    (db.update as any).mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue(config.update.result),
+        }),
+      }),
+    });
+  }
+  
+  if (config.delete) {
+    if (db.delete?.mockReset) {
+      (db.delete as any).mockReset();
+    }
+    (db.delete as any).mockReturnValue({
+      where: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue(config.delete.result),
+      }),
+    });
+  }
+}
+
+/**
+ * Create a mock database with pre-configured responses
+ * This is a convenience wrapper around createMockDb and configureMockDbChain
+ * 
+ * @param config - Configuration for mock responses
+ * @returns Configured mock database
+ */
+export function createConfiguredMockDb(config: Parameters<typeof configureMockDbChain>[1]): MockDatabase {
+  const db = mockFactory.createMockDb();
+  configureMockDbChain(db, config);
+  return db;
+}

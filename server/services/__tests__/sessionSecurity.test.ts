@@ -22,7 +22,8 @@ vi.mock('../../jwt', () => ({
   }
 }));
 
-describe.skip('Session Security Tests', () => {
+// Database is now configured - tests enabled!
+describe('Session Security Tests', () => {
   let mockDb: any;
 
   beforeEach(() => {

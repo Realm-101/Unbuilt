@@ -21,7 +21,8 @@ vi.mock('../../services/passwordSecurity');
 vi.mock('../../services/passwordHistory');
 vi.mock('../../services/accountLockout');
 
-describe.skip('Authentication Integration Tests', () => {
+// Database is now configured - tests enabled!
+describe('Authentication Integration Tests', () => {
   let app: express.Application;
   let mockDb: any;
 

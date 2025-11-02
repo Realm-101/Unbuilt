@@ -28,8 +28,8 @@ declare global {
  * ```
  */
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const sessionId = req.cookies.sessionId;
-  const refreshToken = req.cookies.refreshToken;
+  const sessionId = req.cookies?.sessionId;
+  const refreshToken = req.cookies?.refreshToken;
   
   // Debug logging
   if (process.env.NODE_ENV === 'development') {
@@ -39,7 +39,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
   
   if (!sessionId && !refreshToken) {
-    return res.status(401).json({ error: 'Authentication required', debug: { hasCookies: !!req.headers.cookie } });
+    return res.status(401).json({ error: 'Authentication required' });
   }
   
   // Try JWT-based session first (new system)
@@ -69,7 +69,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
   }
   
-  return res.status(401).json({ error: 'Invalid session', debug: { sessionId, hasRefreshToken: !!refreshToken } });
+  return res.status(401).json({ error: 'Invalid session' });
 }
 
 /**
@@ -94,7 +94,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
  * ```
  */
 export async function optionalAuth(req: Request, res: Response, next: NextFunction) {
-  const sessionId = req.cookies.sessionId;
+  const sessionId = req.cookies?.sessionId;
   
   if (sessionId) {
     const user = await authService.getSessionUser(sessionId);

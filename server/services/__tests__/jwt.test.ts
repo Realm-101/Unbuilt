@@ -166,15 +166,33 @@ describe('JWTService', () => {
       const user = { id: 1, email: 'test@example.com', plan: 'pro' };
       const tokens = await jwtServiceInstance.generateTokens(user);
 
-      // The token validation will check the database (mocked at module level)
-      // Since the database mock returns empty arrays by default, the token will be considered revoked
-      // This test verifies the token structure is correct
+      // Decode to get the token ID
       const decoded = jwt.decode(tokens.accessToken) as JWTPayload;
 
-      expect(decoded).toBeTruthy();
-      expect(decoded.sub).toBe('1');
-      expect(decoded.email).toBe('test@example.com');
-      expect(decoded.type).toBe('access');
+      // Mock database to return a valid, non-revoked token record
+      const { db } = await import('../../db');
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([{
+            id: decoded.jti,
+            userId: 1,
+            tokenType: 'access',
+            issuedAt: new Date(decoded.iat * 1000).toISOString(),
+            expiresAt: new Date(decoded.exp * 1000).toISOString(),
+            isRevoked: false,
+            revokedAt: null,
+            revokedBy: null
+          }])
+        })
+      } as any);
+
+      // Now validate the token
+      const payload = await jwtServiceInstance.validateToken(tokens.accessToken, 'access');
+
+      expect(payload).toBeTruthy();
+      expect(payload?.sub).toBe('1');
+      expect(payload?.email).toBe('test@example.com');
+      expect(payload?.type).toBe('access');
     });
 
     it('should reject token with wrong type', async () => {
@@ -212,16 +230,40 @@ describe('JWTService', () => {
         role: 'free',
         iat: Math.floor(Date.now() / 1000) - 3600,
         exp: Math.floor(Date.now() / 1000) - 1800, // Expired 30 minutes ago
-        jti: 'test-jti',
+        jti: 'test-expired-jti',
         type: 'access'
       };
 
       const expiredToken = jwt.sign(expiredPayload, process.env.JWT_ACCESS_SECRET!);
 
+      // Mock database to return a token record (so we can test expiration logic)
+      const { db } = await import('../../db');
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([{
+            id: expiredPayload.jti,
+            userId: 1,
+            tokenType: 'access',
+            issuedAt: new Date(expiredPayload.iat * 1000).toISOString(),
+            expiresAt: new Date(expiredPayload.exp * 1000).toISOString(),
+            isRevoked: false,
+            revokedAt: null,
+            revokedBy: null
+          }])
+        })
+      } as any);
+
+      // Mock the update call for revoking the expired token
+      vi.mocked(db.update).mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([])
+        })
+      } as any);
+
       const payload = await jwtServiceInstance.validateToken(expiredToken, 'access');
 
       expect(payload).toBeNull();
-      // The expired token is rejected (database operations happen internally)
+      // The expired token is rejected by jwt.verify() before database check
     });
 
     it('should reject malformed token', async () => {
@@ -231,8 +273,20 @@ describe('JWTService', () => {
     });
 
     it('should reject token with invalid signature', async () => {
-      const fakeToken = jwt.sign({ sub: '1' }, 'wrong-secret');
+      // Create a token with a different secret than what the service uses
+      const fakePayload: JWTPayload = {
+        sub: '1',
+        email: 'test@example.com',
+        role: 'free',
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        jti: 'fake-jti',
+        type: 'access'
+      };
 
+      const fakeToken = jwt.sign(fakePayload, 'wrong-secret-that-does-not-match');
+
+      // This should fail at the jwt.verify() step due to signature mismatch
       const payload = await jwtServiceInstance.validateToken(fakeToken, 'access');
 
       expect(payload).toBeNull();

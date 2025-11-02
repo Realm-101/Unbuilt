@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CreditCard, User as UserIcon, Settings, Lock, Edit } from 'lucide-react';
+import { Loader2, CreditCard, User as UserIcon, Settings, Lock, Edit, Keyboard } from 'lucide-react';
 import { useLocation } from 'wouter';
 import type { User } from '@shared/schema';
+import { KeyboardShortcutsSettings } from '@/components/keyboard-shortcuts';
 
 interface ProfileData {
   name?: string;
@@ -326,6 +327,9 @@ export default function Account() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Keyboard Shortcuts Settings */}
+        <KeyboardShortcutsSettings />
       </div>
     </div>
   );

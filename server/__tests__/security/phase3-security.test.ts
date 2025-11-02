@@ -9,43 +9,50 @@
  * - Authorization checks
  */
 
-import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import crypto from 'crypto';
-import { db } from '../../db';
-import { users } from '@db/schema';
+import { registerRoutes } from '../../routes.js';
+import { getTestDb, createTestUser, cleanupTestUser } from '../helpers/test-db.js';
+import { generateTestToken } from '../utils/testHelpers.js';
+import { db } from '../../db.js';
+import { users } from '../../../shared/schema.js';
+import { eq } from 'drizzle-orm';
 
+// Database is now configured - tests enabled!
 describe('Phase 3 Security Review', () => {
   let app: express.Application;
+  let server: any;
   let testUserId: number;
   let authToken: string;
 
   beforeAll(async () => {
-    const { default: createApp } = await import('../../index');
-    app = createApp();
+    // Set up Express app with routes
+    app = express();
+    app.use(express.json());
+    server = await registerRoutes(app);
   });
 
   beforeEach(async () => {
-    // Create test user
-    const [user] = await db.insert(users).values({
-      username: 'securitytest',
-      email: 'security@test.com',
-      password: 'hashedpassword',
-      subscriptionTier: 'free',
-    }).returning();
+    // Create test user using helper with unique email
+    const testUser = await createTestUser({
+      email: `security-${Date.now()}-${Math.random().toString(36).substring(7)}@test.com`,
+      password: '$2b$04$hashedpasswordexample', // Pre-hashed for speed
+      plan: 'free',
+    });
     
-    testUserId = user.id;
+    testUserId = testUser.id;
 
-    // Get auth token
-    const loginResponse = await request(app)
-      .post('/api/auth/login')
-      .send({
-        username: 'securitytest',
-        password: 'hashedpassword',
-      });
-    
-    authToken = loginResponse.body.token;
+    // Generate auth token
+    authToken = await generateTestToken(testUser);
+  });
+
+  afterEach(async () => {
+    // Clean up test user and related data
+    if (testUserId) {
+      await cleanupTestUser(testUserId);
+    }
   });
 
   describe('Stripe Webhook Security', () => {
@@ -448,12 +455,11 @@ describe('Phase 3 Security Review', () => {
 
   describe('Authorization Checks', () => {
     it('should prevent users from accessing other users data', async () => {
-      // Create another user
-      const [otherUser] = await db.insert(users).values({
-        username: 'otheruser',
+      // Create another user using helper
+      const otherUser = await createTestUser({
         email: 'other@test.com',
-        password: 'hashedpassword',
-      }).returning();
+        password: '$2b$04$hashedpasswordexample',
+      });
 
       // Try to access other user's search history
       const response = await request(app)
@@ -462,6 +468,9 @@ describe('Phase 3 Security Review', () => {
         .expect(403);
 
       expect(response.body.error).toContain('authorized');
+      
+      // Cleanup other user
+      await cleanupTestUser(otherUser.id);
     });
 
     it('should enforce subscription tier limits', async () => {
@@ -537,12 +546,13 @@ describe('Phase 3 Security Review', () => {
 
     it('should hash passwords before storage', async () => {
       const password = 'testpassword123';
+      const email = 'new@test.com';
 
       await request(app)
         .post('/api/auth/register')
         .send({
-          username: 'newuser',
-          email: 'new@test.com',
+          name: 'New User',
+          email,
           password,
         })
         .expect(201);
@@ -551,10 +561,13 @@ describe('Phase 3 Security Review', () => {
       const [user] = await db
         .select()
         .from(users)
-        .where(eq(users.username, 'newuser'));
+        .where(eq(users.email, email));
 
       expect(user.password).not.toBe(password);
       expect(user.password).toMatch(/^\$2[aby]\$/); // bcrypt hash
+      
+      // Cleanup
+      await cleanupTestUser(user.id);
     });
 
     it('should not log sensitive information', async () => {

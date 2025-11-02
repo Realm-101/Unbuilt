@@ -36,6 +36,12 @@ export interface MockDatabase {
   from?: ReturnType<typeof vi.fn>;
   where?: ReturnType<typeof vi.fn>;
   returning?: ReturnType<typeof vi.fn>;
+  orderBy?: ReturnType<typeof vi.fn>;
+  limit?: ReturnType<typeof vi.fn>;
+  groupBy?: ReturnType<typeof vi.fn>;
+  leftJoin?: ReturnType<typeof vi.fn>;
+  innerJoin?: ReturnType<typeof vi.fn>;
+  query?: any;
 }
 
 /**
@@ -55,11 +61,89 @@ export class TestMockFactory implements MockFactory {
   /**
    * Create a mock database instance
    * Returns a Drizzle ORM-compatible mock
+   * 
+   * @param config - Optional configuration for mock responses
+   * @returns Mock database instance
    */
-  createMockDb(): MockDatabase {
+  createMockDb(config?: {
+    selectResult?: any[];
+    insertResult?: any[];
+    updateResult?: any[];
+    deleteResult?: any[];
+  }): MockDatabase {
     const mockDb = createDatabaseMock();
+
+    // Apply configuration if provided
+    if (config) {
+      if (config.selectResult !== undefined) {
+        this.configureMockDbSelect(mockDb, config.selectResult);
+      }
+      if (config.insertResult !== undefined) {
+        this.configureMockDbInsert(mockDb, config.insertResult);
+      }
+      if (config.updateResult !== undefined) {
+        this.configureMockDbUpdate(mockDb, config.updateResult);
+      }
+      if (config.deleteResult !== undefined) {
+        this.configureMockDbDelete(mockDb, config.deleteResult);
+      }
+    }
+
     this.mocks.set('db', mockDb);
     return mockDb;
+  }
+
+  /**
+   * Configure mock database select to return specific results
+   */
+  private configureMockDbSelect(mockDb: MockDatabase, result: any[]): void {
+    mockDb.select = vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(result),
+        orderBy: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue(result),
+        }),
+        limit: vi.fn().mockResolvedValue(result),
+        leftJoin: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue(result),
+        }),
+      }),
+    });
+  }
+
+  /**
+   * Configure mock database insert to return specific results
+   */
+  private configureMockDbInsert(mockDb: MockDatabase, result: any[]): void {
+    mockDb.insert = vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue(result),
+      }),
+    });
+  }
+
+  /**
+   * Configure mock database update to return specific results
+   */
+  private configureMockDbUpdate(mockDb: MockDatabase, result: any[]): void {
+    mockDb.update = vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue(result),
+        }),
+      }),
+    });
+  }
+
+  /**
+   * Configure mock database delete to return specific results
+   */
+  private configureMockDbDelete(mockDb: MockDatabase, result: any[]): void {
+    mockDb.delete = vi.fn().mockReturnValue({
+      where: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue(result),
+      }),
+    });
   }
 
   /**
@@ -70,7 +154,7 @@ export class TestMockFactory implements MockFactory {
    */
   createMockUser(overrides?: Partial<User>): User {
     this.mockCounter++;
-    
+
     const defaultUser: User = {
       id: this.mockCounter,
       email: `test-${this.mockCounter}@example.com`,
@@ -213,6 +297,103 @@ export class TestMockFactory implements MockFactory {
   getAllMocks(): Map<string, any> {
     return new Map(this.mocks);
   }
+
+  /**
+   * Create a mock search result
+   * 
+   * @param overrides - Partial search result to override defaults
+   * @returns Complete search result object
+   */
+  createMockSearchResult(overrides?: Partial<any>): any {
+    this.mockCounter++;
+
+    return {
+      id: this.mockCounter,
+      searchId: 1,
+      title: `Test Gap ${this.mockCounter}`,
+      description: 'Test gap description',
+      innovationScore: 75,
+      feasibility: 'medium',
+      marketPotential: 'medium',
+      marketSize: '$100M TAM',
+      gapReason: 'Test gap reason',
+      category: 'Technology',
+      confidenceScore: 80,
+      priority: 'medium',
+      actionableRecommendations: ['Recommendation 1', 'Recommendation 2'],
+      competitorAnalysis: 'Competitor analysis text',
+      industryContext: 'Industry context text',
+      targetAudience: 'Target audience description',
+      keyTrends: ['Trend 1', 'Trend 2'],
+      createdAt: new Date().toISOString(),
+      ...overrides,
+    };
+  }
+
+  /**
+   * Create a mock search
+   * 
+   * @param overrides - Partial search to override defaults
+   * @returns Complete search object
+   */
+  createMockSearch(overrides?: Partial<any>): any {
+    this.mockCounter++;
+
+    return {
+      id: this.mockCounter,
+      query: `Test query ${this.mockCounter}`,
+      userId: 1,
+      status: 'completed',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...overrides,
+    };
+  }
+
+  /**
+   * Create a mock conversation
+   * 
+   * @param overrides - Partial conversation to override defaults
+   * @returns Complete conversation object
+   */
+  createMockConversation(overrides?: Partial<any>): any {
+    this.mockCounter++;
+
+    return {
+      id: this.mockCounter,
+      searchId: 1,
+      userId: 1,
+      title: `Test Conversation ${this.mockCounter}`,
+      messageCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...overrides,
+    };
+  }
+
+  /**
+   * Create a mock resource
+   * 
+   * @param overrides - Partial resource to override defaults
+   * @returns Complete resource object
+   */
+  createMockResource(overrides?: Partial<any>): any {
+    this.mockCounter++;
+
+    return {
+      id: this.mockCounter,
+      title: `Test Resource ${this.mockCounter}`,
+      description: 'Test resource description',
+      url: `https://example.com/resource-${this.mockCounter}`,
+      resourceType: 'article',
+      category: 'general',
+      tags: ['test'],
+      isPremium: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...overrides,
+    };
+  }
 }
 
 /**
@@ -225,9 +406,13 @@ export const mockFactory = new TestMockFactory();
  * Convenience functions that use the global factory
  * These are shortcuts for common operations
  */
-export const createMockDb = () => mockFactory.createMockDb();
+export const createMockDb = (config?: Parameters<TestMockFactory['createMockDb']>[0]) => mockFactory.createMockDb(config);
 export const createMockUser = (overrides?: Partial<User>) => mockFactory.createMockUser(overrides);
 export const createMockRequest = (overrides?: Partial<Request>) => mockFactory.createMockRequest(overrides);
 export const createMockResponse = () => mockFactory.createMockResponse();
 export const createMockNext = () => mockFactory.createMockNext();
+export const createMockSearchResult = (overrides?: Partial<any>) => mockFactory.createMockSearchResult(overrides);
+export const createMockSearch = (overrides?: Partial<any>) => mockFactory.createMockSearch(overrides);
+export const createMockConversation = (overrides?: Partial<any>) => mockFactory.createMockConversation(overrides);
+export const createMockResource = (overrides?: Partial<any>) => mockFactory.createMockResource(overrides);
 export const resetAllMocks = () => mockFactory.resetAllMocks();

@@ -120,6 +120,7 @@ export default function Register() {
                     <FormControl>
                       <Input
                         placeholder="Enter your full name"
+                        data-testid="register-name"
                         {...field}
                       />
                     </FormControl>
@@ -138,6 +139,7 @@ export default function Register() {
                       <Input
                         type="email"
                         placeholder="Enter your email"
+                        data-testid="register-email"
                         {...field}
                       />
                     </FormControl>
@@ -156,6 +158,7 @@ export default function Register() {
                       <Input
                         type="password"
                         placeholder="Create a password (min 6 characters)"
+                        data-testid="register-password"
                         {...field}
                       />
                     </FormControl>
@@ -174,6 +177,7 @@ export default function Register() {
                       <Input
                         type="password"
                         placeholder="Confirm your password"
+                        data-testid="register-confirm-password"
                         {...field}
                       />
                     </FormControl>
@@ -183,7 +187,7 @@ export default function Register() {
               />
 
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" data-testid="register-error">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
@@ -192,6 +196,7 @@ export default function Register() {
                 type="submit"
                 className="w-full btn-premium"
                 disabled={loading}
+                data-testid="register-submit"
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Account
@@ -205,6 +210,7 @@ export default function Register() {
               <button
                 onClick={() => setLocation("/auth/login")}
                 className="text-purple-500 hover:text-purple-700 font-medium hover:underline"
+                data-testid="register-login-link"
               >
                 Sign in
               </button>

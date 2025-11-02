@@ -27,6 +27,10 @@ export {
   createMockRequest,
   createMockResponse,
   createMockNext,
+  createMockSearchResult,
+  createMockSearch,
+  createMockConversation,
+  createMockResource,
   resetAllMocks,
   type MockFactory,
   type MockDatabase,
@@ -48,6 +52,8 @@ export {
   createTestError,
   expectToThrow,
   createTestRequestId,
+  configureMockDbChain,
+  createConfiguredMockDb,
   type TestContext,
 } from './utils/testHelpers';
 

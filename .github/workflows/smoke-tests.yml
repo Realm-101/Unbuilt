@@ -1,0 +1,209 @@
+name: Production Smoke Tests
+
+on:
+  # Run after successful deployment
+  workflow_run:
+    workflows: ["Deploy to Production"]
+    types:
+      - completed
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      url:
+        description: 'URL to test (optional, overrides environment)'
+        required: false
+        type: string
+  
+  # Scheduled smoke tests (every 6 hours)
+  schedule:
+    - cron: '0 */6 * * *'
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      
+      - name: Determine test URL
+        id: test-url
+        run: |
+          if [ -n "${{ github.event.inputs.url }}" ]; then
+            echo "url=${{ github.event.inputs.url }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.environment }}" == "staging" ]; then
+            echo "url=${{ secrets.STAGING_URL }}" >> $GITHUB_OUTPUT
+          else
+            echo "url=${{ secrets.PRODUCTION_URL }}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run smoke tests
+        run: npx playwright test server/__tests__/e2e/smoke --project=chromium
+        env:
+          SMOKE_TEST_URL: ${{ steps.test-url.outputs.url }}
+          CI: true
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-results
+          path: server/__tests__/reports/
+          retention-days: 7
+      
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-screenshots
+          path: server/__tests__/reports/screenshots/
+          retention-days: 7
+      
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.test-url.outputs.url }}';
+            const runUrl = `${context.payload.repository.html_url}/actions/runs/${context.runId}`;
+            
+            // Create an issue for smoke test failure
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Smoke Tests Failed - ${new Date().toISOString()}`,
+              body: `## Smoke Test Failure Alert
+              
+              Production smoke tests have failed!
+              
+              **Environment**: ${url}
+              **Time**: ${new Date().toISOString()}
+              **Run**: ${runUrl}
+              
+              ### Action Required
+              1. Review the [test results](${runUrl})
+              2. Check application logs for errors
+              3. Verify deployment was successful
+              4. Consider rolling back if critical functionality is broken
+              
+              ### Debugging
+              - Screenshots: Available in [artifacts](${runUrl})
+              - Test logs: Available in [workflow run](${runUrl})
+              
+              cc: @team-leads
+              `,
+              labels: ['bug', 'production', 'smoke-test-failure', 'urgent']
+            });
+      
+      - name: Send Slack notification on failure
+        if: failure() && secrets.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": "🚨 Production Smoke Tests Failed",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🚨 Smoke Tests Failed"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Environment:*\n${{ steps.test-url.outputs.url }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Time:*\n${{ github.event.head_commit.timestamp }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Production smoke tests have failed. Immediate attention required!"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Results"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  health-check:
+    name: Health Check
+    runs-on: ubuntu-latest
+    needs: smoke-tests
+    if: always()
+    
+    steps:
+      - name: Check application health
+        run: |
+          URL="${{ secrets.PRODUCTION_URL }}/api/health"
+          
+          echo "Checking health endpoint: $URL"
+          
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+          
+          if [ "$RESPONSE" -eq 200 ]; then
+            echo "✅ Health check passed (HTTP $RESPONSE)"
+          else
+            echo "❌ Health check failed (HTTP $RESPONSE)"
+            exit 1
+          fi
+      
+      - name: Update status badge
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ needs.smoke-tests.result }}' === 'success' ? 'passing' : 'failing';
+            const color = status === 'passing' ? 'brightgreen' : 'red';
+            
+            // This would typically update a status badge service
+            console.log(`Status: ${status}, Color: ${color}`);

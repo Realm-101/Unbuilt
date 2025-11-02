@@ -490,6 +490,19 @@ export const aiRateLimit = createRateLimit({
   }
 });
 
+// Export endpoints rate limiting
+// Prevents abuse of export functionality which can be resource-intensive
+export const exportRateLimit = createRateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  maxAttempts: 10, // 10 exports per minute
+  progressiveDelay: true,
+  keyGenerator: (req) => {
+    const ip = getClientIP(req);
+    const userId = req.user?.id || 'anonymous';
+    return `export:${ip}:${userId}`;
+  }
+});
+
 /**
  * Utility functions for rate limit management
  */

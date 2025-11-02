@@ -1,0 +1,185 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  TEST_BASE_URL: http://localhost:5000
+
+jobs:
+  e2e-tests:
+    name: E2E Tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      
+      - name: Setup test environment
+        run: |
+          cp .env.test .env
+          echo "DATABASE_URL=${{ secrets.TEST_DATABASE_URL }}" >> .env
+          echo "JWT_SECRET=${{ secrets.TEST_JWT_SECRET }}" >> .env
+          echo "SESSION_SECRET=${{ secrets.TEST_SESSION_SECRET }}" >> .env
+      
+      - name: Build application
+        run: npm run build
+      
+      - name: Start application server
+        run: |
+          npm start &
+          npx wait-on http://localhost:5000 --timeout 60000
+      
+      - name: Run E2E tests
+        run: npm run test:e2e -- --project=${{ matrix.browser }}
+        env:
+          TEST_BASE_URL: ${{ env.TEST_BASE_URL }}
+          CI: true
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.browser }}
+          path: server/__tests__/reports/
+          retention-days: 30
+      
+      - name: Upload screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ matrix.browser }}
+          path: server/__tests__/reports/screenshots/
+          retention-days: 7
+      
+      - name: Upload videos
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: videos-${{ matrix.browser }}
+          path: server/__tests__/reports/videos/
+          retention-days: 7
+      
+      - name: Upload trace files
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces-${{ matrix.browser }}
+          path: server/__tests__/reports/traces/
+          retention-days: 7
+
+  mobile-tests:
+    name: Mobile E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      
+      - name: Setup test environment
+        run: |
+          cp .env.test .env
+          echo "DATABASE_URL=${{ secrets.TEST_DATABASE_URL }}" >> .env
+          echo "JWT_SECRET=${{ secrets.TEST_JWT_SECRET }}" >> .env
+          echo "SESSION_SECRET=${{ secrets.TEST_SESSION_SECRET }}" >> .env
+      
+      - name: Build application
+        run: npm run build
+      
+      - name: Start application server
+        run: |
+          npm start &
+          npx wait-on http://localhost:5000 --timeout 60000
+      
+      - name: Run mobile E2E tests
+        run: npm run test:e2e:mobile
+        env:
+          TEST_BASE_URL: ${{ env.TEST_BASE_URL }}
+          CI: true
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-mobile
+          path: server/__tests__/reports/
+          retention-days: 30
+      
+      - name: Upload screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-mobile
+          path: server/__tests__/reports/screenshots/
+          retention-days: 7
+
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [e2e-tests, mobile-tests]
+    if: always()
+    
+    steps:
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          path: test-results
+      
+      - name: Generate test summary
+        run: |
+          echo "# E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.e2e-tests.result }}" == "success" ] && [ "${{ needs.mobile-tests.result }}" == "success" ]; then
+            echo "✅ All E2E tests passed successfully!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some E2E tests failed. Please review the artifacts." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Browser Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- Chromium: ${{ needs.e2e-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Firefox: ${{ needs.e2e-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- WebKit: ${{ needs.e2e-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Mobile Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- Mobile: ${{ needs.mobile-tests.result }}" >> $GITHUB_STEP_SUMMARY

@@ -1678,6 +1678,692 @@ Get system analytics (Admin only).
 }
 ```
 
+### Action Plans & Task Management
+
+The Action Plans API allows users to create, customize, and track progress on AI-generated development roadmaps. Each action plan consists of multiple phases, which contain tasks that can be customized, reordered, and tracked.
+
+#### POST /api/plans
+
+Create a new action plan for a gap analysis.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the search
+
+**Request Body:**
+```json
+{
+  "searchId": 123,
+  "templateId": "software-startup",
+  "title": "Healthcare App Development Plan",
+  "description": "Action plan for building AI-powered fitness tracker"
+}
+```
+
+**Body Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| searchId | integer | Yes | ID of the gap analysis search |
+| templateId | string | No | Template to use (software-startup, physical-product, service-business, etc.) |
+| title | string | Yes | Plan title (1-200 characters) |
+| description | string | No | Plan description (max 2000 characters) |
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 456,
+    "searchId": 123,
+    "userId": 789,
+    "templateId": "software-startup",
+    "title": "Healthcare App Development Plan",
+    "description": "Action plan for building AI-powered fitness tracker",
+    "status": "active",
+    "originalPlan": { /* AI-generated plan */ },
+    "customizations": {},
+    "createdAt": "2025-11-02T10:00:00Z",
+    "updatedAt": "2025-11-02T10:00:00Z",
+    "completedAt": null
+  }
+}
+```
+
+#### GET /api/plans/search/:searchId
+
+Get the action plan for a specific gap analysis.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the search
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 456,
+    "searchId": 123,
+    "title": "Healthcare App Development Plan",
+    "status": "active",
+    "phases": [
+      {
+        "id": 1,
+        "planId": 456,
+        "title": "Research & Validation",
+        "description": "Market research and validation phase",
+        "order": 1,
+        "estimatedDuration": "2-3 months",
+        "tasks": [
+          {
+            "id": 101,
+            "phaseId": 1,
+            "title": "Conduct customer interviews",
+            "description": "Interview 20 potential users",
+            "status": "completed",
+            "order": 1,
+            "estimatedTime": "2 weeks",
+            "resources": ["Interview script template"],
+            "isCustom": false,
+            "completedAt": "2025-10-15T14:30:00Z"
+          }
+        ]
+      }
+    ],
+    "statistics": {
+      "totalTasks": 24,
+      "completedTasks": 8,
+      "inProgressTasks": 3,
+      "notStartedTasks": 13,
+      "completionPercentage": 33.3
+    }
+  }
+}
+```
+
+#### PATCH /api/plans/:planId
+
+Update action plan metadata.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan
+
+**Request Body:**
+```json
+{
+  "title": "Updated Plan Title",
+  "description": "Updated description",
+  "status": "completed"
+}
+```
+
+**Body Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| title | string | No | Plan title (1-200 characters) |
+| description | string | No | Plan description (max 2000 characters) |
+| status | string | No | Plan status: active, completed, archived |
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 456,
+    "title": "Updated Plan Title",
+    "status": "completed",
+    "completedAt": "2025-11-02T15:30:00Z",
+    "updatedAt": "2025-11-02T15:30:00Z"
+  }
+}
+```
+
+#### GET /api/plans/:planId/tasks
+
+Get all tasks for an action plan.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 101,
+      "phaseId": 1,
+      "planId": 456,
+      "title": "Conduct customer interviews",
+      "description": "Interview 20 potential users about their fitness tracking needs",
+      "status": "completed",
+      "order": 1,
+      "estimatedTime": "2 weeks",
+      "resources": ["Interview script template", "User research guide"],
+      "isCustom": false,
+      "assigneeId": null,
+      "completedAt": "2025-10-15T14:30:00Z",
+      "createdAt": "2025-10-01T10:00:00Z",
+      "updatedAt": "2025-10-15T14:30:00Z"
+    }
+  ]
+}
+```
+
+#### POST /api/plans/:planId/tasks
+
+Create a new custom task in an action plan.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan
+
+**Request Body:**
+```json
+{
+  "phaseId": 1,
+  "title": "Research competitor pricing models",
+  "description": "Analyze pricing strategies of top 5 competitors",
+  "estimatedTime": "1 week",
+  "resources": ["Competitor analysis template"],
+  "order": 3,
+  "assigneeId": null
+}
+```
+
+**Body Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| phaseId | integer | Yes | ID of the phase this task belongs to |
+| title | string | Yes | Task title (1-200 characters) |
+| description | string | No | Task description (max 2000 characters) |
+| estimatedTime | string | No | Estimated time to complete |
+| resources | array | No | Array of resource names/links |
+| order | integer | Yes | Position in the task list (0-based) |
+| assigneeId | integer | No | User ID to assign task to (team feature) |
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "message": "Task created successfully",
+  "data": {
+    "id": 125,
+    "phaseId": 1,
+    "planId": 456,
+    "title": "Research competitor pricing models",
+    "description": "Analyze pricing strategies of top 5 competitors",
+    "status": "not_started",
+    "order": 3,
+    "estimatedTime": "1 week",
+    "resources": ["Competitor analysis template"],
+    "isCustom": true,
+    "assigneeId": null,
+    "createdAt": "2025-11-02T16:00:00Z",
+    "updatedAt": "2025-11-02T16:00:00Z"
+  }
+}
+```
+
+#### PATCH /api/tasks/:taskId
+
+Update a task.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan
+
+**Request Body:**
+```json
+{
+  "title": "Updated task title",
+  "description": "Updated description",
+  "status": "in_progress",
+  "estimatedTime": "3 days",
+  "resources": ["New resource link"],
+  "order": 2,
+  "assigneeId": 789,
+  "overridePrerequisites": false
+}
+```
+
+**Body Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| title | string | No | Task title (1-200 characters) |
+| description | string | No | Task description (max 2000 characters) |
+| status | string | No | Task status: not_started, in_progress, completed, skipped |
+| estimatedTime | string | No | Estimated time to complete |
+| resources | array | No | Array of resource names/links |
+| order | integer | No | Position in the task list |
+| assigneeId | integer | No | User ID to assign task to (null to unassign) |
+| overridePrerequisites | boolean | No | Allow status change even if prerequisites incomplete |
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 125,
+    "title": "Updated task title",
+    "status": "in_progress",
+    "updatedAt": "2025-11-02T16:15:00Z"
+  }
+}
+```
+
+**Error Response (400 Bad Request) - Prerequisites Not Met:**
+```json
+{
+  "error": "Cannot mark task as completed: prerequisite tasks not complete",
+  "code": "TASK_PREREQUISITES_NOT_MET",
+  "details": {
+    "incompletePrerequisites": [
+      {
+        "id": 101,
+        "title": "Conduct customer interviews",
+        "status": "in_progress"
+      }
+    ]
+  }
+}
+```
+
+#### DELETE /api/tasks/:taskId
+
+Delete a task from an action plan.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Task deleted successfully"
+  }
+}
+```
+
+#### POST /api/plans/:planId/tasks/reorder
+
+Reorder tasks within a phase.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan
+
+**Request Body:**
+```json
+{
+  "phaseId": 1,
+  "taskIds": [103, 101, 102, 104]
+}
+```
+
+**Body Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| phaseId | integer | Yes | ID of the phase containing the tasks |
+| taskIds | array | Yes | Array of task IDs in desired order |
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Tasks reordered successfully"
+  }
+}
+```
+
+#### GET /api/tasks/:taskId/dependencies
+
+Get all dependencies for a task (prerequisites and dependents).
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "prerequisites": [
+      {
+        "id": 101,
+        "title": "Conduct customer interviews",
+        "status": "completed",
+        "completedAt": "2025-10-15T14:30:00Z"
+      }
+    ],
+    "dependents": [
+      {
+        "id": 105,
+        "title": "Analyze interview results",
+        "status": "not_started"
+      }
+    ]
+  }
+}
+```
+
+#### POST /api/tasks/:taskId/dependencies
+
+Add a dependency (prerequisite) to a task.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan
+
+**Request Body:**
+```json
+{
+  "prerequisiteTaskId": 101
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 50,
+    "taskId": 125,
+    "prerequisiteTaskId": 101,
+    "createdAt": "2025-11-02T16:30:00Z"
+  }
+}
+```
+
+**Error Response (400 Bad Request) - Circular Dependency:**
+```json
+{
+  "error": "Cannot add dependency: would create circular dependency",
+  "code": "DEP_CIRCULAR_DEPENDENCY",
+  "details": {
+    "cycle": [125, 101, 103, 125]
+  }
+}
+```
+
+#### DELETE /api/dependencies/:dependencyId
+
+Remove a task dependency.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Dependency removed successfully"
+  }
+}
+```
+
+#### GET /api/plans/:planId/dependencies
+
+Get all dependencies for an entire plan.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "101": {
+      "prerequisites": [],
+      "dependents": [102, 103]
+    },
+    "102": {
+      "prerequisites": [101],
+      "dependents": [104]
+    },
+    "103": {
+      "prerequisites": [101],
+      "dependents": []
+    }
+  }
+}
+```
+
+#### POST /api/plans/:planId/apply-template
+
+Apply a pre-built template to an existing plan.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan
+
+**Request Body:**
+```json
+{
+  "templateId": 2
+}
+```
+
+**⚠️ Warning:** This will replace all existing phases and tasks. The original AI-generated plan is preserved in the `originalPlan` field.
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Template applied successfully",
+  "data": {
+    "id": 456,
+    "templateId": 2,
+    "phases": [ /* new phases from template */ ],
+    "updatedAt": "2025-11-02T17:00:00Z"
+  }
+}
+```
+
+#### GET /api/plans/:planId/progress/history
+
+Get progress history for a plan.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan
+
+**Query Parameters:**
+- `limit` (integer, optional): Number of snapshots to return (default: 30)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "planId": 456,
+      "snapshotDate": "2025-11-02T00:00:00Z",
+      "completedTasks": 8,
+      "totalTasks": 24,
+      "completionPercentage": 33.3,
+      "velocity": 2.5
+    },
+    {
+      "id": 2,
+      "planId": 456,
+      "snapshotDate": "2025-11-01T00:00:00Z",
+      "completedTasks": 6,
+      "totalTasks": 24,
+      "completionPercentage": 25.0,
+      "velocity": 2.0
+    }
+  ]
+}
+```
+
+#### GET /api/plans/users/:userId/progress/summary
+
+Get progress summary across all active plans for a user.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User can only access their own summary
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "activePlans": 3,
+    "totalTasks": 72,
+    "completedTasks": 24,
+    "overallCompletionPercentage": 33.3,
+    "averageVelocity": 2.8
+  }
+}
+```
+
+#### POST /api/plans/:planId/export
+
+Export action plan to various formats.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan  
+**Rate Limit:** 10 exports per hour per user
+
+**Request Body:**
+```json
+{
+  "format": "csv",
+  "includeCompleted": true,
+  "includeSkipped": false
+}
+```
+
+**Body Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| format | string | Yes | Export format: csv, json, markdown |
+| includeCompleted | boolean | No | Include completed tasks (default: true) |
+| includeSkipped | boolean | No | Include skipped tasks (default: true) |
+
+**Response (200 OK):**
+Returns file download with appropriate Content-Type and Content-Disposition headers.
+
+**CSV Format:**
+```csv
+Phase,Task,Status,Estimated Time,Completed At,Resources
+Research & Validation,Conduct customer interviews,completed,2 weeks,2025-10-15T14:30:00Z,"Interview script template"
+```
+
+**JSON Format:**
+```json
+{
+  "plan": {
+    "id": 456,
+    "title": "Healthcare App Development Plan",
+    "status": "active"
+  },
+  "phases": [
+    {
+      "title": "Research & Validation",
+      "tasks": [
+        {
+          "title": "Conduct customer interviews",
+          "status": "completed",
+          "estimatedTime": "2 weeks",
+          "completedAt": "2025-10-15T14:30:00Z"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Markdown Format:**
+```markdown
+# Healthcare App Development Plan
+
+## Phase 1: Research & Validation
+
+- [x] Conduct customer interviews (2 weeks) - Completed 2025-10-15
+- [ ] Analyze competitor offerings (1 week)
+- [ ] Define target market segments (3 days)
+```
+
+#### GET /api/plans/:planId/recommendations
+
+Get smart recommendations for a plan based on progress and patterns.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "rec_1",
+      "type": "stuck_task",
+      "priority": "high",
+      "title": "Break down large task",
+      "message": "You've been working on 'Build MVP' for 10 days. Consider breaking it into smaller subtasks.",
+      "actionable": true,
+      "actions": [
+        {
+          "label": "Break into subtasks",
+          "action": "create_subtasks",
+          "taskId": 105
+        },
+        {
+          "label": "Dismiss",
+          "action": "dismiss"
+        }
+      ]
+    },
+    {
+      "id": "rec_2",
+      "type": "resource_suggestion",
+      "priority": "medium",
+      "title": "Recommended resource",
+      "message": "Based on your current phase, you might find 'MVP Development Guide' helpful.",
+      "actionable": true,
+      "actions": [
+        {
+          "label": "View resource",
+          "action": "open_resource",
+          "resourceId": 42
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Recommendation Types:**
+- `stuck_task` - Task taking longer than expected
+- `phase_complete` - Phase completed, next steps suggested
+- `resource_suggestion` - Relevant resource from library
+- `velocity_slow` - Progress slower than average
+- `multiple_skipped` - Many tasks skipped, plan review suggested
+- `dependency_warning` - Dependency issues detected
+
+#### POST /api/plans/:planId/recommendations/:recommendationId/dismiss
+
+Dismiss a recommendation.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the plan
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "dismissed": true
+  }
+}
+```
+
 ### Subscription & Billing
 
 #### POST /trial/activate
@@ -2055,3 +2741,876 @@ curl -X POST https://unbuilt.one/api/search \
 **Last Updated:** October 3, 2025  
 **API Version:** 2.1  
 **Documentation Version:** 2.1
+
+
+## 🎨 UX Features API
+
+### User Preferences
+
+#### GET /api/user/preferences
+Get current user's preferences including role, onboarding status, and UI settings.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "userId": "user_123",
+    "role": "entrepreneur",
+    "onboardingCompleted": true,
+    "tourCompleted": true,
+    "expandedSections": {
+      "competitive-analysis": true,
+      "market-intelligence": false
+    },
+    "keyboardShortcuts": {
+      "globalSearch": "ctrl+k",
+      "newSearch": "ctrl+n",
+      "dashboard": "ctrl+d",
+      "export": "ctrl+e"
+    },
+    "accessibilitySettings": {
+      "highContrast": false,
+      "reducedMotion": false,
+      "screenReaderOptimized": false
+    },
+    "notificationSettings": {
+      "email": true,
+      "inApp": true,
+      "frequency": "daily"
+    },
+    "createdAt": "2025-01-01T00:00:00Z",
+    "updatedAt": "2025-01-15T12:30:00Z"
+  }
+}
+```
+
+#### PUT /api/user/preferences
+Update user preferences (full replacement).
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request Body:**
+```json
+{
+  "role": "investor",
+  "onboardingCompleted": true,
+  "tourCompleted": true,
+  "expandedSections": {
+    "competitive-analysis": true
+  },
+  "keyboardShortcuts": {
+    "globalSearch": "ctrl+k"
+  },
+  "accessibilitySettings": {
+    "highContrast": true,
+    "reducedMotion": false,
+    "screenReaderOptimized": true
+  },
+  "notificationSettings": {
+    "email": true,
+    "inApp": false,
+    "frequency": "weekly"
+  }
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "userId": "user_123",
+    "role": "investor",
+    "updatedAt": "2025-01-15T12:35:00Z"
+  }
+}
+```
+
+#### PATCH /api/user/preferences/onboarding
+Mark onboarding as completed.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request Body:**
+```json
+{
+  "completed": true
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Onboarding marked as complete"
+}
+```
+
+#### PATCH /api/user/preferences/tour
+Mark interactive tour as completed.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request Body:**
+```json
+{
+  "completed": true
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Tour marked as complete"
+}
+```
+
+### Projects
+
+#### GET /api/projects
+Get all projects for the current user.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Query Parameters:**
+- `archived` (boolean, optional): Filter by archived status
+- `page` (number, optional): Page number (default: 1)
+- `pageSize` (number, optional): Items per page (default: 20)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "proj_123",
+      "userId": "user_123",
+      "name": "Healthcare Innovation",
+      "description": "Exploring gaps in healthcare technology",
+      "analyses": ["analysis_1", "analysis_2"],
+      "tags": ["healthcare", "technology"],
+      "archived": false,
+      "createdAt": "2025-01-01T00:00:00Z",
+      "updatedAt": "2025-01-15T12:30:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 5
+  }
+}
+```
+
+#### POST /api/projects
+Create a new project.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request Body:**
+```json
+{
+  "name": "Healthcare Innovation",
+  "description": "Exploring gaps in healthcare technology",
+  "tags": ["healthcare", "technology"]
+}
+```
+
+**Validation:**
+- Name: 1-100 characters, required
+- Description: 0-500 characters, optional
+- Tags: Array of strings, max 10 tags
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "proj_123",
+    "userId": "user_123",
+    "name": "Healthcare Innovation",
+    "description": "Exploring gaps in healthcare technology",
+    "analyses": [],
+    "tags": ["healthcare", "technology"],
+    "archived": false,
+    "createdAt": "2025-01-15T12:30:00Z",
+    "updatedAt": "2025-01-15T12:30:00Z"
+  }
+}
+```
+
+#### GET /api/projects/:id
+Get a specific project by ID.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the project
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "proj_123",
+    "userId": "user_123",
+    "name": "Healthcare Innovation",
+    "description": "Exploring gaps in healthcare technology",
+    "analyses": ["analysis_1", "analysis_2"],
+    "tags": ["healthcare", "technology"],
+    "archived": false,
+    "createdAt": "2025-01-01T00:00:00Z",
+    "updatedAt": "2025-01-15T12:30:00Z"
+  }
+}
+```
+
+#### PUT /api/projects/:id
+Update a project.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the project
+
+**Request Body:**
+```json
+{
+  "name": "Healthcare Innovation 2.0",
+  "description": "Updated description",
+  "tags": ["healthcare", "technology", "ai"],
+  "archived": false
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "proj_123",
+    "name": "Healthcare Innovation 2.0",
+    "updatedAt": "2025-01-15T12:35:00Z"
+  }
+}
+```
+
+#### DELETE /api/projects/:id
+Delete a project.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the project
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Project deleted successfully"
+}
+```
+
+#### POST /api/projects/:id/analyses/:analysisId
+Add an analysis to a project.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own both project and analysis
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Analysis added to project"
+}
+```
+
+#### DELETE /api/projects/:id/analyses/:analysisId
+Remove an analysis from a project.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the project
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Analysis removed from project"
+}
+```
+
+### Progress Tracking
+
+#### GET /api/progress/:analysisId
+Get action plan progress for a specific analysis.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the analysis
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "progress_123",
+    "userId": "user_123",
+    "analysisId": "analysis_123",
+    "completedSteps": ["step_1", "step_2", "step_3"],
+    "phaseCompletion": {
+      "validation": 75,
+      "planning": 50,
+      "development": 0,
+      "launch": 0
+    },
+    "overallCompletion": 31,
+    "lastUpdated": "2025-01-15T12:30:00Z",
+    "createdAt": "2025-01-01T00:00:00Z"
+  }
+}
+```
+
+#### POST /api/progress/:analysisId/steps/:stepId/complete
+Mark an action plan step as complete.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the analysis
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "completedSteps": ["step_1", "step_2", "step_3", "step_4"],
+    "phaseCompletion": {
+      "validation": 100,
+      "planning": 50,
+      "development": 0,
+      "launch": 0
+    },
+    "overallCompletion": 37
+  }
+}
+```
+
+#### DELETE /api/progress/:analysisId/steps/:stepId/complete
+Mark a previously completed step as incomplete (undo).
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the analysis
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "completedSteps": ["step_1", "step_2"],
+    "phaseCompletion": {
+      "validation": 50,
+      "planning": 50,
+      "development": 0,
+      "launch": 0
+    },
+    "overallCompletion": 25
+  }
+}
+```
+
+#### GET /api/progress/summary
+Get progress summary across all analyses.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "totalAnalyses": 10,
+    "analysesWithProgress": 7,
+    "averageCompletion": 42,
+    "completedPhases": 15,
+    "recentActivity": [
+      {
+        "analysisId": "analysis_123",
+        "analysisTitle": "Healthcare Gap Analysis",
+        "lastUpdated": "2025-01-15T12:30:00Z",
+        "completion": 75
+      }
+    ]
+  }
+}
+```
+
+### Share Links
+
+#### POST /api/share/:analysisId
+Generate a secure share link for an analysis.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the analysis  
+**Rate Limit:** 10 share links per hour per user
+
+**Request Body:**
+```json
+{
+  "expiresAt": "2025-12-31T23:59:59Z"
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "share_123",
+    "userId": "user_123",
+    "analysisId": "analysis_123",
+    "token": "abc123xyz789",
+    "url": "https://unbuilt.one/share/abc123xyz789",
+    "expiresAt": "2025-12-31T23:59:59Z",
+    "viewCount": 0,
+    "active": true,
+    "createdAt": "2025-01-15T12:30:00Z",
+    "lastAccessedAt": null
+  }
+}
+```
+
+#### GET /api/share/links
+Get all share links created by the current user.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Query Parameters:**
+- `active` (boolean, optional): Filter by active status
+- `page` (number, optional): Page number (default: 1)
+- `pageSize` (number, optional): Items per page (default: 20)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "share_123",
+      "analysisId": "analysis_123",
+      "analysisTitle": "Healthcare Gap Analysis",
+      "token": "abc123xyz789",
+      "url": "https://unbuilt.one/share/abc123xyz789",
+      "expiresAt": "2025-12-31T23:59:59Z",
+      "viewCount": 15,
+      "active": true,
+      "createdAt": "2025-01-15T12:30:00Z",
+      "lastAccessedAt": "2025-01-20T10:15:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 3
+  }
+}
+```
+
+#### GET /api/share/:token
+Access an analysis via share token (public, no authentication required).
+
+**Authentication:** Not required  
+**Rate Limit:** 100 requests per hour per IP
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "analysis": {
+      "id": "analysis_123",
+      "title": "Healthcare Gap Analysis",
+      "innovationScore": 85,
+      "feasibilityRating": 4.2,
+      "marketPotential": "High",
+      "insights": [...],
+      "competitiveAnalysis": {...},
+      "actionPlan": {...}
+    },
+    "sharedBy": "John Doe",
+    "sharedAt": "2025-01-15T12:30:00Z"
+  }
+}
+```
+
+**Error Responses:**
+- `404 Not Found`: Share link not found or expired
+- `403 Forbidden`: Share link has been revoked
+
+#### DELETE /api/share/links/:linkId
+Revoke a share link (makes it inactive).
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the share link
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Share link revoked successfully"
+}
+```
+
+#### PATCH /api/share/links/:linkId
+Update share link expiration.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Authorization:** User must own the share link
+
+**Request Body:**
+```json
+{
+  "expiresAt": "2026-12-31T23:59:59Z"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "share_123",
+    "expiresAt": "2026-12-31T23:59:59Z",
+    "updatedAt": "2025-01-15T12:35:00Z"
+  }
+}
+```
+
+### Help System
+
+#### GET /api/help/articles
+Get all help articles.
+
+**Authentication:** Optional (public access)
+
+**Query Parameters:**
+- `category` (string, optional): Filter by category (getting-started, features, troubleshooting, faq)
+- `context` (string, optional): Filter by context (dashboard, onboarding, etc.)
+- `page` (number, optional): Page number (default: 1)
+- `pageSize` (number, optional): Items per page (default: 20)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "article_123",
+      "title": "Getting Started with Unbuilt",
+      "content": "# Getting Started\n\n...",
+      "context": ["dashboard", "onboarding"],
+      "category": "getting-started",
+      "tags": ["beginner", "tutorial"],
+      "videoUrl": "https://youtube.com/watch?v=...",
+      "relatedArticles": ["article_124", "article_125"],
+      "viewCount": 1250,
+      "helpfulCount": 980,
+      "createdAt": "2025-01-01T00:00:00Z",
+      "updatedAt": "2025-01-10T12:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 45
+  }
+}
+```
+
+#### GET /api/help/articles/:id
+Get a specific help article.
+
+**Authentication:** Optional (public access)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "article_123",
+    "title": "Getting Started with Unbuilt",
+    "content": "# Getting Started\n\n...",
+    "context": ["dashboard", "onboarding"],
+    "category": "getting-started",
+    "tags": ["beginner", "tutorial"],
+    "videoUrl": "https://youtube.com/watch?v=...",
+    "relatedArticles": [
+      {
+        "id": "article_124",
+        "title": "Understanding Innovation Scores"
+      }
+    ],
+    "viewCount": 1250,
+    "helpfulCount": 980,
+    "createdAt": "2025-01-01T00:00:00Z",
+    "updatedAt": "2025-01-10T12:00:00Z"
+  }
+}
+```
+
+#### GET /api/help/search
+Search help articles by query.
+
+**Authentication:** Optional (public access)
+
+**Query Parameters:**
+- `q` (string, required): Search query
+- `page` (number, optional): Page number (default: 1)
+- `pageSize` (number, optional): Items per page (default: 10)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "article_123",
+      "title": "Getting Started with Unbuilt",
+      "excerpt": "...relevant excerpt with search terms highlighted...",
+      "category": "getting-started",
+      "relevance": 0.95
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 10,
+    "total": 8
+  }
+}
+```
+
+#### GET /api/help/context/:context
+Get help articles for a specific context.
+
+**Authentication:** Optional (public access)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "context": "dashboard",
+    "articles": [
+      {
+        "id": "article_123",
+        "title": "Understanding Your Dashboard",
+        "excerpt": "Learn how to navigate and use your dashboard..."
+      }
+    ],
+    "faqs": [
+      {
+        "question": "How do I organize my searches?",
+        "answer": "You can use projects, favorites, and tags..."
+      }
+    ],
+    "videos": [
+      {
+        "title": "Dashboard Tour",
+        "url": "https://youtube.com/watch?v=..."
+      }
+    ]
+  }
+}
+```
+
+#### POST /api/help/articles/:id/feedback
+Submit feedback on a help article.
+
+**Authentication:** Optional
+
+**Request Body:**
+```json
+{
+  "helpful": true,
+  "comment": "Very clear and helpful!"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Thank you for your feedback!"
+}
+```
+
+### Global Search
+
+#### GET /api/search/global
+Search across analyses, resources, help articles, and pages.
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Rate Limit:** 60 requests per minute per user
+
+**Query Parameters:**
+- `q` (string, required): Search query
+- `types` (string[], optional): Filter by types (analysis, resource, help, page)
+- `page` (number, optional): Page number (default: 1)
+- `pageSize` (number, optional): Items per page (default: 10)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "type": "analysis",
+      "id": "analysis_123",
+      "title": "Healthcare Gap Analysis",
+      "description": "Analysis of gaps in healthcare technology...",
+      "path": "/search-result/analysis_123",
+      "metadata": {
+        "innovationScore": 85,
+        "createdAt": "2025-01-15T12:30:00Z"
+      },
+      "relevance": 0.92
+    },
+    {
+      "type": "help",
+      "id": "article_456",
+      "title": "Getting Started Guide",
+      "description": "Learn how to use Unbuilt...",
+      "path": "/help/article_456",
+      "metadata": {
+        "category": "getting-started"
+      },
+      "relevance": 0.85
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 10,
+    "total": 23
+  }
+}
+```
+
+---
+
+## 📋 Changelog (Updated)
+
+### Version 2.2 (January 2025)
+- Added UX Features API documentation
+- Documented user preferences endpoints (`/api/user/preferences/*`)
+- Documented projects management endpoints (`/api/projects/*`)
+- Documented progress tracking endpoints (`/api/progress/*`)
+- Documented share links endpoints (`/api/share/*`)
+- Documented help system endpoints (`/api/help/*`)
+- Documented global search endpoint (`/api/search/global`)
+- Added comprehensive request/response examples for all UX endpoints
+- Documented authentication and authorization requirements
+- Added rate limiting information for new endpoints
+- Included validation rules and error responses
+
+---
+
+**Last Updated:** January 27, 2025  
+**API Version:** 2.2  
+**Documentation Version:** 2.2
+umented share links endpoints (`/api/share/*`)
+- Documented help system endpoints (`/api/help/*`)
+- Documented global search endpoint (`/api/search/global`)
+- Added comprehensive request/response examples
+- Added validation rules and error responses
+
+### Version 2.3 (October 2025)
+- **Added Interactive AI Conversations API**
+- Documented conversation management endpoints (`/api/conversations/*`)
+- Documented message sending and retrieval
+- Documented suggested questions generation
+- Documented analysis variants and comparison
+- Documented conversation export functionality
+- Documented usage tracking and metrics
+- Added WebSocket streaming support for real-time responses
+- Added tier-based rate limiting documentation
+- See [CONVERSATIONS_API.md](./CONVERSATIONS_API.md) for complete documentation
+
+---
+
+## 💬 Interactive AI Conversations API
+
+The Conversations API enables interactive follow-up discussions with the AI about gap analyses. For complete documentation, see [CONVERSATIONS_API.md](./CONVERSATIONS_API.md).
+
+### Quick Reference
+
+**Conversation Management:**
+- `GET /api/conversations/:analysisId` - Get or create conversation
+- `POST /api/conversations/:analysisId/messages` - Send message and get AI response
+- `GET /api/conversations/:conversationId/messages` - Get paginated messages
+- `DELETE /api/conversations/:conversationId` - Clear conversation thread
+- `POST /api/conversations/:conversationId/rate` - Rate AI response
+- `POST /api/conversations/:conversationId/report` - Report inappropriate content
+
+**Suggested Questions:**
+- `GET /api/conversations/:conversationId/suggestions` - Get suggested questions
+- `POST /api/conversations/:conversationId/suggestions/refresh` - Generate new suggestions
+
+**Analysis Variants:**
+- `POST /api/conversations/:conversationId/variants` - Create analysis variant
+- `GET /api/conversations/:conversationId/variants` - Get all variants
+- `GET /api/conversations/:conversationId/variants/:variantId/compare` - Compare variant
+
+**Export & Usage:**
+- `POST /api/conversations/:conversationId/export` - Export conversation
+- `GET /api/conversations/usage` - Get usage statistics
+- `GET /api/conversations/metrics` - Get performance metrics (Admin/Enterprise)
+
+### Rate Limits
+
+**Tier-Based Limits:**
+- Free tier: 5 questions per analysis, 20 questions per day
+- Pro tier: Unlimited questions per analysis
+- Enterprise tier: Unlimited questions
+
+### Example: Send a Message
+
+```typescript
+const response = await fetch('/api/conversations/conv_123/messages', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    content: 'How can I validate this idea with a $5,000 budget?'
+  })
+});
+
+const { data } = await response.json();
+console.log(data.aiMessage.content);
+console.log(data.suggestedQuestions);
+```
+
+### Example: Create a Variant
+
+```typescript
+const response = await fetch('/api/conversations/conv_123/variants', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    modifiedParameters: {
+      targetMarket: 'European Union',
+      customerSegment: 'Small businesses'
+    }
+  })
+});
+
+const { data } = await response.json();
+console.log(data.variant.analysis);
+console.log(data.comparison);
+```
+
+For complete API documentation including all endpoints, request/response formats, error codes, and advanced features, see [CONVERSATIONS_API.md](./CONVERSATIONS_API.md).
+
+---
+
+**Last Updated:** October 28, 2025  
+**API Version:** 2.3  
+**Documentation Version:** 2.3

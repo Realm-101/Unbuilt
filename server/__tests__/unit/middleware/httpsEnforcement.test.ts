@@ -42,7 +42,7 @@ vi.mock('../../../config/securityConfig', () => ({
   }
 }));
 
-describe.skip('HTTPS Enforcement Middleware', () => {
+describe('HTTPS Enforcement Middleware', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -168,13 +168,14 @@ describe.skip('HTTPS Enforcement Middleware', () => {
       const req = mockRequest({ 
         secure: false
       });
-      const res = mockResponse();
-      const next = mockNext();
-
-      // Make get throw an error
-      (req.get as any).mockImplementation(() => {
+      
+      // Override get to throw an error
+      req.get = vi.fn(() => {
         throw new Error('Header error');
       });
+      
+      const res = mockResponse();
+      const next = mockNext();
 
       await middleware.middleware()(req as any, res as any, next);
 
@@ -190,13 +191,16 @@ describe.skip('HTTPS Enforcement Middleware', () => {
       const res = mockResponse();
       const next = mockNext();
 
+      // Store original cookie function
+      const originalCookie = res.cookie;
+
       middleware.middleware()(req as any, res as any, next);
 
-      // Call the overridden cookie method
-      res.cookie('test', 'value', {});
-
-      expect(res.cookie).toHaveBeenCalled();
+      // Verify middleware was called
       expect(next).toHaveBeenCalled();
+      
+      // The middleware wraps res.cookie, so it should be different from original
+      expect(res.cookie).not.toBe(originalCookie);
     });
 
     it('should set httpOnly flag', () => {
@@ -413,6 +417,10 @@ describe.skip('HTTPS Enforcement Middleware', () => {
     });
 
     it('should handle errors gracefully', async () => {
+      // Mock securityLogger to return a resolved promise
+      const { securityLogger } = await import('../../../services/securityLogger');
+      vi.mocked(securityLogger.logSecurityEvent).mockResolvedValue(undefined);
+      
       const middleware = new SessionSecurityMiddleware();
       const req = mockRequest({ 
         session: {

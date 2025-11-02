@@ -7,6 +7,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { lazy, Suspense, useEffect } from "react";
 import { useAuth } from "./hooks/useAuth";
 import { initializeAuth } from "./hooks/use-auth";
+import { SkipLink } from "@/components/accessibility/SkipLink";
 
 // Eager load critical pages
 import Home from "@/pages/home";
@@ -20,9 +21,14 @@ const Help = lazy(() => import("@/pages/help"));
 const Privacy = lazy(() => import("@/pages/privacy"));
 const Terms = lazy(() => import("@/pages/terms"));
 const SearchResults = lazy(() => import("@/pages/search-results"));
+const SearchResultDetail = lazy(() => import("@/pages/search-result-detail"));
 const SavedResults = lazy(() => import("@/pages/saved-results"));
 const SearchHistory = lazy(() => import("@/pages/search-history"));
 const Trending = lazy(() => import("@/pages/trending"));
+const Bookmarks = lazy(() => import("@/pages/bookmarks"));
+const Contributions = lazy(() => import("@/pages/contributions"));
+const ResourceLibrary = lazy(() => import("@/pages/resources"));
+const ResourceDetail = lazy(() => import("@/pages/resource-detail"));
 const ForgotPassword = lazy(() => import("@/pages/auth/forgot-password"));
 const ResetPassword = lazy(() => import("@/pages/auth/reset-password"));
 const Subscribe = lazy(() => import("@/pages/subscribe"));
@@ -38,12 +44,15 @@ const Documentation = lazy(() => import("@/pages/documentation").then(m => ({ de
 const AIChat = lazy(() => import("@/components/ai-assistant/AIChat").then(m => ({ default: m.AIChat })));
 const OnboardingTour = lazy(() => import("@/components/onboarding/OnboardingTour"));
 const Pricing = lazy(() => import("@/pages/pricing"));
+const KeyboardShortcutsModal = lazy(() => import("@/components/keyboard-shortcuts").then(m => ({ default: m.KeyboardShortcutsModal })));
+const KeyboardShortcutsProvider = lazy(() => import("@/components/keyboard-shortcuts").then(m => ({ default: m.KeyboardShortcutsProvider })));
 const Account = lazy(() => import("@/pages/account"));
 const ProfileEdit = lazy(() => import("@/pages/profile-edit"));
 const ChangePassword = lazy(() => import("@/pages/change-password"));
 const ForgotPasswordAuth = lazy(() => import("@/pages/forgot-password"));
 const ResetPasswordAuth = lazy(() => import("@/pages/reset-password"));
 const SubscriptionSuccess = lazy(() => import("@/pages/subscription-success"));
+const PublicShareView = lazy(() => import("@/pages/share"));
 
 // Loading fallback component
 function PageLoader() {
@@ -68,13 +77,21 @@ function Router() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Switch>
+        {/* Public routes accessible without authentication */}
+        <Route path="/share/:token" component={PublicShareView} />
+        
         {isAuthenticated ? (
           <>
             <Route path="/" component={Home} />
             <Route path="/search/:id" component={SearchResults} />
+            <Route path="/search-result/:id" component={SearchResultDetail} />
             <Route path="/saved" component={SavedResults} />
             <Route path="/history" component={SearchHistory} />
             <Route path="/trending" component={Trending} />
+            <Route path="/bookmarks" component={Bookmarks} />
+            <Route path="/contributions" component={Contributions} />
+            <Route path="/resources" component={ResourceLibrary} />
+            <Route path="/resources/:id" component={ResourceDetail} />
             <Route path="/subscribe" component={Subscribe} />
             <Route path="/free-trial" component={FreeTrial} />
             <Route path="/validate-idea" component={ValidateIdeaPage} />
@@ -127,11 +144,14 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <div className="min-h-screen bg-background text-foreground flame-bg dark">
+            <SkipLink href="#main-content">Skip to main content</SkipLink>
             <Toaster />
             <Router />
             <Suspense fallback={null}>
               <AIChat />
               <OnboardingTour />
+              <KeyboardShortcutsProvider />
+              <KeyboardShortcutsModal />
             </Suspense>
           </div>
         </TooltipProvider>

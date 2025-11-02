@@ -26,6 +26,14 @@ Welcome to the Unbuilt documentation. This directory contains comprehensive guid
 - **[Performance Optimizations](../PERFORMANCE_OPTIMIZATIONS.md)** - Performance tuning guide
 - **[Contributing Guide](../CONTRIBUTING.md)** - How to contribute to the project
 
+### 📋 Feature Documentation
+- **[User Guide](USER_GUIDE.md)** - Comprehensive user documentation
+- **[FAQ](FAQ.md)** - Frequently asked questions
+- **[Features Overview](FEATURES.md)** - Complete feature list
+- **[Action Plan Quick Reference](ACTION_PLAN_QUICK_REFERENCE.md)** - Action plan customization guide
+- **[Conversations API](CONVERSATIONS_API.md)** - Interactive AI conversations
+- **[Resource Library API](RESOURCE_LIBRARY_API.md)** - Resource library endpoints
+
 ### 📊 Project Reports
 - **[Completion Reports](completion-reports/README.md)** - Detailed task completion reports
 - **[Progress Reports Archive](progress-reports/README.md)** - Historical development progress (60+ reports)

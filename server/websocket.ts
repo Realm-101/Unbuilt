@@ -5,6 +5,7 @@ import pg from 'pg';
 import { z } from 'zod';
 import * as schema from '@shared/schema';
 import type { CursorPosition, Metadata } from '@shared/types';
+import { planWebSocketService } from './services/planWebSocketService';
 
 const { Pool } = pg;
 
@@ -43,7 +44,17 @@ export class CollaborationServer {
   }
 
   private initialize() {
-    this.wss.on('connection', (ws: WebSocket, req) => {
+    this.wss.on('connection', async (ws: WebSocket, req) => {
+      // Try to authenticate using JWT for action plan features
+      const user = await planWebSocketService.authenticateConnection(ws, req);
+      
+      if (user) {
+        // Handle authenticated connection for action plans
+        planWebSocketService.handleConnection(ws, user);
+        return;
+      }
+
+      // Fallback to legacy authentication for collaboration features
       const userId = this.extractUserId(req);
       if (!userId) {
         ws.close(1008, 'Unauthorized');

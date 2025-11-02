@@ -74,6 +74,22 @@ import stripeRouter from "./routes/stripe";
 import searchHistoryRouter from "./routes/searchHistory";
 import profileRouter from "./routes/profile";
 import passwordResetRouter from "./routes/password-reset";
+import userPreferencesRouter from "./routes/userPreferences";
+import projectsRouter from "./routes/projects";
+import progressRouter from "./routes/progress";
+import helpRouter from "./routes/help";
+import searchRouter from "./routes/search";
+import shareRouter from "./routes/share";
+import conversationsRouter from "./routes/conversations";
+import usageRouter from "./routes/usage";
+import conversationMetricsRouter from "./routes/conversationMetrics";
+import conversationLogsRouter from "./routes/conversationLogs";
+import conversationAlertsRouter from "./routes/conversationAlerts";
+import resourcesRouter from "./routes/resources";
+import adminResourcesRouter from "./routes/adminResources";
+import plansRouter from "./routes/plans";
+import tasksRouter from "./routes/tasks";
+import templatesRouter from "./routes/templates";
 import { config, configStatus } from "./config";
 import Stripe from "stripe";
 
@@ -239,6 +255,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Password reset routes
   app.use('/api/password-reset', passwordResetRouter);
   
+  // User preferences routes
+  app.use('/api/user', userPreferencesRouter);
+  
+  // Projects routes
+  app.use('/api/projects', projectsRouter);
+  
+  // Progress tracking routes
+  app.use('/api/progress', progressRouter);
+  
+  // Help system routes
+  app.use('/api/help', helpRouter);
+  
+  // Global search routes
+  app.use('/api/search', searchRouter);
+  
+  // Share links routes
+  app.use('/api/share', shareRouter);
+  
+  // Conversation routes
+  app.use('/api/conversations', conversationsRouter);
+  
+  // Conversation metrics routes
+  app.use('/api/conversation-metrics', conversationMetricsRouter);
+  
+  // Conversation logs routes
+  app.use('/api/conversation-logs', conversationLogsRouter);
+  
+  // Conversation alerts routes
+  app.use('/api/conversation-alerts', conversationAlertsRouter);
+  
+  // Usage tracking routes
+  app.use('/api/usage', usageRouter);
+  
+  // Resource library routes
+  app.use('/api/resources', resourcesRouter);
+  
+  // Admin resource management routes
+  app.use('/api/admin/resources', adminResourcesRouter);
+  
+  // Action plan routes
+  app.use('/api/plans', plansRouter);
+  
+  // Task routes
+  app.use('/api/tasks', tasksRouter);
+  
+  // Template routes
+  app.use('/api/templates', templatesRouter);
+  
+  // Feature flag routes
+  const featureFlagsRouter = await import('./routes/featureFlags');
+  app.use('/api/feature-flags', featureFlagsRouter.default);
+  
+  // Performance monitoring routes
+  const performanceRouter = await import('./routes/performance');
+  app.use('/api/performance', performanceRouter.default);
+  
   // Privacy and data control routes
   app.use('/api/privacy', privacyRoutes);
 
@@ -326,6 +398,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const searchId = parseInt(req.params.id);
     const results = await storage.getSearchResults(searchId);
     sendSuccess(res, results);
+  }));
+
+  // Get single search result by ID
+  app.get("/api/results/:id", apiRateLimit, jwtAuth, validateIdParam, asyncHandler(async (req, res) => {
+    const resultId = parseInt(req.params.id);
+    const { searchResults } = await import("@shared/schema");
+    
+    const result = await db
+      .select()
+      .from(searchResults)
+      .where(eq(searchResults.id, resultId))
+      .limit(1);
+    
+    if (result.length === 0) {
+      return res.status(404).json({ success: false, error: 'Search result not found' });
+    }
+    
+    sendSuccess(res, result[0]);
+  }));
+
+  // Update search result (save/favorite)
+  app.patch("/api/results/:id/save", apiRateLimit, jwtAuth, validateIdParam, asyncHandler(async (req, res) => {
+    const resultId = parseInt(req.params.id);
+    const { isSaved } = req.body;
+    const { searchResults } = await import("@shared/schema");
+    
+    if (typeof isSaved !== 'boolean') {
+      return res.status(400).json({ success: false, error: 'isSaved must be a boolean' });
+    }
+    
+    await db
+      .update(searchResults)
+      .set({ isSaved })
+      .where(eq(searchResults.id, resultId));
+    
+    sendSuccess(res, { isSaved, message: isSaved ? 'Result saved' : 'Result unsaved' });
   }));
 
   // Get search history

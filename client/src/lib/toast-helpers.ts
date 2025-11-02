@@ -1,231 +1,121 @@
-import { toast } from '@/hooks/use-toast';
-import { CheckCircle2, XCircle, AlertCircle, Info } from 'lucide-react';
-
 /**
- * Toast Helper Functions
- * 
- * Provides convenient methods for showing common toast notifications
- * with consistent styling and icons.
+ * Toast notification helpers with semantic variants
+ * Provides convenient functions for showing success, error, warning, and info toasts
  */
+
+import { toast } from "@/hooks/use-toast";
+import { CheckCircle2, XCircle, AlertTriangle, Info } from "lucide-react";
+import type { ToastActionElement } from "@/components/ui/toast";
+
+export interface ToastOptions {
+  title?: string;
+  description?: string;
+  duration?: number;
+  action?: ToastActionElement;
+}
 
 /**
  * Show a success toast notification
- * 
- * @param title - Toast title
- * @param description - Optional description
- * 
- * @example
- * ```tsx
- * showSuccessToast('Saved!', 'Your changes have been saved successfully.');
- * ```
  */
-export function showSuccessToast(title: string, description?: string) {
+export function showSuccess(options: ToastOptions | string) {
+  const opts = typeof options === "string" ? { description: options } : options;
+  
   return toast({
-    title,
-    description,
-    variant: 'default',
-    className: 'border-green-500 bg-green-50 dark:bg-green-950',
+    variant: "success",
+    title: opts.title || "Success",
+    description: opts.description,
+    duration: opts.duration || 5000,
+    action: opts.action,
   });
 }
 
 /**
  * Show an error toast notification
- * 
- * @param title - Toast title
- * @param description - Optional description
- * 
- * @example
- * ```tsx
- * showErrorToast('Error', 'Failed to save changes. Please try again.');
- * ```
  */
-export function showErrorToast(title: string, description?: string) {
+export function showError(options: ToastOptions | string) {
+  const opts = typeof options === "string" ? { description: options } : options;
+  
   return toast({
-    title,
-    description,
-    variant: 'destructive',
+    variant: "error",
+    title: opts.title || "Error",
+    description: opts.description,
+    duration: opts.duration || 7000, // Errors stay longer
+    action: opts.action,
   });
 }
 
 /**
  * Show a warning toast notification
- * 
- * @param title - Toast title
- * @param description - Optional description
- * 
- * @example
- * ```tsx
- * showWarningToast('Warning', 'This action cannot be undone.');
- * ```
  */
-export function showWarningToast(title: string, description?: string) {
+export function showWarning(options: ToastOptions | string) {
+  const opts = typeof options === "string" ? { description: options } : options;
+  
   return toast({
-    title,
-    description,
-    variant: 'default',
-    className: 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950',
+    variant: "warning",
+    title: opts.title || "Warning",
+    description: opts.description,
+    duration: opts.duration || 6000,
+    action: opts.action,
   });
 }
 
 /**
  * Show an info toast notification
- * 
- * @param title - Toast title
- * @param description - Optional description
- * 
- * @example
- * ```tsx
- * showInfoToast('Info', 'New features are available.');
- * ```
  */
-export function showInfoToast(title: string, description?: string) {
+export function showInfo(options: ToastOptions | string) {
+  const opts = typeof options === "string" ? { description: options } : options;
+  
   return toast({
-    title,
-    description,
-    variant: 'default',
-    className: 'border-blue-500 bg-blue-50 dark:bg-blue-950',
+    variant: "info",
+    title: opts.title || "Info",
+    description: opts.description,
+    duration: opts.duration || 5000,
+    action: opts.action,
   });
 }
 
 /**
- * Show a loading toast notification
- * 
- * @param title - Toast title
- * @param description - Optional description
- * @returns Toast instance with dismiss method
- * 
- * @example
- * ```tsx
- * const loadingToast = showLoadingToast('Processing...', 'Please wait');
- * // Later...
- * loadingToast.dismiss();
- * ```
+ * Show a loading toast that can be updated
  */
-export function showLoadingToast(title: string, description?: string) {
+export function showLoading(message: string = "Loading...") {
   return toast({
-    title,
-    description,
-    variant: 'default',
+    variant: "info",
+    title: message,
     duration: Infinity, // Don't auto-dismiss
   });
 }
 
 /**
  * Show a promise toast that updates based on promise state
- * 
- * @param promise - Promise to track
- * @param messages - Messages for different states
- * 
- * @example
- * ```tsx
- * showPromiseToast(
- *   saveData(),
- *   {
- *     loading: 'Saving...',
- *     success: 'Saved successfully!',
- *     error: 'Failed to save'
- *   }
- * );
- * ```
  */
-export async function showPromiseToast<T>(
+export async function showPromise<T>(
   promise: Promise<T>,
   messages: {
     loading: string;
-    success: string;
-    error: string;
+    success: string | ((data: T) => string);
+    error: string | ((error: Error) => string);
   }
 ): Promise<T> {
-  const loadingToast = showLoadingToast(messages.loading);
+  const loadingToast = showLoading(messages.loading);
 
   try {
-    const result = await promise;
+    const data = await promise;
     loadingToast.dismiss();
-    showSuccessToast(messages.success);
-    return result;
+    
+    const successMessage = typeof messages.success === "function" 
+      ? messages.success(data) 
+      : messages.success;
+    
+    showSuccess(successMessage);
+    return data;
   } catch (error) {
     loadingToast.dismiss();
-    showErrorToast(messages.error);
+    
+    const errorMessage = typeof messages.error === "function" 
+      ? messages.error(error as Error) 
+      : messages.error;
+    
+    showError(errorMessage);
     throw error;
   }
-}
-
-/**
- * Show a confirmation action toast with undo capability
- * 
- * @param title - Toast title
- * @param description - Optional description
- * @param onUndo - Callback when undo is clicked
- * 
- * @example
- * ```tsx
- * showConfirmationToast(
- *   'Item deleted',
- *   'The item has been removed',
- *   () => restoreItem()
- * );
- * ```
- */
-export function showConfirmationToast(
-  title: string,
-  description?: string,
-  onUndo?: () => void
-) {
-  return toast({
-    title,
-    description,
-    variant: 'default',
-    action: onUndo ? {
-      altText: 'Undo',
-      onClick: onUndo,
-    } as any : undefined,
-  });
-}
-
-/**
- * Show a network error toast
- * 
- * @example
- * ```tsx
- * showNetworkErrorToast();
- * ```
- */
-export function showNetworkErrorToast() {
-  return showErrorToast(
-    'Connection Error',
-    'Unable to connect to the server. Please check your internet connection.'
-  );
-}
-
-/**
- * Show an authentication error toast
- * 
- * @example
- * ```tsx
- * showAuthErrorToast();
- * ```
- */
-export function showAuthErrorToast() {
-  return showErrorToast(
-    'Session Expired',
-    'Your session has expired. Please log in again.'
-  );
-}
-
-/**
- * Show a validation error toast
- * 
- * @param errors - Array of validation error messages
- * 
- * @example
- * ```tsx
- * showValidationErrorToast(['Email is required', 'Password is too short']);
- * ```
- */
-export function showValidationErrorToast(errors: string[]) {
-  const description = errors.length === 1 
-    ? errors[0] 
-    : errors.join(', ');
-  
-  return showErrorToast('Validation Error', description);
 }

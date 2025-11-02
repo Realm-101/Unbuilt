@@ -379,20 +379,20 @@ class SecureErrorHandler {
    * @returns True if error is network-related
    */
   private isNetworkError(error: Error): boolean {
-    const networkKeywords = [
+    // Only check for actual network error codes, not generic keywords
+    const networkErrorCodes = [
       'ECONNREFUSED',
       'ENOTFOUND',
       'ETIMEDOUT',
       'ECONNRESET',
-      'network',
-      'fetch failed',
-      'connection',
+      'ENETUNREACH',
+      'EHOSTUNREACH'
     ];
 
-    return networkKeywords.some(keyword => 
-      error.message?.toLowerCase().includes(keyword.toLowerCase()) ||
-      error.name?.toLowerCase().includes(keyword.toLowerCase())
-    );
+    // Check if error message or code contains actual network error codes
+    const errorString = `${error.message} ${error.name} ${(error as any).code || ''}`.toUpperCase();
+    
+    return networkErrorCodes.some(code => errorString.includes(code));
   }
 
   /**

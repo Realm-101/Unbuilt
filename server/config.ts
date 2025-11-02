@@ -3,6 +3,7 @@ interface Config {
   geminiApiKey: string | undefined;
   stripeSecretKey: string | undefined;
   sendgridApiKey: string | undefined;
+  redisUrl: string | undefined;
   isDevelopment: boolean;
   isProduction: boolean;
 }
@@ -11,6 +12,7 @@ export const config: Config = {
   geminiApiKey: process.env.GEMINI_API_KEY,
   stripeSecretKey: process.env.STRIPE_SECRET_KEY,
   sendgridApiKey: process.env.SENDGRID_API_KEY,
+  redisUrl: process.env.REDIS_URL,
   isDevelopment: process.env.NODE_ENV === 'development',
   isProduction: process.env.NODE_ENV === 'production',
 };
@@ -33,6 +35,10 @@ export function validateConfig() {
     warnings.push('SENDGRID_API_KEY not configured - email features disabled');
   }
 
+  if (!config.redisUrl) {
+    warnings.push('REDIS_URL not configured - caching features disabled');
+  }
+
   // Log warnings but don't fail
   warnings.forEach(warning => console.warn(`⚠️  ${warning}`));
   
@@ -41,6 +47,7 @@ export function validateConfig() {
     hasGemini: !!config.geminiApiKey,
     hasStripe: !!config.stripeSecretKey,
     hasSendgrid: !!config.sendgridApiKey,
+    hasRedis: !!config.redisUrl,
     warnings,
     errors
   };

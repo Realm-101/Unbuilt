@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Clock, Crown, Zap, Target, Lightbulb } from "lucide-react";
@@ -8,9 +8,16 @@ import LoadingModal from "@/components/loading-modal";
 import FreeTrialModal from "@/components/free-trial-modal";
 import UsageTracker from "@/components/usage-tracker";
 import { SearchFilters as SearchFiltersComponent, type SearchFilters } from "@/components/search/SearchFilters";
+import { UpgradePrompt } from "@/components/tier";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import type { Search } from "@shared/schema";
+
+interface UsageStats {
+  searchesUsed: number;
+  searchesLimit: number;
+  periodEnd: string;
+}
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -18,6 +25,7 @@ export default function Home() {
   const [showTrialModal, setShowTrialModal] = useState(false);
   const [searchFilters, setSearchFilters] = useState<SearchFilters | null>(null);
   const [totalResults, setTotalResults] = useState<number | undefined>(undefined);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const { user } = useAuth();
 
   // If user is not authenticated, return null (App.tsx handles routing)
@@ -33,6 +41,22 @@ export default function Home() {
       return Array.isArray(searches) ? searches.slice(0, 5) : [];
     },
   });
+
+  // Fetch usage stats for free tier users
+  const { data: usageStats } = useQuery<UsageStats>({
+    queryKey: ['/api/user/usage'],
+    enabled: !!user && (user as any).plan === 'free',
+  });
+
+  // Show upgrade prompt when approaching limit
+  useEffect(() => {
+    if (usageStats && (user as any)?.plan === 'free') {
+      const usagePercentage = (usageStats.searchesUsed / usageStats.searchesLimit) * 100;
+      if (usagePercentage >= 80) {
+        setShowUpgradePrompt(true);
+      }
+    }
+  }, [usageStats, user]);
 
   const handleSearch = async (query: string) => {
     setIsSearching(true);
@@ -124,6 +148,16 @@ export default function Home() {
           <div className="mb-6 sm:mb-8">
             <UsageTracker onUpgrade={handleUpgrade} />
           </div>
+
+          {/* Upgrade Prompt */}
+          {showUpgradePrompt && (
+            <div className="mb-6 sm:mb-8 max-w-2xl mx-auto">
+              <UpgradePrompt
+                reason="search-limit"
+                onDismiss={() => setShowUpgradePrompt(false)}
+              />
+            </div>
+          )}
 
           {/* Search with Filters */}
           <div className="mb-6 sm:mb-8">

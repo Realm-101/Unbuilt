@@ -1,512 +1,658 @@
 /**
- * Input Validation Middleware Tests
+ * Unit Tests for Validation Middleware
+ * Tests input validation, sanitization, SQL injection prevention, XSS prevention,
+ * data type validation, and size limits
  * 
- * Tests the input validation functionality including:
- * - SQL injection prevention
- * - XSS prevention
- * - Data type validation
- * - Size limit enforcement
- * - Special character handling
- * 
- * This is a critical security feature that protects against malicious input.
+ * Requirements: 4.1, 4.2, 4.3, 4.4, 4.6
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { Request, Response, NextFunction } from 'express';
 import {
-  mockFactory,
+  validateApiInput,
+  sanitizeInput,
+  validateLogin,
+  validateRegister,
+  validateSearch,
+  createRateLimit,
+} from '../validation';
+import { AppError } from '../errorHandler';
+import {
   createMockRequest,
   createMockResponse,
-  resetAllMocks,
-  type MockRequest,
-  type MockResponse,
+  createMockNext,
+  TEST_PATTERNS,
 } from '../../__tests__/imports';
 
-// Mock validation functions
-// In a real implementation, these would import from actual validation middleware
-class InputValidator {
-  // SQL Injection patterns
-  private sqlPatterns = [
-    /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE)\b)/i,
-    /(--|\;|\/\*|\*\/)/,
-    /(\bOR\b.*=.*)/i,
-    /(\bUNION\b.*\bSELECT\b)/i,
-  ];
-
-  // XSS patterns
-  private xssPatterns = [
-    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-    /javascript:/gi,
-    /on\w+\s*=/gi,
-    /<iframe/gi,
-  ];
-
-  validateInput(input: any): { valid: boolean; sanitized: any; errors: string[] } {
-    const errors: string[] = [];
-    let sanitized = input;
-
-    if (typeof input === 'string') {
-      // Check for SQL injection
-      if (this.containsSQLInjection(input)) {
-        errors.push('Potential SQL injection detected');
-      }
-
-      // Check for XSS
-      if (this.containsXSS(input)) {
-        errors.push('Potential XSS detected');
-      }
-
-      // Sanitize
-      sanitized = this.sanitizeString(input);
-    } else if (Array.isArray(input)) {
-      // Handle arrays
-      sanitized = [];
-      for (const item of input) {
-        const result = this.validateInput(item);
-        if (result.errors.length > 0) {
-          errors.push(...result.errors);
-        }
-        sanitized.push(result.sanitized);
-      }
-    } else if (typeof input === 'object' && input !== null) {
-      // Recursively validate objects
-      sanitized = {};
-      for (const [key, value] of Object.entries(input)) {
-        const result = this.validateInput(value);
-        if (result.errors.length > 0) {
-          errors.push(...result.errors);
-        }
-        sanitized[key] = result.sanitized;
-      }
-    }
-
-    return {
-      valid: errors.length === 0,
-      sanitized,
-      errors,
-    };
-  }
-
-  containsSQLInjection(input: string): boolean {
-    return this.sqlPatterns.some(pattern => pattern.test(input));
-  }
-
-  containsXSS(input: string): boolean {
-    return this.xssPatterns.some(pattern => pattern.test(input));
-  }
-
-  sanitizeString(input: string): string {
-    return input
-      .trim()
-      .replace(/\x00/g, '') // Remove null bytes
-      .replace(/[\r\n\t]/g, ' ') // Replace control characters
-      .replace(/\s+/g, ' '); // Normalize whitespace
-  }
-
-  validateEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  }
-
-  validateLength(input: string, min: number, max: number): boolean {
-    return input.length >= min && input.length <= max;
-  }
-
-  validateType(input: any, expectedType: string): boolean {
-    return typeof input === expectedType;
-  }
-}
-
-describe('Input Validation Middleware', () => {
-  let validator: InputValidator;
-  let mockReq: MockRequest;
-  let mockRes: MockResponse;
+describe('Validation Middleware', () => {
+  let mockReq: Partial<Request>;
+  let mockRes: Partial<Response>;
+  let mockNext: NextFunction;
 
   beforeEach(() => {
-    validator = new InputValidator();
     mockReq = createMockRequest();
     mockRes = createMockResponse();
-  });
-
-  afterEach(() => {
-    resetAllMocks();
+    mockNext = createMockNext();
   });
 
   describe('SQL Injection Prevention', () => {
-    it('should detect SQL SELECT injection', () => {
-      const input = "'; SELECT * FROM users; --";
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Potential SQL injection detected');
+    it('should detect SQL injection in body', () => {
+      mockReq.body = { query: TEST_PATTERNS.SQL_INJECTION };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Invalid input detected',
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
     });
 
-    it('should detect SQL DROP TABLE injection', () => {
-      const input = "'; DROP TABLE users; --";
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Potential SQL injection detected');
+    it('should detect SQL injection with SELECT statement', () => {
+      mockReq.body = { input: 'SELECT * FROM users' };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
     });
 
-    it('should detect SQL UNION injection', () => {
-      const input = "1' UNION SELECT password FROM users--";
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Potential SQL injection detected');
+    it('should detect SQL injection with UNION statement', () => {
+      mockReq.body = { input: 'UNION SELECT password FROM users' };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
     });
 
-    it('should detect SQL OR injection', () => {
-      const input = "admin' OR '1'='1";
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Potential SQL injection detected');
+    it('should detect SQL injection with OR 1=1', () => {
+      mockReq.body = { input: "admin' OR 1=1 --" };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
     });
 
-    it('should detect SQL comment injection', () => {
-      const input = "admin'--";
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Potential SQL injection detected');
+    it('should detect SQL injection in nested objects', () => {
+      mockReq.body = {
+        user: {
+          name: 'John',
+          filter: "'; DROP TABLE users; --",
+        },
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
     });
 
-    it('should allow safe SQL-like strings', () => {
-      const input = "I'm looking for select products";
-      const result = validator.validateInput(input);
+    it('should detect SQL injection in arrays', () => {
+      mockReq.body = {
+        filters: ['valid', "'; DELETE FROM users; --"],
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
+    });
 
-      // This might be flagged, but that's okay for security
-      // In production, you'd use parameterized queries anyway
-      expect(result).toBeDefined();
+    it('should detect SQL injection with WAITFOR DELAY', () => {
+      mockReq.body = { input: "'; WAITFOR DELAY '00:00:05' --" };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
+    });
+
+    it('should allow legitimate SQL-like text', () => {
+      mockReq.body = {
+        description: 'This product is great for selecting the best options',
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      // Should not be called with error
+      expect(mockNext).toHaveBeenCalledWith();
     });
   });
 
   describe('XSS Prevention', () => {
-    it('should detect script tag injection', () => {
-      const input = '<script>alert("XSS")</script>';
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Potential XSS detected');
+    it('should sanitize script tags', () => {
+      const input = TEST_PATTERNS.XSS_SCRIPT;
+      const sanitized = sanitizeInput(input);
+      
+      expect(sanitized).not.toContain('<script>');
+      expect(sanitized).not.toContain('</script>');
     });
 
-    it('should detect javascript: protocol', () => {
-      const input = '<a href="javascript:alert(1)">Click</a>';
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Potential XSS detected');
+    it('should sanitize img tags with onerror', () => {
+      const input = TEST_PATTERNS.XSS_IMG;
+      const sanitized = sanitizeInput(input);
+      
+      expect(sanitized).not.toContain('<img');
+      expect(sanitized).not.toContain('onerror');
     });
 
-    it('should detect event handler injection', () => {
-      const input = '<img src=x onerror="alert(1)">';
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Potential XSS detected');
+    it('should sanitize event handlers', () => {
+      const input = '<div onclick="alert(\'xss\')">Click me</div>';
+      const sanitized = sanitizeInput(input);
+      
+      expect(sanitized).not.toContain('onclick');
+      expect(sanitized).not.toContain('alert');
     });
 
-    it('should detect iframe injection', () => {
-      const input = '<iframe src="http://evil.com"></iframe>';
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Potential XSS detected');
+    it('should sanitize iframe tags', () => {
+      const input = '<iframe src="javascript:alert(\'xss\')"></iframe>';
+      const sanitized = sanitizeInput(input);
+      
+      expect(sanitized).not.toContain('<iframe');
+      expect(sanitized).not.toContain('javascript:');
     });
 
-    it('should allow safe HTML-like text', () => {
-      const input = 'I love <3 coding';
-      const result = validator.validateInput(input);
+    it('should sanitize nested XSS attempts', () => {
+      const input = '<div><script>alert("xss")</script></div>';
+      const sanitized = sanitizeInput(input);
+      
+      expect(sanitized).not.toContain('<script>');
+      expect(sanitized).not.toContain('alert');
+    });
 
-      expect(result.valid).toBe(true);
+    it('should sanitize encoded XSS attempts', () => {
+      const input = '&lt;script&gt;alert("xss")&lt;/script&gt;';
+      const sanitized = sanitizeInput(input);
+      
+      // HTML entities are preserved as-is, which is safe
+      expect(sanitized).toContain('&lt;');
+      expect(sanitized).toContain('&gt;');
+    });
+
+    it('should preserve safe text content', () => {
+      const input = 'This is safe text with <b>bold</b> formatting';
+      const sanitized = sanitizeInput(input);
+      
+      expect(sanitized).toContain('This is safe text');
+      expect(sanitized).not.toContain('<b>');
+    });
+
+    it('should sanitize objects with XSS', () => {
+      const input = {
+        name: 'John',
+        bio: '<script>alert("xss")</script>',
+      };
+      const sanitized = sanitizeInput(input);
+      
+      expect(sanitized.name).toBe('John');
+      expect(sanitized.bio).not.toContain('<script>');
+    });
+
+    it('should sanitize arrays with XSS', () => {
+      const input = ['safe', '<script>alert("xss")</script>'];
+      const sanitized = sanitizeInput(input);
+      
+      expect(sanitized[0]).toBe('safe');
+      expect(sanitized[1]).not.toContain('<script>');
     });
   });
 
   describe('Data Type Validation', () => {
-    it('should validate string type', () => {
-      const isValid = validator.validateType('hello', 'string');
-      expect(isValid).toBe(true);
+    it('should validate email format in login', () => {
+      mockReq.body = {
+        email: 'invalid-email',
+        password: 'password123',
+      };
+      
+      validateLogin(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+        })
+      );
     });
 
-    it('should validate number type', () => {
-      const isValid = validator.validateType(123, 'number');
-      expect(isValid).toBe(true);
+    it('should validate password length in login', () => {
+      mockReq.body = {
+        email: 'test@example.com',
+        password: '123',
+      };
+      
+      validateLogin(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+        })
+      );
     });
 
-    it('should validate boolean type', () => {
-      const isValid = validator.validateType(true, 'boolean');
-      expect(isValid).toBe(true);
+    it('should validate required fields in registration', () => {
+      mockReq.body = {
+        email: 'test@example.com',
+        // Missing password
+      };
+      
+      validateRegister(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+        })
+      );
     });
 
-    it('should validate object type', () => {
-      const isValid = validator.validateType({}, 'object');
-      expect(isValid).toBe(true);
+    it('should validate search query length', () => {
+      mockReq.body = {
+        query: '', // Empty query
+      };
+      
+      validateSearch(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+        })
+      );
     });
 
-    it('should reject wrong type', () => {
-      const isValid = validator.validateType('123', 'number');
-      expect(isValid).toBe(false);
+    it('should validate enum values', () => {
+      mockReq.body = {
+        query: 'test query',
+        filters: {
+          sortBy: 'invalid_sort', // Invalid enum value
+        },
+      };
+      
+      validateSearch(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+        })
+      );
     });
 
-    it('should validate email format', () => {
-      expect(validator.validateEmail('test@example.com')).toBe(true);
-      expect(validator.validateEmail('invalid-email')).toBe(false);
-      expect(validator.validateEmail('test@')).toBe(false);
-      expect(validator.validateEmail('@example.com')).toBe(false);
+    it('should validate number ranges', () => {
+      mockReq.body = {
+        query: 'test query',
+        filters: {
+          innovationScore: [0, 150], // Out of range
+        },
+      };
+      
+      validateSearch(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+        })
+      );
+    });
+
+    it('should accept valid data types', () => {
+      mockReq.body = {
+        email: 'test@example.com',
+        password: 'ValidPassword123!',
+      };
+      
+      validateLogin(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith();
     });
   });
 
   describe('Size Limit Validation', () => {
-    it('should validate minimum length', () => {
-      const isValid = validator.validateLength('hello', 3, 10);
-      expect(isValid).toBe(true);
+    it('should reject query that exceeds max length', () => {
+      mockReq.body = {
+        query: 'a'.repeat(2001), // Exceeds 2000 char limit
+      };
+      
+      validateSearch(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+        })
+      );
     });
 
-    it('should validate maximum length', () => {
-      const isValid = validator.validateLength('hello', 1, 10);
-      expect(isValid).toBe(true);
-    });
-
-    it('should reject too short input', () => {
-      const isValid = validator.validateLength('hi', 3, 10);
-      expect(isValid).toBe(false);
-    });
-
-    it('should reject too long input', () => {
-      const isValid = validator.validateLength('hello world!', 1, 5);
-      expect(isValid).toBe(false);
-    });
-
-    it('should handle exact length boundaries', () => {
-      expect(validator.validateLength('hello', 5, 5)).toBe(true);
-      expect(validator.validateLength('hello', 5, 10)).toBe(true);
-      expect(validator.validateLength('hello', 1, 5)).toBe(true);
+    it('should accept input within size limits', () => {
+      mockReq.body = {
+        query: 'a'.repeat(100), // Within 2000 char limit
+      };
+      
+      validateSearch(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith();
     });
   });
 
-  describe('String Sanitization', () => {
-    it('should trim whitespace', () => {
-      const sanitized = validator.sanitizeString('  hello  ');
-      expect(sanitized).toBe('hello');
-    });
-
+  describe('Input Sanitization', () => {
     it('should remove null bytes', () => {
-      const sanitized = validator.sanitizeString('hello\x00world');
-      expect(sanitized).toBe('helloworld');
+      const input = 'test\x00string';
+      const sanitized = sanitizeInput(input);
+      
+      expect(sanitized).toBe('teststring');
+      expect(sanitized).not.toContain('\x00');
     });
 
-    it('should normalize whitespace', () => {
-      const sanitized = validator.sanitizeString('hello    world');
-      expect(sanitized).toBe('hello world');
+    it('should remove control characters', () => {
+      const input = 'test\x01\x02\x03string';
+      const sanitized = sanitizeInput(input);
+      
+      expect(sanitized).toBe('teststring');
     });
 
-    it('should replace control characters', () => {
-      const sanitized = validator.sanitizeString('hello\r\n\tworld');
-      expect(sanitized).toBe('hello world');
+    it('should trim whitespace', () => {
+      const input = '  test string  ';
+      const sanitized = sanitizeInput(input);
+      
+      expect(sanitized).toBe('test string');
     });
 
-    it('should handle empty string', () => {
-      const sanitized = validator.sanitizeString('');
-      expect(sanitized).toBe('');
-    });
-
-    it('should handle string with only whitespace', () => {
-      const sanitized = validator.sanitizeString('   ');
-      expect(sanitized).toBe('');
-    });
-  });
-
-  describe('Nested Object Validation', () => {
-    it('should validate nested objects', () => {
-      const input = {
-        user: {
-          name: 'John',
-          email: 'john@example.com',
-        },
-      };
-
-      const result = validator.validateInput(input);
-      expect(result.valid).toBe(true);
-    });
-
-    it('should detect injection in nested objects', () => {
-      const input = {
-        user: {
-          name: 'John',
-          query: "'; DROP TABLE users; --",
-        },
-      };
-
-      const result = validator.validateInput(input);
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Potential SQL injection detected');
-    });
-
-    it('should sanitize nested strings', () => {
+    it('should sanitize nested objects', () => {
       const input = {
         user: {
           name: '  John  ',
-          description: 'Test\x00description',
+          bio: 'Test\x00bio',
         },
       };
-
-      const result = validator.validateInput(input);
-      expect(result.sanitized.user.name).toBe('John');
-      expect(result.sanitized.user.description).toBe('Testdescription');
+      const sanitized = sanitizeInput(input);
+      
+      expect(sanitized.user.name).toBe('John');
+      expect(sanitized.user.bio).toBe('Testbio');
     });
 
-    it('should handle deeply nested objects', () => {
+    it('should sanitize arrays', () => {
+      const input = ['  item1  ', 'item2\x00', '  item3  '];
+      const sanitized = sanitizeInput(input);
+      
+      expect(sanitized).toEqual(['item1', 'item2', 'item3']);
+    });
+
+    it('should preserve non-string values', () => {
       const input = {
-        level1: {
-          level2: {
-            level3: {
-              value: '  test  ',
-            },
+        name: 'John',
+        age: 30,
+        active: true,
+        data: null,
+      };
+      const sanitized = sanitizeInput(input);
+      
+      expect(sanitized.age).toBe(30);
+      expect(sanitized.active).toBe(true);
+      expect(sanitized.data).toBe(null);
+    });
+  });
+
+  describe('NoSQL Injection Prevention', () => {
+    it('should detect $where injection', () => {
+      mockReq.body = {
+        filter: { $where: 'function() { return true; }' },
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
+    });
+
+    it('should detect $ne injection', () => {
+      mockReq.body = {
+        filter: '$ne',
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
+    });
+
+    it('should detect $regex injection', () => {
+      mockReq.body = {
+        filter: { username: { $regex: '.*' } },
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
+    });
+
+    it('should detect javascript: protocol', () => {
+      mockReq.body = {
+        url: 'javascript:alert("xss")',
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
+    });
+
+    it('should detect eval() injection', () => {
+      mockReq.body = {
+        code: 'eval(maliciousCode)',
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
+    });
+  });
+
+  describe('Export Endpoint Bypass', () => {
+    it('should skip validation for export endpoints', () => {
+      mockReq.path = '/api/export/pdf';
+      mockReq.body = {
+        data: 'Some data with special chars: <>&"',
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      // Should call next without error
+      expect(mockNext).toHaveBeenCalledWith();
+    });
+
+    it('should skip validation for email-report endpoints', () => {
+      mockReq.path = '/api/email-report';
+      mockReq.body = {
+        content: 'Report with special formatting',
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith();
+    });
+
+    it('should apply validation to non-export endpoints', () => {
+      mockReq.path = '/api/search';
+      mockReq.body = {
+        query: TEST_PATTERNS.SQL_INJECTION,
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle validation errors gracefully', () => {
+      mockReq.body = {
+        email: 'invalid',
+        password: '123',
+      };
+      
+      validateLogin(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+        })
+      );
+    });
+
+    it('should provide detailed error information', () => {
+      mockReq.body = {
+        email: 'invalid',
+        password: '123',
+      };
+      
+      validateLogin(mockReq as Request, mockRes as Response, mockNext);
+      
+      const error = (mockNext as any).mock.calls[0][0];
+      expect(error).toHaveProperty('code');
+      expect(error).toHaveProperty('message');
+    });
+
+    it('should handle malformed input gracefully', () => {
+      mockReq.body = null;
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      // Should not throw, should call next
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    it('should handle undefined input gracefully', () => {
+      mockReq.body = undefined;
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalled();
+    });
+  });
+
+  describe('Query Parameter Validation', () => {
+    it('should sanitize query parameters', () => {
+      mockReq.query = {
+        search: '  test query  ',
+        filter: 'value\x00',
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockReq.query.search).toBe('test query');
+      expect(mockReq.query.filter).toBe('value');
+    });
+
+    it('should detect injection in query parameters', () => {
+      mockReq.query = {
+        id: "1 OR 1=1",
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
+    });
+  });
+
+  describe('URL Parameter Validation', () => {
+    it('should sanitize URL parameters', () => {
+      mockReq.params = {
+        id: '  123  ',
+        name: 'test\x00name',
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockReq.params.id).toBe('123');
+      expect(mockReq.params.name).toBe('testname');
+    });
+
+    it('should detect injection in URL parameters', () => {
+      mockReq.params = {
+        id: "'; DROP TABLE users; --",
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MALICIOUS_INPUT_DETECTED',
+        })
+      );
+    });
+  });
+
+  describe('Combined Validation', () => {
+    it('should apply all validations together', () => {
+      mockReq.body = {
+        email: '  test@example.com  ',
+        password: '  password123  ',
+        bio: '<script>alert("xss")</script>',
+      };
+      
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
+      
+      expect(mockReq.body.email).toBe('test@example.com');
+      expect(mockReq.body.password).toBe('password123');
+      expect(mockReq.body.bio).not.toContain('<script>');
+    });
+
+    it('should validate and sanitize nested structures', () => {
+      mockReq.body = {
+        user: {
+          profile: {
+            name: '  John  ',
+            bio: 'Test\x00bio',
           },
         },
       };
-
-      const result = validator.validateInput(input);
-      expect(result.sanitized.level1.level2.level3.value).toBe('test');
-    });
-  });
-
-  describe('Array Validation', () => {
-    it('should validate arrays of strings', () => {
-      const input = ['hello', 'world'];
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(true);
-    });
-
-    it('should detect injection in arrays', () => {
-      const input = ['hello', "'; DROP TABLE users; --"];
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(false);
-    });
-
-    it('should sanitize array elements', () => {
-      const input = ['  hello  ', '  world  '];
-      const result = validator.validateInput(input);
-
-      expect(result.sanitized[0]).toBe('hello');
-      expect(result.sanitized[1]).toBe('world');
-    });
-  });
-
-  describe('Edge Cases', () => {
-    it('should handle null input', () => {
-      const result = validator.validateInput(null);
-      expect(result.valid).toBe(true);
-      expect(result.sanitized).toBe(null);
-    });
-
-    it('should handle undefined input', () => {
-      const result = validator.validateInput(undefined);
-      expect(result.valid).toBe(true);
-      expect(result.sanitized).toBe(undefined);
-    });
-
-    it('should handle empty object', () => {
-      const result = validator.validateInput({});
-      expect(result.valid).toBe(true);
-      expect(result.sanitized).toEqual({});
-    });
-
-    it('should handle empty array', () => {
-      const result = validator.validateInput([]);
-      expect(result.valid).toBe(true);
-      expect(result.sanitized).toEqual([]);
-    });
-
-    it('should handle number input', () => {
-      const result = validator.validateInput(123);
-      expect(result.valid).toBe(true);
-      expect(result.sanitized).toBe(123);
-    });
-
-    it('should handle boolean input', () => {
-      const result = validator.validateInput(true);
-      expect(result.valid).toBe(true);
-      expect(result.sanitized).toBe(true);
-    });
-  });
-
-  describe('Special Characters', () => {
-    it('should handle unicode characters', () => {
-      const input = 'Hello 世界 🌍';
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(true);
-      expect(result.sanitized).toContain('世界');
-      expect(result.sanitized).toContain('🌍');
-    });
-
-    it('should handle special punctuation', () => {
-      const input = "Hello! How's it going?";
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(true);
-    });
-
-    it('should handle mathematical symbols', () => {
-      const input = '2 + 2 = 4';
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(true);
-    });
-
-    it('should handle currency symbols', () => {
-      const input = '$100 €50 ¥1000';
-      const result = validator.validateInput(input);
-
-      expect(result.valid).toBe(true);
-    });
-  });
-
-  describe('Performance', () => {
-    it('should handle large strings efficiently', () => {
-      const largeString = 'a'.repeat(10000);
-      const startTime = Date.now();
       
-      const result = validator.validateInput(largeString);
+      validateApiInput(mockReq as Request, mockRes as Response, mockNext);
       
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      expect(result.valid).toBe(true);
-      expect(duration).toBeLessThan(100); // Should complete in less than 100ms
-    });
-
-    it('should handle large objects efficiently', () => {
-      const largeObject: any = {};
-      for (let i = 0; i < 1000; i++) {
-        largeObject[`key${i}`] = `value${i}`;
-      }
-
-      const startTime = Date.now();
-      const result = validator.validateInput(largeObject);
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      expect(result.valid).toBe(true);
-      expect(duration).toBeLessThan(500); // Should complete in less than 500ms
+      expect(mockReq.body.user.profile.name).toBe('John');
+      expect(mockReq.body.user.profile.bio).toBe('Testbio');
     });
   });
 });
-
-/**
- * TODO: Connect to actual validation middleware
- * 
- * Next steps:
- * 1. Import actual validation middleware from server/middleware
- * 2. Test with real Express request/response objects
- * 3. Add integration with error handling
- * 4. Add configuration for validation rules
- * 5. Add security event logging
- * 6. Test with real API endpoints
- * 
- * For now, this provides the test structure and demonstrates expected behavior.
- */

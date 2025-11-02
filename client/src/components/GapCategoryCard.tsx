@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useLocation } from "wouter";
 import { 
   Bookmark, 
   Share2, 
@@ -23,11 +24,12 @@ interface GapCategoryCardProps {
   result: SearchResult;
   onSave: (id: number, isSaved: boolean) => void;
   onShare: (result: SearchResult) => void;
-  onViewDetails: (result: SearchResult) => void;
+  onViewDetails?: (result: SearchResult) => void;
 }
 
 export default function GapCategoryCard({ result, onSave, onShare, onViewDetails }: GapCategoryCardProps) {
   const [isSaved, setIsSaved] = useState(result.isSaved);
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   const handleSave = () => {
@@ -39,6 +41,16 @@ export default function GapCategoryCard({ result, onSave, onShare, onViewDetails
       title: newSavedState ? "Result saved" : "Result unsaved",
       description: newSavedState ? "Added to your saved results" : "Removed from saved results",
     });
+  };
+
+  const handleViewDetails = () => {
+    // Navigate to the detail page
+    setLocation(`/search-result/${result.id}`);
+    
+    // Also call the callback if provided (for backwards compatibility)
+    if (onViewDetails) {
+      onViewDetails(result);
+    }
   };
 
   // Map structured categories to display info
@@ -244,7 +256,7 @@ export default function GapCategoryCard({ result, onSave, onShare, onViewDetails
           <Button 
             variant="ghost" 
             className="text-orange-400 hover:text-orange-300 hover:bg-orange-400/10 touch-manipulation min-h-[44px] text-sm"
-            onClick={() => onViewDetails(result)}
+            onClick={handleViewDetails}
           >
             View Full Analysis <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 ml-2" />
           </Button>

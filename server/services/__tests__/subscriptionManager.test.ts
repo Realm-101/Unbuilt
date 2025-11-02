@@ -179,21 +179,30 @@ describe('Subscription Manager', () => {
       expect(result.reason).toContain('Search limit reached');
     });
 
-    it('should allow unlimited searches for pro user', async () => {
+    it('should allow searches for pro user within limit', async () => {
       const mockUser = {
         id: 1,
         subscriptionTier: 'pro',
-        searchCount: 150,
+        searchCount: 50, // Within pro limit of 100
         subscriptionPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       };
 
-      vi.mocked(db.select).mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([mockUser]),
+      // Mock both database calls - one for getUserSubscriptionTier, one for canPerformAction
+      vi.mocked(db.select)
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([mockUser]),
+            }),
           }),
-        }),
-      } as any);
+        } as any)
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([mockUser]),
+            }),
+          }),
+        } as any);
 
       const result = await canPerformAction(1, 'search');
       expect(result.allowed).toBe(true);

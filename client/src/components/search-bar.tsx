@@ -28,14 +28,16 @@ export default function SearchBar({ onSearch, loading = false, placeholder = "En
           onChange={(e) => setQuery(e.target.value)}
           className="flex-1 outline-none text-lg"
           disabled={loading}
+          data-testid="search-input"
         />
         <button 
           type="submit"
           disabled={!query.trim() || loading}
           className="bg-google-blue text-white px-6 py-2 rounded-full hover:bg-google-blue-dark transition-colors ml-4 disabled:opacity-50 disabled:cursor-not-allowed"
+          data-testid="search-submit"
         >
           {loading ? (
-            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" data-testid="search-loading" />
           ) : (
             <ArrowRight className="w-5 h-5" />
           )}

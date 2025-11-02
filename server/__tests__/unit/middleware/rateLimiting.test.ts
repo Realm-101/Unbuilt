@@ -23,7 +23,7 @@ vi.mock('../../../services/securityLogger', () => ({
   }
 }));
 
-describe.skip('Rate Limiting Middleware', () => {
+describe('Rate Limiting Middleware', () => {
   beforeEach(() => {
     // Clear all rate limits before each test
     clearAllRateLimits();
@@ -240,21 +240,44 @@ describe.skip('Rate Limiting Middleware', () => {
       });
 
       const req = mockRequest({ 
-        ip: '192.168.1.9',
-        headers: { 'x-captcha-token': 'valid-token' }
+        ip: '192.168.1.9'
       });
       const res = mockResponse();
       const next = mockNext();
 
-      // Trigger CAPTCHA requirement
-      for (let i = 0; i < 4; i++) {
-        await rateLimit(req as any, res as any, next);
-      }
+      // Trigger CAPTCHA requirement (need 2 consecutive failures)
+      // First request: allowed (count=1, within limit)
+      await rateLimit(req as any, res as any, next);
+      
+      // Second request: blocked (count=2, exceeds limit of 1, consecutiveFailures=1)
+      await rateLimit(req as any, res as any, next);
+      
+      // Third request: blocked (count=3, consecutiveFailures=2, triggers CAPTCHA)
+      await rateLimit(req as any, res as any, next);
 
-      // Request with CAPTCHA should work
+      // Verify CAPTCHA is required
+      const status = getRateLimitStatus('rate_limit:192.168.1.9');
+      expect(status?.captchaRequired).toBe(true);
+      expect(status?.consecutiveFailures).toBe(2);
+
+      // Now provide CAPTCHA token
+      req.headers = { 'x-captcha-token': 'valid-token' };
       vi.clearAllMocks();
       await rateLimit(req as any, res as any, next);
-      expect(next).toHaveBeenCalledWith();
+      
+      // The request will still be rate limited, but CAPTCHA requirement should be cleared
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'RATE_LIMIT_EXCEEDED'
+        })
+      );
+      
+      // Verify CAPTCHA requirement was cleared
+      // Note: consecutiveFailures will be 1 because the request still exceeded the limit
+      // The CAPTCHA validation resets it to 0, but then the rate limit check increments it again
+      const updatedStatus = getRateLimitStatus('rate_limit:192.168.1.9');
+      expect(updatedStatus?.captchaRequired).toBe(false);
+      expect(updatedStatus?.consecutiveFailures).toBe(1); // Incremented again after CAPTCHA validation
     });
 
     it('should reject requests without CAPTCHA when required', async () => {

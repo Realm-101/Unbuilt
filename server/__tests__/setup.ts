@@ -6,12 +6,16 @@
 
 import { beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import dotenv from 'dotenv';
+import { isDatabaseAvailable } from './helpers/test-db.js';
 
 // Load test environment variables
 dotenv.config({ path: '.env.test' });
 
 // Set test environment
 process.env.NODE_ENV = 'test';
+
+// Check database availability
+let dbAvailable = false;
 
 // Mock console methods to reduce noise in test output
 const originalConsole = {
@@ -22,7 +26,21 @@ const originalConsole = {
 };
 
 // Global test setup
-beforeAll(() => {
+beforeAll(async () => {
+  // Check if database is available
+  try {
+    dbAvailable = await isDatabaseAvailable();
+    if (dbAvailable) {
+      console.log('✅ Test database is available');
+    } else {
+      console.warn('⚠️  Test database is not available - database tests will be skipped');
+      console.warn('   Run: npm run test:db:setup to initialize the test database');
+    }
+  } catch (error) {
+    console.warn('⚠️  Could not connect to test database:', error);
+    console.warn('   Run: npm run test:db:setup to initialize the test database');
+  }
+
   // Suppress console output during tests (optional)
   if (process.env.SUPPRESS_TEST_LOGS === 'true') {
     console.log = vi.fn();
@@ -107,3 +125,10 @@ export const testUtils = {
 
 // Export for use in tests
 export { vi };
+
+/**
+ * Check if database is available for tests
+ */
+export function isDbAvailable(): boolean {
+  return dbAvailable;
+}

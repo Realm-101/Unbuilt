@@ -55,7 +55,7 @@ vi.mock('../../services/authorizationService', () => ({
   }
 }));
 
-describe.skip('Middleware Error Handling', () => {
+describe('Middleware Error Handling', () => {
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
   let mockNext: NextFunction;
@@ -145,14 +145,17 @@ describe.skip('Middleware Error Handling', () => {
       expect(mockNext).toHaveBeenCalled();
     });
 
-    it('should handle security errors in securityErrorHandler', () => {
+    it('should handle security errors in securityErrorHandler', async () => {
       const error = {
         name: 'UnauthorizedError',
         message: 'Unauthorized',
         statusCode: 401
       };
 
-      securityErrorHandler(error, mockReq as Request, mockRes as Response, mockNext);
+      // Ensure the mock returns a resolved promise
+      vi.mocked(securityLogger.logSecurityEvent).mockResolvedValue(undefined);
+
+      await securityErrorHandler(error, mockReq as Request, mockRes as Response, mockNext);
 
       // Should call next with error
       expect(mockNext).toHaveBeenCalledWith(error);

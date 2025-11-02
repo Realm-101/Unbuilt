@@ -1,5 +1,18 @@
 import { createClient, RedisClientType } from 'redis';
-import { log } from '../vite';
+
+// Use console.log in test environment, vite logger otherwise
+const log = (message: string, level: 'info' | 'error' | 'warn' = 'info') => {
+  if (process.env.NODE_ENV === 'test') {
+    console.log(`[Redis ${level.toUpperCase()}] ${message}`);
+  } else {
+    try {
+      const { log: viteLog } = require('../vite');
+      viteLog(message, level);
+    } catch {
+      console.log(`[Redis ${level.toUpperCase()}] ${message}`);
+    }
+  }
+};
 
 /**
  * Redis Cache Service
@@ -51,9 +64,16 @@ class CacheService {
       });
 
       await this.client.connect();
+      
+      // Verify connection with a ping
+      if (this.client.isOpen) {
+        await this.client.ping();
+        this.isConnected = true;
+        log('Redis: Connection verified with ping', 'info');
+      }
     } catch (error) {
       log(`Failed to connect to Redis: ${error}`, 'error');
-      this.isConnected = false;
+      this.isC
       // Don't throw - allow app to run without cache
     }
   }

@@ -5,7 +5,14 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/client/**'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/client/**',
+      '**/*.e2e.test.ts',
+      '**/e2e/**',
+      '**/page-objects/**'
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],

@@ -49,10 +49,15 @@ Unbuilt is a full-stack web application that helps entrepreneurs and innovators 
 #### 🔍 Core Platform
 - **AI-Powered Gap Analysis** - Advanced market research using Google Gemini 2.5 Pro
 - **Comprehensive Insights** - Innovation scores, market potential, and feasibility ratings
-- **Action Plan Generator** - 4-phase development roadmaps for identified opportunities
+- **Customizable Action Plans** - Interactive 4-phase development roadmaps with full customization
+- **Task Management** - Add, edit, delete, reorder tasks with drag-and-drop
+- **Progress Tracking** - Real-time completion tracking with milestone celebrations
+- **Task Dependencies** - Set prerequisites to enforce logical task order
+- **Plan Templates** - Pre-built templates for different project types
+- **Smart Recommendations** - Context-aware suggestions based on your progress
 - **Competitive Analysis** - Market positioning insights and competitor landscape
 - **Market Intelligence** - Demographics, growth opportunities, and market sizing
-- **Professional Export** - PDF reports, CSV data, and investor pitch decks
+- **Professional Export** - PDF reports, CSV data, action plans (CSV/JSON/Markdown/Trello/Asana), and investor pitch decks
 
 #### 🔒 Enterprise Security
 - **Multi-Layer Authentication** - JWT tokens with refresh rotation and session management
@@ -343,6 +348,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **[Test Infrastructure](server/__tests__/INFRASTRUCTURE_SETUP.md)** - Mock factory and utilities
 - **[Test Completion Report](docs/progress-reports/TEST_DEBT_PROJECT_COMPLETE.md)** - Test debt remediation summary
 - **[Quick Test Reference](QUICK_TEST_REFERENCE.md)** - Handy reference card for developers
+- **[E2E Testing Guide](docs/E2E_TESTING_GUIDE.md)** - End-to-end testing with Playwright
+- **[E2E Test Maintenance](docs/E2E_TEST_MAINTENANCE.md)** - Maintaining and debugging E2E tests
 
 ### 🎯 Code Quality
 - **TypeScript Coverage:** 92% type-safe (4 known Drizzle ORM limitations)
@@ -374,11 +381,59 @@ npm test -- --run             # Run all tests once
 npm test -- --run --coverage  # Run tests with coverage report
 npm run test:security         # Run security-specific tests
 npm run test:integration      # Run integration tests
+npm run test:e2e              # Run end-to-end tests
+npm run test:e2e -- --headed  # Run E2E tests in headed mode
+npm run test:e2e -- --debug   # Debug E2E tests with Playwright Inspector
 ```
 
 **Test Suite Status:** ✅ 743 tests passing | 93.49% security coverage | 0% flaky tests
 
 See [Test Documentation](server/__tests__/README.md) for comprehensive testing guide.
+
+### End-to-End Testing
+
+Unbuilt includes a comprehensive E2E testing framework using Playwright:
+
+```bash
+# Run all E2E tests
+npm run test:e2e
+
+# Run specific test suite
+npm run test:e2e -- auth/authentication.e2e.test.ts
+
+# Run tests in specific browser
+npm run test:e2e -- --project=chromium
+npm run test:e2e -- --project=firefox
+npm run test:e2e -- --project=webkit
+
+# Run tests with visual debugging
+npm run test:e2e -- --headed
+
+# Debug tests step-by-step
+npm run test:e2e -- --debug
+
+# Update visual regression baselines
+npm run test:e2e -- --update-snapshots
+```
+
+**E2E Test Coverage:**
+- ✅ Authentication & Authorization flows
+- ✅ Core features (search, conversations, resources, projects)
+- ✅ WCAG 2.1 AA accessibility compliance
+- ✅ Performance metrics (Core Web Vitals)
+- ✅ Visual regression testing
+- ✅ Security headers and input validation
+- ✅ Mobile and responsive design
+- ✅ Documentation validation
+
+**CI/CD Integration:**
+- Automated E2E tests on every pull request
+- Multi-browser testing (Chromium, Firefox, WebKit)
+- Mobile browser testing (iOS Safari, Android Chrome)
+- Automatic screenshot and video capture on failure
+- Performance monitoring and trend tracking
+
+See [E2E Testing Guide](docs/E2E_TESTING_GUIDE.md) for detailed documentation.
 
 ### Development
 ```bash

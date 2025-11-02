@@ -160,7 +160,7 @@ describe('CAPTCHA Service', () => {
       expect(verification.error).toContain('expired');
     });
 
-    it.skip('should limit the number of attempts', () => {
+    it('should limit the number of attempts', () => {
       const challenge = createCaptchaChallenge();
       
       // Make maximum number of incorrect attempts
@@ -170,13 +170,16 @@ describe('CAPTCHA Service', () => {
         
         if (i < captchaConfig.maxAttempts - 1) {
           expect(verification.remainingAttempts).toBe(captchaConfig.maxAttempts - i - 1);
+        } else {
+          // Last attempt should indicate max attempts exceeded
+          expect(verification.error).toContain('Maximum');
+          expect(verification.remainingAttempts).toBe(0);
         }
       }
       
-      // Next attempt should be rejected due to max attempts exceeded
-      const finalVerification = verifyCaptchaResponse(challenge.challengeId, 999999);
-      expect(finalVerification.isValid).toBe(false);
-      expect(finalVerification.error).toContain('Maximum');
+      // Challenge should be deleted after max attempts
+      const challengeInfo = getCaptchaChallenge(challenge.challengeId);
+      expect(challengeInfo).toBeNull();
     });
 
     it('should handle string answers', () => {

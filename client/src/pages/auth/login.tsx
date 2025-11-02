@@ -119,6 +119,7 @@ export default function Login() {
                       <Input
                         type="email"
                         placeholder="Enter your email"
+                        data-testid="login-email"
                         {...field}
                       />
                     </FormControl>
@@ -137,6 +138,7 @@ export default function Login() {
                       <Input
                         type="password"
                         placeholder="Enter your password"
+                        data-testid="login-password"
                         {...field}
                       />
                     </FormControl>
@@ -146,7 +148,7 @@ export default function Login() {
               />
               
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" data-testid="login-error">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
@@ -155,6 +157,7 @@ export default function Login() {
                 type="submit" 
                 className="w-full btn-premium"
                 disabled={loading}
+                data-testid="login-submit"
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign In
@@ -167,6 +170,7 @@ export default function Login() {
               <button
                 onClick={() => setLocation("/auth/forgot-password")}
                 className="text-purple-500 hover:text-purple-700 font-medium hover:underline"
+                data-testid="login-forgot-password-link"
               >
                 Forgot your password?
               </button>
@@ -176,6 +180,7 @@ export default function Login() {
               <button
                 onClick={() => setLocation("/auth/register")}
                 className="text-purple-500 hover:text-purple-700 font-medium hover:underline"
+                data-testid="login-signup-link"
               >
                 Sign up
               </button>
