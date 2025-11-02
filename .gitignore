@@ -8,13 +8,22 @@ yarn-error.log*
 dist/
 build/
 
-# Environment variables
+# Environment variables - ALL secrets and credentials
 .env
 .env.local
+.env.*.local
+.env.development
 .env.development.local
 .env.test.local
-.env.production.local
 .env.production
+.env.production.local
+.env.staging
+.env.staging.local
+
+# Keep example/template files (these should NOT contain real secrets)
+!.env.example
+!.env.*.example
+!.env.*.template
 
 # Database
 *.sqlite
@@ -80,3 +89,50 @@ drizzle/
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Security & Secrets
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+.secrets/
+secrets/
+credentials/
+*.credentials
+.aws/
+.gcp/
+
+# API Keys & Tokens
+.api-keys
+api-keys.json
+tokens.json
+*.token
+
+# SSL Certificates
+ssl/
+certs/
+
+# Backup files that might contain secrets
+*.backup
+*.bak
+*.old
+*.orig
+
+# Database dumps (may contain sensitive data)
+*.sql
+*.dump
+*.dmp
+
+# Playwright artifacts (may contain sensitive screenshots)
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Test artifacts that might contain sensitive data
+server/__tests__/reports/
+server/__tests__/artifacts/
+server/__tests__/screenshots/
+server/__tests__/videos/
+server/__tests__/traces/
